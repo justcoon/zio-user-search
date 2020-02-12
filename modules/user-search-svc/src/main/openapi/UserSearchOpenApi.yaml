@@ -1,0 +1,172 @@
+openapi: 3.0.2
+servers:
+  - url: /v1
+info:
+  description: |-
+    User search svc OpenAPI 3.0 specification.
+  version: 1.0.0-SNAPSHOT
+  title: User search svc - OpenAPI 3.0
+  termsOfService: 'http://swagger.io/terms/'
+  contact:
+    email: xxx@xxx.com
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+tags:
+  - name: user
+    description: Access to users
+    externalDocs:
+      description: TODO
+      url: 'http://swagger.io'
+paths:
+  '/user/{id}':
+    get:
+      tags:
+        - user
+      summary: Get user by user id
+      description: ''
+      operationId: getUser
+      parameters:
+        - name: id
+          in: path
+          description: 'The id that needs to be fetched. Use user1 for testing. '
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+  /user/search:
+    get:
+      tags:
+        - user
+      summary: Search users
+      description: ''
+      operationId: searchUsers
+      parameters:
+        - name: query
+          description: search query
+          in: query
+          required: false
+          schema:
+            type: string
+          example: search
+        - name: page
+          description: page number
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+          example: 0
+        - name: pageSize
+          description: page size
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+          example: 10
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSearchResponse'
+externalDocs:
+  description: Find out more about Swagger
+  url: 'http://swagger.io'
+components:
+  schemas:
+    Address:
+      properties:
+        street:
+          type: string
+          example: Lytton
+        number:
+          type: string
+          example: 437
+        city:
+          type: string
+          example: Palo Alto
+        state:
+          type: string
+          example: CA
+        zip:
+          type: string
+          example: 94301
+        country:
+          type: string
+          example: USA
+      type: object
+      required:
+        - street
+        - number
+        - city
+        - state
+        - zip
+        - country
+    User:
+      x-swagger-router-model: io.swagger.user.model.User
+      properties:
+        id:
+          type: string
+          example: 10
+        username:
+          type: string
+          example: theUser
+        email:
+          type: string
+          example: john@email.com
+        pass:
+          type: string
+          example: 12345
+        address:
+          $ref: '#/components/schemas/Address'
+      type: object
+      required:
+        - username
+        - email
+        - pass
+    UserArray:
+      type: array
+      items:
+        $ref: '#/components/schemas/User'
+      description: List of user object
+    UserSearchResponse:
+      description: User search response
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        page:
+          type: integer
+          format: int32
+          example: 0
+        pageSize:
+          type: integer
+          format: int32
+          example: 10
+        count:
+          type: integer
+          format: int32
+          example: 12
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - count
+  securitySchemes:
+    bearerAuth:            # arbitrary name for the security scheme
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

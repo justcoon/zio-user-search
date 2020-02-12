@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+import "scalapb/scalapb.proto";
+import "google/protobuf/timestamp.proto";
+
+package c.user.domain.proto;
+
+option (scalapb.options) = {
+  package_name: "c.user.domain.proto"
+  import: "c.user.domain.proto._"
+  flat_package: true
+};
+
+message Address {
+    string street = 1;
+    string number = 2;
+    string zip = 3;
+    string city = 4;
+    string state = 5;
+    string country = 6;
+}
+
+message User {
+    string id = 1 [(scalapb.field).type = "c.user.domain.UserEntity.UserId"];
+    string username = 2;
+    string email = 3;
+    string pass = 4;
+    Address address = 5;
+}
+
+message UserPayloadEvent {
+
+    option (scalapb.message).extends = "c.user.domain.UserEntity.UserEvent";
+    string entityId = 1 [(scalapb.field).type = "c.user.domain.UserEntity.UserId"];
+    google.protobuf.Timestamp timestamp = 2 [(scalapb.field).type = "java.time.Instant", (scalapb.field).no_box = true];
+
+    oneof payload {
+        UserCreatedPayload created = 3;
+        UserRemovedPayload removed = 4;
+        UserAddressUpdatedPayload addressUpdated = 5;
+        UserPasswordUpdatedPayload passwordUpdated = 6;
+        UserEmailUpdatedPayload emailUpdated = 7;
+    }
+}
+
+message UserCreatedPayload {
+    string username = 1;
+    string email = 2;
+    string pass = 3;
+    Address address = 4;
+}
+
+
+message UserRemovedPayload {
+
+}
+
+message UserAddressUpdatedPayload {
+    Address address = 1;
+}
+
+message UserPasswordUpdatedPayload {
+    string pass = 1;
+}
+
+message UserEmailUpdatedPayload {
+    string email = 1;
+}

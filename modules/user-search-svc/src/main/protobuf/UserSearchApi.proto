@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+import "scalapb/scalapb.proto";
+//import "google/protobuf/timestamp.proto";
+import "UserEntity.proto";
+
+package c.user.api.proto;
+
+option (scalapb.options) = {
+  package_name: "c.user.search.api.proto"
+//  import: "c.user.api.proto._"
+  flat_package: true
+};
+
+//option java_multiple_files = true;
+//option java_package = "c.user.api.proto";
+
+message GetUserReq {
+    string id = 1;
+}
+
+message GetUserRes {
+    c.user.domain.proto.User user = 1;
+}
+
+
+
+message SearchUsersReq {
+    string query = 1 [(scalapb.field).no_box = false];
+    int32 page = 2;
+    int32 pageSize = 3;
+}
+
+
+message SearchUsersRes {
+    repeated c.user.domain.proto.User users = 1;
+    int32 page = 2;
+    int32 pageSize = 3;
+    int32 count = 4;
+}
+
+
+service UserSearchApiService {
+
+    rpc GetUser (GetUserReq) returns (GetUserRes) {
+    }
+
+    rpc SearchUsers (SearchUsersReq) returns (SearchUsersRes) {
+    }
+}
