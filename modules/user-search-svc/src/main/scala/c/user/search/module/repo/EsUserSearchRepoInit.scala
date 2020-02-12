@@ -20,7 +20,7 @@ trait EsUserSearchRepoInit extends UserSearchRepoInit {
             indexExists(userSearchRepoIndexName)
           }
           initResp <- if (!existResp.result.exists) {
-            env.logger.debug(s"init: $userSearchRepoIndexName") *>
+//            env.logger.debug(s"init: $userSearchRepoIndexName") *>
             elasticClient.execute {
               createIndex(userSearchRepoIndexName)
             }.map(r => r.result.acknowledged)

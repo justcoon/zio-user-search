@@ -48,26 +48,26 @@ object Main extends App {
 
       runtime = ZIO.runtime[AppEnvironment].flatMap { implicit rts =>
         rts.environment.userSearchRepoInit.init *>
-        Consumer
-          .make(UserKafkaConsumer.consumerSettings(applicationConfig.kafka))
-          .use { c =>
-            c.subscribeAnd(Subscription.topics(applicationConfig.kafka.topic))
-              .plainStream(Serde.string, UserKafkaConsumer.userEventSerde)
-              .flattenChunks
-              .tap { cr =>
-                rts.environment.userEventProcessor.process(cr.value)
-              }
-              .map(_.offset)
-              .aggregateAsync(Consumer.offsetBatches)
-              .mapM(_.commit)
-              .runDrain
-        }  &>
-        BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]]
-          .bindHttp(applicationConfig.restApi.port, applicationConfig.restApi.address)
-          .withHttpApp(httpApp)
-          .serve
-          .compile[ZIO[AppEnvironment, Throwable, *], ZIO[AppEnvironment, Throwable, *], ExitCode]
-          .drain
+          Consumer
+            .make(UserKafkaConsumer.consumerSettings(applicationConfig.kafka))
+            .use { c =>
+              c.subscribeAnd(Subscription.topics(applicationConfig.kafka.topic))
+                .plainStream(Serde.string, UserKafkaConsumer.userEventSerde)
+                .flattenChunks
+                .tap { cr =>
+                  rts.environment.userEventProcessor.process(cr.value)
+                }
+                .map(_.offset)
+                .aggregateAsync(Consumer.offsetBatches)
+                .mapM(_.commit)
+                .runDrain
+            } &>
+          BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]]
+            .bindHttp(applicationConfig.restApi.port, applicationConfig.restApi.address)
+            .withHttpApp(httpApp)
+            .serve
+            .compile[ZIO[AppEnvironment, Throwable, *], ZIO[AppEnvironment, Throwable, *], ExitCode]
+            .drain
 
       //        val builder = ServerBuilder
       //          .forPort(applicationConfig.grpcApi.port)

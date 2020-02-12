@@ -20,7 +20,7 @@ object UserEventProcessor {
       .find(event.entityId)
       .flatMap {
         case u @ Some(_) => userSearchRepo.update(getUpdatedUser(event, u))
-        case None        => userSearchRepo.insert(getUpdatedUser(event, None))
+        case None => userSearchRepo.insert(getUpdatedUser(event, None))
       }
   }
 
