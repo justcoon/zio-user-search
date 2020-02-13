@@ -8,18 +8,19 @@ import org.http4s.HttpApp
 import zio.blocking.Blocking
 import zio.kafka.client.serde.Serde
 import zio.kafka.client.{Consumer, Subscription}
+import zio.logging.slf4j.Slf4jLogger
+import zio.logging.{Logger, Logging}
 //import c.user.search.api.proto.userSearchApiService.UserSearchApiService
 
 import cats.effect.ExitCode
 import c.user.search.model.config.AppConfig
 import c.user.search.module.api.{GrpcServer, UserSearchGrpcApi, UserSearchOpenApiHandler}
-import c.user.search.module.logger.{LiveLogger, Logger => MyLogger}
 import c.user.search.module.repo.{EsUserSearchRepo, UserSearchRepo}
 import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties}
 import org.http4s.implicits._
 import org.http4s.server.blaze.BlazeServerBuilder
-import org.http4s.server.middleware.Logger
+import org.http4s.server.middleware.{Logger => HttpServerLogger}
 import zio._
 import zio.clock.Clock
 import zio.console.putStrLn
@@ -28,13 +29,16 @@ import zio.interop.catz._
 object Main extends App {
 
   type AppEnvironment = Clock
-    with Blocking with UserSearchRepo with UserSearchRepoInit with UserEventProcessor with MyLogger
+    with Blocking with UserSearchRepo with UserSearchRepoInit with UserEventProcessor with Logging
+
+  private val makeLogger =
+    Slf4jLogger.make((_, message) => message)
 
   private val httpRoutes =
     new UserResource[ZIO[AppEnvironment, Throwable, *]]().routes(new UserSearchOpenApiHandler[AppEnvironment]())
 
   private val httpApp: HttpApp[ZIO[AppEnvironment, Throwable, *]] =
-    Logger.httpApp[ZIO[AppEnvironment, Throwable, *]](true, true)(httpRoutes.orNotFound)
+    HttpServerLogger.httpApp[ZIO[AppEnvironment, Throwable, *]](true, true)(httpRoutes.orNotFound)
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     val result = for {
@@ -45,6 +49,8 @@ object Main extends App {
 //        val jc = JavaClient(prop)
 //        ElasticClient(jc)
 //      }(_.close()).useForever
+
+      logging <- makeLogger
 
       runtime = ZIO.runtime[AppEnvironment].flatMap { implicit rts =>
         rts.environment.userSearchRepoInit.init *>
@@ -79,7 +85,7 @@ object Main extends App {
 
       program <- runtime.provideSome[ZEnv] { base =>
         new Clock
-          with Blocking with EsUserSearchRepo with EsUserSearchRepoInit with LiveUserEventProcessor with LiveLogger {
+          with Blocking with EsUserSearchRepo with EsUserSearchRepoInit with LiveUserEventProcessor with Logging {
           val elasticClient: ElasticClient = {
             val prop = ElasticProperties(applicationConfig.elasticsearch.addresses.mkString(","))
             val jc = JavaClient(prop)
@@ -89,6 +95,7 @@ object Main extends App {
           val userSearchRepoIndexName: String = applicationConfig.elasticsearch.indexName
           val clock: Clock.Service[Any] = base.clock
           val blocking: Blocking.Service[Any] = base.blocking
+          val logger: Logger = logging.logger
         }
       }
     } yield program

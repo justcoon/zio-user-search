@@ -1,7 +1,7 @@
 package c.user.search.module.repo
 
 import c.user.domain.UserEntity.UserId
-import c.user.search.model.{DBFailure, ExpectedFailure}
+import c.user.search.model.{ExpectedFailure, RepoFailure}
 import com.sksamuel.elastic4s.ElasticClient
 import zio.ZIO
 
@@ -20,20 +20,20 @@ trait EsUserSearchRepo extends UserSearchRepo {
     override def insert(user: UserSearchRepo.User): ZIO[Any, ExpectedFailure, Boolean] = {
       elasticClient.execute {
         indexInto(userSearchRepoIndexName).doc(user).id(user.id)
-      }.bimap(e => DBFailure(e), _.isSuccess)
+      }.bimap(e => RepoFailure(e), _.isSuccess)
     }
 
     override def update(user: UserSearchRepo.User): ZIO[Any, ExpectedFailure, Boolean] = {
       elasticClient.execute {
         updateIndex(user.id).in(userSearchRepoIndexName).doc(user)
-      }.bimap(e => DBFailure(e), _.isSuccess)
+      }.bimap(e => RepoFailure(e), _.isSuccess)
     }
 
     override def find(id: UserId): ZIO[Any, ExpectedFailure, Option[UserSearchRepo.User]] = {
       elasticClient.execute {
         get(id).from(userSearchRepoIndexName)
       }.bimap(
-        e => DBFailure(e),
+        e => RepoFailure(e),
         r =>
           if (r.result.exists)
             Option(r.result.to[UserSearchRepo.User])
@@ -44,7 +44,7 @@ trait EsUserSearchRepo extends UserSearchRepo {
     override def findAll(): ZIO[Any, ExpectedFailure, Array[UserSearchRepo.User]] = {
       elasticClient.execute {
         searchIndex(userSearchRepoIndexName).matchAllQuery
-      }.bimap(e => DBFailure(e), _.result.to[UserSearchRepo.User].toArray)
+      }.bimap(e => RepoFailure(e), _.result.to[UserSearchRepo.User].toArray)
     }
 
     override def search(
@@ -54,7 +54,7 @@ trait EsUserSearchRepo extends UserSearchRepo {
       val q = query.map(QueryStringQuery(_)).getOrElse(NoopQuery)
       elasticClient.execute {
         searchIndex(userSearchRepoIndexName).matchAllQuery.query(q).from(page).limit(pageSize)
-      }.bimap(e => DBFailure(e), res => {
+      }.bimap(e => RepoFailure(e), res => {
         val items = res.result.to[UserSearchRepo.User]
         UserSearchRepo.PaginatedSequence(items, page, pageSize, res.result.totalHits.toInt)
       })

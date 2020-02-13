@@ -4,7 +4,7 @@ import c.user.domain.UserEntity
 import c.user.search.api.openapi.user.{GetUserResponse, SearchUsersResponse, UserHandler}
 import c.user.search.model.ExpectedFailure
 import c.user.search.module.repo.UserSearchRepo
-import zio.{RIO, ZIO}
+import zio.ZIO
 
 class UserSearchOpenApiHandler[R <: UserSearchRepo] extends UserHandler[ZIO[R, Throwable, *]] {
   type F[A] = ZIO[R, Throwable, A]
@@ -25,12 +25,13 @@ class UserSearchOpenApiHandler[R <: UserSearchRepo] extends UserHandler[ZIO[R, T
   }
 
   override def getUser(respond: GetUserResponse.type)(id: String): F[GetUserResponse] = {
-    val res = ZIO.accessM[R] { env =>
-      env.userSearchRepo.find(id.asUserId).map {
-        case Some(user) => respond.Ok(user.transformInto[User])
-        case None => respond.NotFound
+    val res = ZIO
+      .accessM[R] { env =>
+        env.userSearchRepo.find(id.asUserId).map {
+          case Some(user) => respond.Ok(user.transformInto[User])
+          case None => respond.NotFound
+        }
       }
-    }
     handleError(res)
   }
 

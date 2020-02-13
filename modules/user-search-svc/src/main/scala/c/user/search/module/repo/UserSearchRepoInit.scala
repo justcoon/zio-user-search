@@ -1,6 +1,5 @@
 package c.user.search.module.repo
 
-import c.user.search.module.logger.Logger
 import zio.ZIO
 
 trait UserSearchRepoInit {
@@ -10,6 +9,6 @@ trait UserSearchRepoInit {
 object UserSearchRepoInit {
 
   trait Service {
-    def init(): ZIO[Logger, Throwable, Boolean]
+    def init(): ZIO[Any, Throwable, Boolean]
   }
 }

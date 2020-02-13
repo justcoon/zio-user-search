@@ -12,7 +12,7 @@ trait UserEventProcessor {
 object UserEventProcessor {
 
   trait Service {
-    def process(event: UserPayloadEvent): ZIO[UserSearchRepo, ExpectedFailure, Boolean]
+    def process(event: UserPayloadEvent): ZIO[Any, ExpectedFailure, Boolean]
   }
 
   def index(event: UserPayloadEvent, userSearchRepo: UserSearchRepo.Service) = {

@@ -15,7 +15,8 @@ lazy val Versions = new {
   val zio = "1.0.0-RC17" //"1.0.0-RC17+366-2e305bf4-SNAPSHOT"
   val zioInteropCats = "2.0.0.0-RC10"
   val zioKafka = "0.5.0"
-  val zioLogging = "0.2.0"
+  val zioLogging = "0.2.1"
+  val zioMacro = "0.6.2"
   val elastic4s = "7.3.5"
   val circe = "0.12.3"
   val scalaTest = "3.0.8"
@@ -66,7 +67,7 @@ lazy val `user-search-svc` =
         "dev.zio" %% "zio-streams"                            % Versions.zio,
         "dev.zio" %% "zio-interop-cats"                       % Versions.zioInteropCats,
         "dev.zio" %% "zio-kafka"                              % Versions.zioKafka,
-        "dev.zio" %% "zio-logging"                            % Versions.zioLogging,
+        "dev.zio" %% "zio-logging-slf4j"                      % Versions.zioLogging,
         "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % Versions.elastic4s,
         "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"    % Versions.elastic4s,
         "com.sksamuel.elastic4s" %% "elastic4s-json-circe"    % Versions.elastic4s,
