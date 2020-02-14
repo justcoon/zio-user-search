@@ -5,7 +5,6 @@
 //fork in Test := true
 //parallelExecution in Test := true
 
-
 resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 
 lazy val Versions = new {
@@ -17,6 +16,7 @@ lazy val Versions = new {
   val zioKafka = "0.5.0"
   val zioLogging = "0.2.1"
   val zioMacro = "0.6.2"
+  val zioMetrics = "0.1.1"
   val elastic4s = "7.3.5"
   val circe = "0.12.3"
   val scalaTest = "3.0.8"
@@ -68,6 +68,7 @@ lazy val `user-search-svc` =
         "dev.zio" %% "zio-interop-cats"                       % Versions.zioInteropCats,
         "dev.zio" %% "zio-kafka"                              % Versions.zioKafka,
         "dev.zio" %% "zio-logging-slf4j"                      % Versions.zioLogging,
+        "dev.zio" %% "zio-metrics-prometheus"                 % Versions.zioMetrics,
         "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % Versions.elastic4s,
         "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"    % Versions.elastic4s,
         "com.sksamuel.elastic4s" %% "elastic4s-json-circe"    % Versions.elastic4s,

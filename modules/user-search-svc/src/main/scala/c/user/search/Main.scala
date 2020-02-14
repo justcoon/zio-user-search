@@ -1,6 +1,7 @@
 package c.user.search
 
 import c.user.search.api.openapi.user.UserResource
+import c.user.search.model.config.{KafkaConfig, PrometheusConfig}
 import c.user.search.module.kafka.UserKafkaConsumer
 import c.user.search.module.processor.{LiveUserEventProcessor, UserEventProcessor}
 import c.user.search.module.repo.{EsUserSearchRepoInit, UserSearchRepoInit}
@@ -10,6 +11,14 @@ import zio.kafka.client.serde.Serde
 import zio.kafka.client.{Consumer, Subscription}
 import zio.logging.slf4j.Slf4jLogger
 import zio.logging.{Logger, Logging}
+import zio.metrics.prometheus._
+import zio.metrics.prometheus.helpers._
+import zio._
+import zio.clock.Clock
+import zio.console.putStrLn
+import zio.interop.catz._
+import io.prometheus.client.exporter.{HTTPServer => PrometheusHttpServer}
+
 //import c.user.search.api.proto.userSearchApiService.UserSearchApiService
 
 import cats.effect.ExitCode
@@ -21,15 +30,12 @@ import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties}
 import org.http4s.implicits._
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.server.middleware.{Logger => HttpServerLogger}
-import zio._
-import zio.clock.Clock
-import zio.console.putStrLn
-import zio.interop.catz._
 
 object Main extends App {
 
   type AppEnvironment = Clock
     with Blocking with UserSearchRepo with UserSearchRepoInit with UserEventProcessor with Logging
+    with PrometheusRegistry with PrometheusExporters
 
   private val makeLogger =
     Slf4jLogger.make((_, message) => message)
@@ -39,6 +45,33 @@ object Main extends App {
 
   private val httpApp: HttpApp[ZIO[AppEnvironment, Throwable, *]] =
     HttpServerLogger.httpApp[ZIO[AppEnvironment, Throwable, *]](true, true)(httpRoutes.orNotFound)
+
+  private def metrics(config: PrometheusConfig): ZIO[AppEnvironment, Throwable, PrometheusHttpServer] = {
+    for {
+      registry <- registry.getCurrent
+      _ <- exporters.initializeDefaultExports(registry)
+      prometheusServer <- exporters.http(registry, config.port)
+    } yield prometheusServer
+  }
+
+  private val userSearchRepoInit = ZIO.access[AppEnvironment](_.userSearchRepoInit.init)
+
+  private def userKafkaConsumer(config: KafkaConfig) = {
+    Consumer
+      .make(UserKafkaConsumer.consumerSettings(config))
+      .use { c =>
+        c.subscribeAnd(Subscription.topics(config.topic))
+          .plainStream(Serde.string, UserKafkaConsumer.userEventSerde)
+          .flattenChunks
+          .tap { cr =>
+            ZIO.accessM[AppEnvironment](_.userEventProcessor.process(cr.value))
+          }
+          .map(_.offset)
+          .aggregateAsync(Consumer.offsetBatches)
+          .mapM(_.commit)
+          .runDrain
+      }
+  }
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     val result = for {
@@ -53,21 +86,9 @@ object Main extends App {
       logging <- makeLogger
 
       runtime = ZIO.runtime[AppEnvironment].flatMap { implicit rts =>
-        rts.environment.userSearchRepoInit.init *>
-          Consumer
-            .make(UserKafkaConsumer.consumerSettings(applicationConfig.kafka))
-            .use { c =>
-              c.subscribeAnd(Subscription.topics(applicationConfig.kafka.topic))
-                .plainStream(Serde.string, UserKafkaConsumer.userEventSerde)
-                .flattenChunks
-                .tap { cr =>
-                  rts.environment.userEventProcessor.process(cr.value)
-                }
-                .map(_.offset)
-                .aggregateAsync(Consumer.offsetBatches)
-                .mapM(_.commit)
-                .runDrain
-            } &>
+        userSearchRepoInit *>
+          metrics(applicationConfig.prometheus) *>
+          userKafkaConsumer(applicationConfig.kafka) &>
           BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]]
             .bindHttp(applicationConfig.restApi.port, applicationConfig.restApi.address)
             .withHttpApp(httpApp)
@@ -85,7 +106,8 @@ object Main extends App {
 
       program <- runtime.provideSome[ZEnv] { base =>
         new Clock
-          with Blocking with EsUserSearchRepo with EsUserSearchRepoInit with LiveUserEventProcessor with Logging {
+          with Blocking with EsUserSearchRepo with EsUserSearchRepoInit with LiveUserEventProcessor with Logging
+          with PrometheusRegistry with PrometheusExporters {
           val elasticClient: ElasticClient = {
             val prop = ElasticProperties(applicationConfig.elasticsearch.addresses.mkString(","))
             val jc = JavaClient(prop)
