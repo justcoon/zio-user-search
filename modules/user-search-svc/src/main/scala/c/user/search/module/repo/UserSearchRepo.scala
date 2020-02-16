@@ -19,11 +19,11 @@ object UserSearchRepo {
 
     def findAll(): ZIO[Any, ExpectedFailure, Array[UserSearchRepo.User]]
 
-    def search(
-      query: Option[String],
-      page: Int,
-      pageSize: Int): ZIO[Any, ExpectedFailure, UserSearchRepo.PaginatedSequence[UserSearchRepo.User]]
+    def search(query: Option[String], page: Int, pageSize: Int, sorts: Iterable[UserSearchRepo.FieldSort])
+      : ZIO[Any, ExpectedFailure, UserSearchRepo.PaginatedSequence[UserSearchRepo.User]]
   }
+
+  type FieldSort = (String, Boolean)
 
   final case class Address(
     street: String,

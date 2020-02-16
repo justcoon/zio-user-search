@@ -3,6 +3,8 @@ package c.user.search.module.repo
 import c.user.domain.UserEntity.UserId
 import c.user.search.model.{ExpectedFailure, RepoFailure}
 import com.sksamuel.elastic4s.ElasticClient
+import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchAllQuery
+import com.sksamuel.elastic4s.requests.searches.sort.{FieldSort, SortOrder}
 import zio.ZIO
 
 trait EsUserSearchRepo extends UserSearchRepo {
@@ -47,17 +49,26 @@ trait EsUserSearchRepo extends UserSearchRepo {
       }.bimap(e => RepoFailure(e), _.result.to[UserSearchRepo.User].toArray)
     }
 
-    override def search(
-      query: Option[String],
-      page: Int,
-      pageSize: Int): ZIO[Any, ExpectedFailure, UserSearchRepo.PaginatedSequence[UserSearchRepo.User]] = {
-      val q = query.map(QueryStringQuery(_)).getOrElse(NoopQuery)
+    override def search(query: Option[String], page: Int, pageSize: Int, sorts: Iterable[UserSearchRepo.FieldSort])
+      : ZIO[Any, ExpectedFailure, UserSearchRepo.PaginatedSequence[UserSearchRepo.User]] = {
+      val q = query.map(QueryStringQuery(_)).getOrElse(MatchAllQuery())
+      val ss = sorts.map {
+        case (property, asc) =>
+          val o = if (asc) SortOrder.Asc else SortOrder.Desc
+          FieldSort(property, order = o)
+      }
       elasticClient.execute {
-        searchIndex(userSearchRepoIndexName).matchAllQuery.query(q).from(page).limit(pageSize)
-      }.bimap(e => RepoFailure(e), res => {
-        val items = res.result.to[UserSearchRepo.User]
-        UserSearchRepo.PaginatedSequence(items, page, pageSize, res.result.totalHits.toInt)
-      })
+        searchIndex(userSearchRepoIndexName).query(q).from(page * pageSize).limit(pageSize).sortBy(ss)
+      }.mapError { e =>
+        RepoFailure(e)
+      }.flatMap { res =>
+        if (res.isSuccess) {
+          val items = res.result.to[UserSearchRepo.User]
+          ZIO.succeed(UserSearchRepo.PaginatedSequence(items, page, pageSize, res.result.totalHits.toInt))
+        } else {
+          ZIO.fail(RepoFailure(res.error.asException))
+        }
+      }
     }
   }
 }

@@ -23,12 +23,21 @@ message GetUserRes {
     c.user.domain.proto.User user = 1;
 }
 
+enum SortOrder {
+    ASC = 0;
+    DESC = 1;
+}
 
+message FieldSort {
+    string field = 1;
+    SortOrder order = 2;
+}
 
 message SearchUsersReq {
     string query = 1 [(scalapb.field).no_box = false];
     int32 page = 2;
     int32 pageSize = 3;
+    repeated FieldSort sorts = 4;
 }
 
 
@@ -37,6 +46,10 @@ message SearchUsersRes {
     int32 page = 2;
     int32 pageSize = 3;
     int32 count = 4;
+    oneof result {
+        string success = 5;
+        string failure = 6;
+    }
 }
 
 

@@ -21,13 +21,34 @@ trait EsUserSearchRepoInit extends UserSearchRepoInit {
           indexExists(userSearchRepoIndexName)
         }
         initResp <- if (!existResp.result.exists) {
-          logger.log(s"init: $userSearchRepoIndexName") *>
+          logger.log(s"init: $userSearchRepoIndexName - initializing ...") *>
             elasticClient.execute {
-              createIndex(userSearchRepoIndexName)
+              createIndex(userSearchRepoIndexName).mapping(properties(EsUserSearchRepoInit.fields))
             }.map(r => r.result.acknowledged)
-        } else
-          logger.log(s"init: $userSearchRepoIndexName - already initialized") *> ZIO(false)
+        } else {
+          logger.log(s"init: $userSearchRepoIndexName - updating ...") *>
+            elasticClient.execute {
+              putMapping(userSearchRepoIndexName).fields(EsUserSearchRepoInit.fields)
+            }.map(r => r.result.acknowledged)
+        }
       } yield initResp
     }
   }
+}
+
+object EsUserSearchRepoInit {
+  import com.sksamuel.elastic4s.ElasticDsl._
+
+  val fields = Seq(
+    textField("id").fielddata(true),
+    textField("username").fielddata(true),
+    textField("email").fielddata(true),
+    textField("address.street").fielddata(true),
+    textField("address.number").fielddata(true),
+    textField("address.city").fielddata(true),
+    textField("address.state").fielddata(true),
+    textField("address.zip").fielddata(true),
+    textField("address.country").fielddata(true),
+    booleanField("deleted")
+  )
 }

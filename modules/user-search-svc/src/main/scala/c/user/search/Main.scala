@@ -54,7 +54,7 @@ object Main extends App {
     } yield prometheusServer
   }
 
-  private val userSearchRepoInit = ZIO.access[AppEnvironment](_.userSearchRepoInit.init)
+  private val userSearchRepoInit = ZIO.accessM[AppEnvironment](_.userSearchRepoInit.init)
 
   private def userKafkaConsumer(config: KafkaConfig) = {
     Consumer
