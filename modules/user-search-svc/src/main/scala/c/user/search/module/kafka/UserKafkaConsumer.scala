@@ -9,6 +9,11 @@ import zio.kafka.client.Consumer.AutoOffsetStrategy
 import zio.kafka.client.serde.Serde
 import zio.kafka.client.{Consumer, ConsumerSettings}
 
+trait UserKafkaConsumer {
+  def userKafkaConsumer: Consumer
+  def userKafkaTopic: String
+}
+
 object UserKafkaConsumer {
 
   def consumerSettings(config: KafkaConfig): ConsumerSettings = {

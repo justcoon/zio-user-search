@@ -1,7 +1,7 @@
 package c.user.search
 
 import c.user.search.api.openapi.user.UserResource
-import c.user.search.model.config.{KafkaConfig, PrometheusConfig}
+import c.user.search.model.config.PrometheusConfig
 import c.user.search.module.kafka.UserKafkaConsumer
 import c.user.search.module.processor.{LiveUserEventProcessor, UserEventProcessor}
 import c.user.search.module.repo.{EsUserSearchRepoInit, UserSearchRepoInit}
@@ -34,8 +34,8 @@ import org.http4s.server.middleware.{Logger => HttpServerLogger}
 object Main extends App {
 
   type AppEnvironment = Clock
-    with Blocking with UserSearchRepo with UserSearchRepoInit with UserEventProcessor with Logging
-    with PrometheusRegistry with PrometheusExporters
+    with Blocking with UserSearchRepo with UserSearchRepoInit with UserEventProcessor with UserKafkaConsumer
+    with Logging with PrometheusRegistry with PrometheusExporters
 
   private val makeLogger =
     Slf4jLogger.make((_, message) => message)
@@ -56,39 +56,42 @@ object Main extends App {
 
   private val userSearchRepoInit = ZIO.accessM[AppEnvironment](_.userSearchRepoInit.init)
 
-  private def userKafkaConsumer(config: KafkaConfig) = {
-    Consumer
-      .make(UserKafkaConsumer.consumerSettings(config))
-      .use { c =>
-        c.subscribeAnd(Subscription.topics(config.topic))
-          .plainStream(Serde.string, UserKafkaConsumer.userEventSerde)
-          .flattenChunks
-          .tap { cr =>
-            ZIO.accessM[AppEnvironment](_.userEventProcessor.process(cr.value))
-          }
-          .map(_.offset)
-          .aggregateAsync(Consumer.offsetBatches)
-          .mapM(_.commit)
-          .runDrain
+  private val userTopicSubscription = ZIO.accessM[AppEnvironment] { env =>
+    env.userKafkaConsumer
+      .subscribeAnd(Subscription.topics(env.userKafkaTopic))
+      .plainStream(Serde.string, UserKafkaConsumer.userEventSerde)
+      .flattenChunks
+      .tap { cr =>
+        ZIO.accessM[AppEnvironment](_.userEventProcessor.process(cr.value))
       }
+      .map(_.offset)
+      .aggregateAsync(Consumer.offsetBatches)
+      .mapM(_.commit)
+      .runDrain
+  }
+
+  private def managedResources(
+    appConfig: AppConfig): ZManaged[Clock with Blocking, Throwable, (Consumer, ElasticClient)] = {
+    for {
+      kafka <- Consumer.make(UserKafkaConsumer.consumerSettings(appConfig.kafka))
+      elastic <- Managed.makeEffect {
+        val prop = ElasticProperties(appConfig.elasticsearch.addresses.mkString(","))
+        val jc = JavaClient(prop)
+        ElasticClient(jc)
+      }(_.close())
+    } yield (kafka, elastic)
   }
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     val result = for {
       applicationConfig <- AppConfig.getConfig
 
-//      applicationElasticClient <- Managed.makeEffect {
-//        val prop = ElasticProperties(applicationConfig.elasticsearch.addresses.mkString(","))
-//        val jc = JavaClient(prop)
-//        ElasticClient(jc)
-//      }(_.close()).useForever
-
       logging <- makeLogger
 
       runtime = ZIO.runtime[AppEnvironment].flatMap { implicit rts =>
         userSearchRepoInit *>
           metrics(applicationConfig.prometheus) *>
-          userKafkaConsumer(applicationConfig.kafka) &>
+          userTopicSubscription &>
           BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]]
             .bindHttp(applicationConfig.restApi.port, applicationConfig.restApi.address)
             .withHttpApp(httpApp)
@@ -104,21 +107,21 @@ object Main extends App {
       //        GrpcServer.make(builder).useForever
       }
 
-      program <- runtime.provideSome[ZEnv] { base =>
-        new Clock
-          with Blocking with EsUserSearchRepo with EsUserSearchRepoInit with LiveUserEventProcessor with Logging
-          with PrometheusRegistry with PrometheusExporters {
-          val elasticClient: ElasticClient = {
-            val prop = ElasticProperties(applicationConfig.elasticsearch.addresses.mkString(","))
-            val jc = JavaClient(prop)
-            val ec = ElasticClient(jc)
-            ec
+      program <- managedResources(applicationConfig).use {
+        case (consumer, elastic) =>
+          runtime.provideSome[ZEnv] { base =>
+            new Clock
+              with Blocking with EsUserSearchRepo with EsUserSearchRepoInit with UserKafkaConsumer
+              with LiveUserEventProcessor with Logging with PrometheusRegistry with PrometheusExporters {
+              val elasticClient: ElasticClient = elastic
+              val userSearchRepoIndexName: String = applicationConfig.elasticsearch.indexName
+              val userKafkaConsumer = consumer
+              val userKafkaTopic = applicationConfig.kafka.topic
+              val clock: Clock.Service[Any] = base.clock
+              val blocking: Blocking.Service[Any] = base.blocking
+              val logger: Logger = logging.logger
+            }
           }
-          val userSearchRepoIndexName: String = applicationConfig.elasticsearch.indexName
-          val clock: Clock.Service[Any] = base.clock
-          val blocking: Blocking.Service[Any] = base.blocking
-          val logger: Logger = logging.logger
-        }
       }
     } yield program
 
