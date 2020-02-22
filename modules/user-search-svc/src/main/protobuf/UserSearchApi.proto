@@ -4,23 +4,23 @@ import "scalapb/scalapb.proto";
 //import "google/protobuf/timestamp.proto";
 import "UserEntity.proto";
 
-package c.user.api.proto;
+package com.jc.user.api.proto;
 
 option (scalapb.options) = {
-  package_name: "c.user.search.api.proto"
-//  import: "c.user.api.proto._"
+  package_name: "com.jc.user.search.api.proto"
+//  import: "com.jc.user.api.proto._"
   flat_package: true
 };
 
 //option java_multiple_files = true;
-//option java_package = "c.user.api.proto";
+//option java_package = "com.jc.user.api.proto";
 
 message GetUserReq {
     string id = 1;
 }
 
 message GetUserRes {
-    c.user.domain.proto.User user = 1;
+    com.jc.user.domain.proto.User user = 1;
 }
 
 enum SortOrder {
@@ -42,7 +42,7 @@ message SearchUsersReq {
 
 
 message SearchUsersRes {
-    repeated c.user.domain.proto.User users = 1;
+    repeated com.jc.user.domain.proto.User users = 1;
     int32 page = 2;
     int32 pageSize = 3;
     int32 count = 4;

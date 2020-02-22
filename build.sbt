@@ -45,17 +45,18 @@ lazy val `zio-user-search` =
 
 lazy val `user-search-svc` =
   (project in file("modules/user-search-svc"))
+    .enablePlugins(Fs2Grpc)
     .settings(settings)
     .settings(
       addCompilerPlugin("org.typelevel" %% "kind-projector" % Versions.kindProjector cross CrossVersion.full),
-      PB.targets in Compile := Seq(
-        scalapb.gen(grpc = true) -> (sourceManaged in Compile).value
-//        scalapb.zio_grpc.ZioCodeGenerator -> (sourceManaged in Compile).value
-      ),
+//      PB.targets in Compile := Seq(
+//        scalapb.gen(grpc = true) -> (sourceManaged in Compile).value
+////        scalapb.zio_grpc.ZioCodeGenerator -> (sourceManaged in Compile).value
+//      ),
       guardrailTasks.in(Compile) := List(
         ScalaServer(
           file("modules/user-search-svc/src/main/openapi/UserSearchOpenApi.yaml"),
-          pkg = "c.user.search.api.openapi",
+          pkg = "com.jc.user.search.api.openapi",
           framework = "http4s",
           tracing = false)
       )
@@ -82,6 +83,7 @@ lazy val `user-search-svc` =
         "io.scalaland" %% "chimney"                           % Versions.chimney,
         "io.grpc"                                             % "grpc-services" % Versions.grpc,
         "io.grpc"                                             % "grpc-netty" % Versions.grpc,
+        "io.grpc"                                             % "grpc-netty-shaded" % Versions.grpc,
         "com.thesamet.scalapb" %% "scalapb-runtime"           % scalapb.compiler.Version.scalapbVersion % "protobuf",
         "com.thesamet.scalapb" %% "scalapb-runtime-grpc"      % scalapb.compiler.Version.scalapbVersion,
         "org.scalatest" %% "scalatest"                        % Versions.scalaTest % "test",

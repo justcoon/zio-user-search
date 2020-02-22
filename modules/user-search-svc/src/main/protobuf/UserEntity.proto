@@ -3,11 +3,11 @@ syntax = "proto3";
 import "scalapb/scalapb.proto";
 import "google/protobuf/timestamp.proto";
 
-package c.user.domain.proto;
+package com.jc.user.domain.proto;
 
 option (scalapb.options) = {
-  package_name: "c.user.domain.proto"
-  import: "c.user.domain.proto._"
+  package_name: "com.jc.user.domain.proto"
+  import: "com.jc.user.domain.proto._"
   flat_package: true
 };
 
@@ -21,7 +21,7 @@ message Address {
 }
 
 message User {
-    string id = 1 [(scalapb.field).type = "c.user.domain.UserEntity.UserId"];
+    string id = 1 [(scalapb.field).type = "com.jc.user.domain.UserEntity.UserId"];
     string username = 2;
     string email = 3;
     string pass = 4;
@@ -30,8 +30,8 @@ message User {
 
 message UserPayloadEvent {
 
-    option (scalapb.message).extends = "c.user.domain.UserEntity.UserEvent";
-    string entityId = 1 [(scalapb.field).type = "c.user.domain.UserEntity.UserId"];
+    option (scalapb.message).extends = "com.jc.user.domain.UserEntity.UserEvent";
+    string entityId = 1 [(scalapb.field).type = "com.jc.user.domain.UserEntity.UserId"];
     google.protobuf.Timestamp timestamp = 2 [(scalapb.field).type = "java.time.Instant", (scalapb.field).no_box = true];
 
     oneof payload {
