@@ -6,11 +6,14 @@ import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchAllQuery
 import com.sksamuel.elastic4s.requests.searches.sort.{FieldSort, SortOrder}
 import zio.ZIO
+import zio.logging.{LogLevel, Logger}
 
 trait EsUserSearchRepo extends UserSearchRepo {
   val elasticClient: ElasticClient
 
   val userSearchRepoIndexName: String
+
+  val logger: Logger
 
   override val userSearchRepo: UserSearchRepo.Service = new UserSearchRepo.Service {
     import com.sksamuel.elastic4s.zio.instances._
@@ -20,33 +23,37 @@ trait EsUserSearchRepo extends UserSearchRepo {
     import io.circe.generic.auto._
 
     override def insert(user: UserSearchRepo.User): ZIO[Any, ExpectedFailure, Boolean] = {
-      elasticClient.execute {
-        indexInto(userSearchRepoIndexName).doc(user).id(user.id)
-      }.bimap(e => RepoFailure(e), _.isSuccess)
+      logger.log(LogLevel.Debug)(s"insert - id: ${user.id}") *>
+        elasticClient.execute {
+          indexInto(userSearchRepoIndexName).doc(user).id(user.id)
+        }.bimap(e => RepoFailure(e), _.isSuccess)
     }
 
     override def update(user: UserSearchRepo.User): ZIO[Any, ExpectedFailure, Boolean] = {
-      elasticClient.execute {
-        updateIndex(user.id).in(userSearchRepoIndexName).doc(user)
-      }.bimap(e => RepoFailure(e), _.isSuccess)
+      logger.log(LogLevel.Debug)(s"update - id: ${user.id}") *>
+        elasticClient.execute {
+          updateIndex(user.id).in(userSearchRepoIndexName).doc(user)
+        }.bimap(e => RepoFailure(e), _.isSuccess)
     }
 
     override def find(id: UserId): ZIO[Any, ExpectedFailure, Option[UserSearchRepo.User]] = {
-      elasticClient.execute {
-        get(id).from(userSearchRepoIndexName)
-      }.bimap(
-        e => RepoFailure(e),
-        r =>
-          if (r.result.exists)
-            Option(r.result.to[UserSearchRepo.User])
-          else
-            Option.empty)
+      logger.log(LogLevel.Debug)(s"find - id: ${id}") *>
+        elasticClient.execute {
+          get(id).from(userSearchRepoIndexName)
+        }.bimap(
+          e => RepoFailure(e),
+          r =>
+            if (r.result.exists)
+              Option(r.result.to[UserSearchRepo.User])
+            else
+              Option.empty)
     }
 
     override def findAll(): ZIO[Any, ExpectedFailure, Array[UserSearchRepo.User]] = {
-      elasticClient.execute {
-        searchIndex(userSearchRepoIndexName).matchAllQuery
-      }.bimap(e => RepoFailure(e), _.result.to[UserSearchRepo.User].toArray)
+      logger.log(LogLevel.Debug)("findAll") *>
+        elasticClient.execute {
+          searchIndex(userSearchRepoIndexName).matchAllQuery
+        }.bimap(e => RepoFailure(e), _.result.to[UserSearchRepo.User].toArray)
     }
 
     override def search(query: Option[String], page: Int, pageSize: Int, sorts: Iterable[UserSearchRepo.FieldSort])
@@ -57,18 +64,20 @@ trait EsUserSearchRepo extends UserSearchRepo {
           val o = if (asc) SortOrder.Asc else SortOrder.Desc
           FieldSort(property, order = o)
       }
-      elasticClient.execute {
-        searchIndex(userSearchRepoIndexName).query(q).from(page * pageSize).limit(pageSize).sortBy(ss)
-      }.mapError { e =>
-        RepoFailure(e)
-      }.flatMap { res =>
-        if (res.isSuccess) {
-          val items = res.result.to[UserSearchRepo.User]
-          ZIO.succeed(UserSearchRepo.PaginatedSequence(items, page, pageSize, res.result.totalHits.toInt))
-        } else {
-          ZIO.fail(RepoFailure(res.error.asException))
+      logger.log(LogLevel.Debug)(
+        s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts.mkString("[", ",", "]")}") *>
+        elasticClient.execute {
+          searchIndex(userSearchRepoIndexName).query(q).from(page * pageSize).limit(pageSize).sortBy(ss)
+        }.mapError { e =>
+          RepoFailure(e)
+        }.flatMap { res =>
+          if (res.isSuccess) {
+            val items = res.result.to[UserSearchRepo.User]
+            ZIO.succeed(UserSearchRepo.PaginatedSequence(items, page, pageSize, res.result.totalHits.toInt))
+          } else {
+            ZIO.fail(RepoFailure(res.error.asException))
+          }
         }
-      }
     }
   }
 }
