@@ -23,21 +23,21 @@ trait EsUserSearchRepo extends UserSearchRepo {
     import io.circe.generic.auto._
 
     override def insert(user: UserSearchRepo.User): ZIO[Any, ExpectedFailure, Boolean] = {
-      logger.log(LogLevel.Debug)(s"insert - id: ${user.id}") *>
+      logger.log(s"insert - id: ${user.id}") *>
         elasticClient.execute {
           indexInto(userSearchRepoIndexName).doc(user).id(user.id)
         }.bimap(e => RepoFailure(e), _.isSuccess)
     }
 
     override def update(user: UserSearchRepo.User): ZIO[Any, ExpectedFailure, Boolean] = {
-      logger.log(LogLevel.Debug)(s"update - id: ${user.id}") *>
+      logger.log(s"update - id: ${user.id}") *>
         elasticClient.execute {
           updateIndex(user.id).in(userSearchRepoIndexName).doc(user)
         }.bimap(e => RepoFailure(e), _.isSuccess)
     }
 
     override def find(id: UserId): ZIO[Any, ExpectedFailure, Option[UserSearchRepo.User]] = {
-      logger.log(LogLevel.Debug)(s"find - id: ${id}") *>
+      logger.log(s"find - id: ${id}") *>
         elasticClient.execute {
           get(id).from(userSearchRepoIndexName)
         }.bimap(
@@ -50,7 +50,7 @@ trait EsUserSearchRepo extends UserSearchRepo {
     }
 
     override def findAll(): ZIO[Any, ExpectedFailure, Array[UserSearchRepo.User]] = {
-      logger.log(LogLevel.Debug)("findAll") *>
+      logger.log("findAll") *>
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).matchAllQuery
         }.bimap(e => RepoFailure(e), _.result.to[UserSearchRepo.User].toArray)
@@ -64,8 +64,7 @@ trait EsUserSearchRepo extends UserSearchRepo {
           val o = if (asc) SortOrder.Asc else SortOrder.Desc
           FieldSort(property, order = o)
       }
-      logger.log(LogLevel.Debug)(
-        s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts.mkString("[", ",", "]")}") *>
+      logger.log(s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts.mkString("[", ",", "]")}") *>
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).query(q).from(page * pageSize).limit(pageSize).sortBy(ss)
         }.mapError { e =>
