@@ -43,5 +43,17 @@ object UserSearchRepo {
     deleted: Boolean = false
   )
 
+  object User {
+    import shapeless._
+
+    val usernameLens: Lens[User, String] = lens[User].username
+    val emailLens: Lens[User, String] = lens[User].email
+    val passLens: Lens[User, String] = lens[User].pass
+    val addressLens: Lens[User, Option[Address]] = lens[User].address
+    val deletedLens: Lens[User, Boolean] = lens[User].deleted
+
+    val usernameEmailPassAddressLens = usernameLens ~ emailLens ~ passLens ~ addressLens
+  }
+
   final case class PaginatedSequence[T](items: Seq[T], page: Int, pageSize: Int, count: Int)
 }
