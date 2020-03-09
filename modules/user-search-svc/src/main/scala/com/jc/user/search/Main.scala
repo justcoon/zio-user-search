@@ -51,8 +51,7 @@ object Main extends App {
     } yield prometheusServer
   }
 
-  private val userSearchRepoInit =
-    ZIO.accessM[UserSearchRepoInit](_.get.init)
+  private val userSearchRepoInit = ZIO.accessM[UserSearchRepoInit](_.get.init)
 
   private def userTopicSubscription(userKafkaTopic: String) = {
     Consumer
@@ -70,8 +69,7 @@ object Main extends App {
       .runDrain
   }
 
-  private val makeLogger: ZLayer[Any, Nothing, Logging] =
-    Slf4jLogger.make((_, message) => message)
+  private val makeLogger: ZLayer[Any, Nothing, Logging] = Slf4jLogger.make((_, message) => message)
 
   private def createElasticClient(config: ElasticsearchConfig): ZLayer[Any, Throwable, Has[ElasticClient]] = {
     ZLayer.fromManaged(Managed.makeEffect {
@@ -87,16 +85,48 @@ object Main extends App {
       .make(UserKafkaConsumer.consumerSettings(config), Serde.string, UserKafkaConsumer.userEventSerde)
   }
 
+  private def createAppLayer(appConfig: AppConfig): ZLayer[Any with Clock with Blocking, Throwable, AppEnvironment] = {
+    val elasticLayer: ZLayer[Any, Throwable, Has[ElasticClient]] = createElasticClient(appConfig.elasticsearch)
+
+    val loggerLayer: ZLayer[Any, Nothing, Logging] = makeLogger
+
+    val userSearchRepoInitLayer: ZLayer[Any, Throwable, UserSearchRepoInit] = (elasticLayer ++ loggerLayer) >>>
+      UserSearchRepoInit.elasticsearch(appConfig.elasticsearch.indexName)
+
+    val userSearchRepoLayer: ZLayer[Any, Throwable, UserSearchRepo] = (elasticLayer ++ loggerLayer) >>>
+      UserSearchRepo.elasticsearch(appConfig.elasticsearch.indexName)
+
+    val userEventProcessorLayer
+      : ZLayer[Any, Throwable, UserEventProcessor] = (userSearchRepoLayer ++ loggerLayer) >>> UserEventProcessor.live
+
+    val userKafkaConsumerLayer: ZLayer[Clock with Blocking, Throwable, Consumer[Any, String, UserPayloadEvent]] =
+      createUserKafkaConsumer(appConfig.kafka)
+
+    val metricsLayer: ZLayer[Any, Nothing, Registry with Exporters] = Registry.live ++ Exporters.live
+
+    val appLayer: ZLayer[Any with Clock with Blocking, Throwable, AppEnvironment] = ZLayer.requires[Clock] ++
+      ZLayer.requires[Blocking] ++
+      elasticLayer ++
+      loggerLayer ++
+      userKafkaConsumerLayer ++
+      userSearchRepoInitLayer ++
+      userSearchRepoLayer ++
+      userEventProcessorLayer ++
+      metricsLayer
+
+    appLayer
+  }
+
   override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     val result = for {
-      applicationConfig <- AppConfig.getConfig
+      appConfig <- AppConfig.getConfig
 
       runtime: ZIO[AppEnvironment, Throwable, Nothing] = ZIO.runtime[AppEnvironment].flatMap { implicit rts =>
         userSearchRepoInit *>
-          metrics(applicationConfig.prometheus) *>
-          userTopicSubscription(applicationConfig.kafka.topic) &>
+          metrics(appConfig.prometheus) *>
+          userTopicSubscription(appConfig.kafka.topic) &>
           BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]]
-            .bindHttp(applicationConfig.restApi.port, applicationConfig.restApi.address)
+            .bindHttp(appConfig.restApi.port, appConfig.restApi.address)
             .withHttpApp(httpApp)
             .serve
             .compile[ZIO[AppEnvironment, Throwable, *], ZIO[AppEnvironment, Throwable, *], ExitCode]
@@ -104,7 +134,7 @@ object Main extends App {
           GrpcServer
             .make(
               ServerBuilder
-                .forPort(applicationConfig.grpcApi.port)
+                .forPort(appConfig.grpcApi.port)
                 .addService(UserSearchApiServiceFs2Grpc.bindService(new UserSearchGrpcApiHandler[AppEnvironment]()))
                 .asInstanceOf[ServerBuilder[_]]
                 .addService(ProtoReflectionService.newInstance())
@@ -112,32 +142,7 @@ object Main extends App {
             .useForever
       }
 
-      elasticLayer: ZLayer[Any, Throwable, Has[ElasticClient]] = createElasticClient(applicationConfig.elasticsearch)
-
-      loggerLayer: ZLayer[Any, Nothing, Logging] = makeLogger
-
-      userSearchRepoInitLayer: ZLayer[Any, Throwable, UserSearchRepoInit] = (elasticLayer ++ loggerLayer) >>>
-        UserSearchRepoInit.elasticsearch(applicationConfig.elasticsearch.indexName)
-
-      userSearchRepoLayer: ZLayer[Any, Throwable, UserSearchRepo] = (elasticLayer ++ loggerLayer) >>>
-        UserSearchRepo.elasticsearch(applicationConfig.elasticsearch.indexName)
-
-      userEventProcessorLayer: ZLayer[Any, Throwable, UserEventProcessor] = (userSearchRepoLayer ++ loggerLayer) >>> UserEventProcessor.live
-
-      userKafkaConsumerLayer: ZLayer[Clock with Blocking, Throwable, Consumer[Any, String, UserPayloadEvent]] = createUserKafkaConsumer(
-        applicationConfig.kafka)
-
-      metricsLayer: ZLayer[Any, Nothing, Registry with Exporters] = Registry.live ++ Exporters.live
-
-      appLayer: ZLayer[Any with Clock with Blocking, Throwable, AppEnvironment] = ZLayer.requires[Clock] ++
-        ZLayer.requires[Blocking] ++
-        elasticLayer ++
-        loggerLayer ++
-        userKafkaConsumerLayer ++
-        userSearchRepoInitLayer ++
-        userSearchRepoLayer ++
-        userEventProcessorLayer ++
-        metricsLayer
+      appLayer = createAppLayer(appConfig)
 
       program <- runtime.provideCustomLayer[Throwable, AppEnvironment](appLayer)
     } yield program
