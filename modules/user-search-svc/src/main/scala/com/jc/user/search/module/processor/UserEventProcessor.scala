@@ -3,17 +3,29 @@ package com.jc.user.search.module.processor
 import com.jc.user.domain.proto.UserPayloadEvent
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.repo.UserSearchRepo
-import zio.ZIO
-
-trait UserEventProcessor {
-  val userEventProcessor: UserEventProcessor.Service
-}
+import zio.{Has, ZIO, ZLayer}
+import zio.logging.{Logger, Logging}
 
 object UserEventProcessor {
 
   trait Service {
     def process(event: UserPayloadEvent): ZIO[Any, ExpectedFailure, Boolean]
   }
+
+  final case class LiveUserEventProcessorService(userSearchRepo: UserSearchRepo.Service, logger: Logger)
+      extends UserEventProcessor.Service {
+
+    override def process(event: UserPayloadEvent): ZIO[Any, ExpectedFailure, Boolean] = {
+      logger.log(s"processing event - entityId: ${event.entityId}, type: ${event.payload.getClass.getSimpleName}") *>
+        UserEventProcessor.index(event, userSearchRepo)
+    }
+  }
+
+  val live: ZLayer[UserSearchRepo with Logging, Nothing, UserEventProcessor] =
+    ZLayer.fromServices[UserSearchRepo.Service, Logging.Service, UserEventProcessor.Service] {
+      (userSearchRepo: UserSearchRepo.Service, logger: Logging.Service) =>
+        LiveUserEventProcessorService(userSearchRepo, logger.logger)
+    }
 
   def index(event: UserPayloadEvent, userSearchRepo: UserSearchRepo.Service) = {
     userSearchRepo

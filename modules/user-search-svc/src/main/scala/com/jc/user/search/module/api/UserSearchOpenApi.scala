@@ -30,7 +30,7 @@ class UserSearchOpenApiHandler[R <: UserSearchRepo] extends UserHandler[ZIO[R, T
               (sort, true)
           }
         }
-        env.userSearchRepo.search(query, page, pageSize, ss).map { res =>
+        env.get.search(query, page, pageSize, ss).map { res =>
           val items = res.items.map(_.transformInto[User]).toVector
           respond.Ok(UserSearchResponse(items, res.page, res.pageSize, res.count))
         }
@@ -44,7 +44,7 @@ class UserSearchOpenApiHandler[R <: UserSearchRepo] extends UserHandler[ZIO[R, T
   override def getUser(respond: GetUserResponse.type)(id: String): F[GetUserResponse] = {
     ZIO
       .accessM[R] { env =>
-        env.userSearchRepo.find(id.asUserId).map {
+        env.get.find(id.asUserId).map {
           case Some(user) => respond.Ok(user.transformInto[User])
           case None => respond.NotFound
         }

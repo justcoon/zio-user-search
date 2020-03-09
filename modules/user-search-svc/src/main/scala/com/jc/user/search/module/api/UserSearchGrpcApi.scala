@@ -20,7 +20,7 @@ class UserSearchGrpcApiHandler[R <: UserSearchRepo]
     import UserEntity._
     ZIO
       .accessM[R] { env =>
-        env.userSearchRepo.find(request.id.asUserId).map { r =>
+        env.get.find(request.id.asUserId).map { r =>
           GetUserRes(r.map(_.transformInto[proto.User]))
         }
       }
@@ -33,7 +33,7 @@ class UserSearchGrpcApiHandler[R <: UserSearchRepo]
         val ss = request.sorts.map { sort =>
           (sort.field, sort.order.isAsc)
         }
-        env.userSearchRepo.search(Some(request.query), request.page, request.pageSize, ss).map { r =>
+        env.get.search(Some(request.query), request.page, request.pageSize, ss).map { r =>
           SearchUsersRes(r.items.map(_.transformInto[proto.User]), r.page, r.pageSize, r.count)
         }
       }

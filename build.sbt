@@ -1,9 +1,3 @@
-//scalaVersion := "2.13.1"
-//name := "zio-user-search"
-//organization := "c.user"
-//scalafmtOnCompile := true
-//fork in Test := true
-//parallelExecution in Test := true
 
 resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 
@@ -11,12 +5,12 @@ lazy val Versions = new {
   val kindProjector = "0.11.0"
   val scalamacros = "2.1.1"
   val http4s = "0.21.1"
-  val zio = "1.0.0-RC17" //"1.0.0-RC17+366-2e305bf4-SNAPSHOT"
-  val zioInteropCats = "2.0.0.0-RC10"
-  val zioKafka = "0.5.0"
-  val zioLogging = "0.2.1"
+  val zio = "1.0.0-RC18-1"
+  val zioInteropCats = "2.0.0.0-RC11"
+  val zioKafka = "0.6.2"
+  val zioLogging = "0.2.3"
   val zioMacro = "0.6.2"
-  val zioMetrics = "0.1.1"
+  val zioMetrics = "0.2.0"
   val elastic4s = "7.3.5"
   val circe = "0.12.3"
   val scalaTest = "3.0.8"
