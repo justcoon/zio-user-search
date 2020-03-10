@@ -2,11 +2,14 @@ package com.jc.user.search.module.kafka
 
 import com.jc.user.domain.proto.UserPayloadEvent
 import com.jc.user.search.model.config.KafkaConfig
+import com.jc.user.search.module.processor.UserEventProcessor
 import org.apache.kafka.common.header.Headers
-import zio.RIO
+import zio.blocking.Blocking
+import zio.clock.Clock
+import zio.{RIO, ZIO, ZLayer}
 import zio.duration._
 import zio.kafka.consumer.Consumer.AutoOffsetStrategy
-import zio.kafka.consumer.{Consumer, ConsumerSettings}
+import zio.kafka.consumer.{Consumer, ConsumerSettings, Subscription}
 import zio.kafka.serde.Serde
 
 object UserKafkaConsumer {
@@ -29,4 +32,24 @@ object UserKafkaConsumer {
     RIO(event.toByteArray)
 
   val userEventSerde = Serde(userEventDes)(userEventSer)
+
+  def live(config: KafkaConfig): ZLayer[Clock with Blocking, Throwable, UserKafkaConsumer] = {
+    Consumer.make(consumerSettings(config), Serde.string, UserKafkaConsumer.userEventSerde)
+  }
+
+  def consume(userKafkaTopic: String) = {
+    Consumer
+      .subscribeAnd[Any, String, UserPayloadEvent](Subscription.topics(userKafkaTopic))
+      .plainStream
+      .flattenChunks
+      .tap { cr =>
+        ZIO.accessM[UserEventProcessor] {
+          _.get.process(cr.value)
+        }
+      }
+      .map(_.offset)
+      .aggregateAsync(Consumer.offsetBatches)
+      .mapM(_.commit)
+      .runDrain
+  }
 }

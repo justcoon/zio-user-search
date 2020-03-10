@@ -1,18 +1,16 @@
 package com.jc.user.search
 
 import cats.effect.ExitCode
-import com.jc.user.domain.proto.UserPayloadEvent
 import com.jc.user.search.api.openapi.user.UserResource
-import com.jc.user.search.api.proto.UserSearchApiServiceFs2Grpc
-import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, KafkaConfig, PrometheusConfig}
-import com.jc.user.search.module.api.{GrpcServer, UserSearchGrpcApiHandler, UserSearchOpenApiHandler}
+import com.jc.user.search.api.proto.ZioUserSearchApi.UserSearchApiService
+import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, HttpApiConfig, PrometheusConfig}
+import com.jc.user.search.module.api.{UserSearchGrpcApiHandler, UserSearchOpenApiHandler}
 import com.jc.user.search.module.kafka.UserKafkaConsumer
 import com.jc.user.search.module.processor.UserEventProcessor
 import com.jc.user.search.module.repo.{UserSearchRepo, UserSearchRepoInit}
 import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties}
 import io.grpc._
-import io.grpc.protobuf.services.ProtoReflectionService
 import io.prometheus.client.exporter.{HTTPServer => PrometheusHttpServer}
 import org.http4s.{HttpApp, HttpRoutes}
 import org.http4s.implicits._
@@ -23,19 +21,18 @@ import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.putStrLn
 import zio.interop.catz._
-import zio.kafka.serde.Serde
-import zio.kafka.consumer.{Consumer, Subscription}
 import zio.logging.slf4j.Slf4jLogger
-import zio.logging.{Logger, Logging}
+import zio.logging.Logging
 import zio.metrics.prometheus._
 import zio.metrics.prometheus.exporters.Exporters
 import zio.metrics.prometheus.helpers._
+import scalapb.zio_grpc.{Server => GrpcServer}
 
 object Main extends App {
 
   type AppEnvironment = Clock
-    with Blocking with Has[ElasticClient] with Consumer[Any, String, UserPayloadEvent] with UserSearchRepo
-    with UserSearchRepoInit with UserEventProcessor with Logging with Registry with Exporters
+    with Blocking with Has[ElasticClient] with UserKafkaConsumer with UserSearchRepo with UserSearchRepoInit
+    with UserEventProcessor with UserSearchGrpcApiHandler with GrpcServer with Logging with Registry with Exporters
 
   private val httpRoutes: HttpRoutes[ZIO[AppEnvironment, Throwable, *]] =
     new UserResource[ZIO[AppEnvironment, Throwable, *]]().routes(new UserSearchOpenApiHandler[AppEnvironment]())
@@ -51,24 +48,6 @@ object Main extends App {
     } yield prometheusServer
   }
 
-  private val userSearchRepoInit = ZIO.accessM[UserSearchRepoInit](_.get.init)
-
-  private def userTopicSubscription(userKafkaTopic: String) = {
-    Consumer
-      .subscribeAnd[Any, String, UserPayloadEvent](Subscription.topics(userKafkaTopic))
-      .plainStream
-      .flattenChunks
-      .tap { cr =>
-        ZIO.accessM[UserEventProcessor] {
-          _.get.process(cr.value)
-        }
-      }
-      .map(_.offset)
-      .aggregateAsync(Consumer.offsetBatches)
-      .mapM(_.commit)
-      .runDrain
-  }
-
   private val makeLogger: ZLayer[Any, Nothing, Logging] = Slf4jLogger.make((_, message) => message)
 
   private def createElasticClient(config: ElasticsearchConfig): ZLayer[Any, Throwable, Has[ElasticClient]] = {
@@ -79,10 +58,8 @@ object Main extends App {
     }(_.close()))
   }
 
-  private def createUserKafkaConsumer(
-    config: KafkaConfig): ZLayer[Clock with Blocking, Throwable, Consumer[Any, String, UserPayloadEvent]] = {
-    Consumer
-      .make(UserKafkaConsumer.consumerSettings(config), Serde.string, UserKafkaConsumer.userEventSerde)
+  private def createGrpcServer(config: HttpApiConfig): ZLayer[UserSearchGrpcApiHandler, Nothing, GrpcServer] = {
+    GrpcServer.live[UserSearchApiService](ServerBuilder.forPort(config.port))
   }
 
   private def createAppLayer(appConfig: AppConfig): ZLayer[Any with Clock with Blocking, Throwable, AppEnvironment] = {
@@ -99,8 +76,14 @@ object Main extends App {
     val userEventProcessorLayer
       : ZLayer[Any, Throwable, UserEventProcessor] = (userSearchRepoLayer ++ loggerLayer) >>> UserEventProcessor.live
 
-    val userKafkaConsumerLayer: ZLayer[Clock with Blocking, Throwable, Consumer[Any, String, UserPayloadEvent]] =
-      createUserKafkaConsumer(appConfig.kafka)
+    val userKafkaConsumerLayer: ZLayer[Clock with Blocking, Throwable, UserKafkaConsumer] =
+      UserKafkaConsumer.live(appConfig.kafka)
+
+    val userSearchGrpcApiHandlerLayer
+      : ZLayer[Any, Throwable, UserSearchGrpcApiHandler] = (userSearchRepoLayer ++ loggerLayer) >>> UserSearchGrpcApiHandler.live
+
+    val grpcServerLayer: ZLayer[Any, Throwable, GrpcServer] = userSearchGrpcApiHandlerLayer >>> createGrpcServer(
+      appConfig.grpcApi)
 
     val metricsLayer: ZLayer[Any, Nothing, Registry with Exporters] = Registry.live ++ Exporters.live
 
@@ -112,6 +95,8 @@ object Main extends App {
       userSearchRepoInitLayer ++
       userSearchRepoLayer ++
       userEventProcessorLayer ++
+      userSearchGrpcApiHandlerLayer ++
+      grpcServerLayer ++
       metricsLayer
 
     appLayer
@@ -122,24 +107,16 @@ object Main extends App {
       appConfig <- AppConfig.getConfig
 
       runtime: ZIO[AppEnvironment, Throwable, Nothing] = ZIO.runtime[AppEnvironment].flatMap { implicit rts =>
-        userSearchRepoInit *>
+        UserSearchRepoInit.init *>
           metrics(appConfig.prometheus) *>
-          userTopicSubscription(appConfig.kafka.topic) &>
+          UserKafkaConsumer.consume(appConfig.kafka.topic) &>
           BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]]
             .bindHttp(appConfig.restApi.port, appConfig.restApi.address)
             .withHttpApp(httpApp)
             .serve
             .compile[ZIO[AppEnvironment, Throwable, *], ZIO[AppEnvironment, Throwable, *], ExitCode]
-            .drain &>
-          GrpcServer
-            .make(
-              ServerBuilder
-                .forPort(appConfig.grpcApi.port)
-                .addService(UserSearchApiServiceFs2Grpc.bindService(new UserSearchGrpcApiHandler[AppEnvironment]()))
-                .asInstanceOf[ServerBuilder[_]]
-                .addService(ProtoReflectionService.newInstance())
-                .asInstanceOf[ServerBuilder[_]])
-            .useForever
+            .drain
+            .forever
       }
 
       appLayer = createAppLayer(appConfig)

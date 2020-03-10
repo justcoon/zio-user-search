@@ -61,4 +61,6 @@ object UserSearchRepoInit {
       (elasticClient: ElasticClient, logger: Logging.Service) =>
         EsUserSearchRepoInitService(elasticClient, userSearchRepoIndexName, logger.logger)
     }
+
+  val init: ZIO[UserSearchRepoInit, Throwable, Boolean] = ZIO.accessM[UserSearchRepoInit](_.get.init)
 }

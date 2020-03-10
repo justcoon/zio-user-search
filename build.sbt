@@ -1,6 +1,4 @@
 
-resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-
 lazy val Versions = new {
   val kindProjector = "0.11.0"
   val scalamacros = "2.1.1"
@@ -17,7 +15,7 @@ lazy val Versions = new {
   val randomDataGenerator = "2.8"
   val pureconfig = "0.12.2"
   val logback = "1.2.3"
-  val grpc = "1.26.0"
+  val grpc = "1.27.2"
   val chimney = "0.4.0"
 }
 
@@ -35,14 +33,13 @@ lazy val `zio-user-search` =
 
 lazy val `user-search-svc` =
   (project in file("modules/user-search-svc"))
-    .enablePlugins(Fs2Grpc)
     .settings(settings)
     .settings(
       addCompilerPlugin("org.typelevel" %% "kind-projector" % Versions.kindProjector cross CrossVersion.full),
-//      PB.targets in Compile := Seq(
-//        scalapb.gen(grpc = true) -> (sourceManaged in Compile).value
-////        scalapb.zio_grpc.ZioCodeGenerator -> (sourceManaged in Compile).value
-//      ),
+      PB.targets in Compile := Seq(
+        scalapb.gen(grpc = true) -> (sourceManaged in Compile).value,
+        scalapb.zio_grpc.ZioCodeGenerator -> (sourceManaged in Compile).value
+      ),
       guardrailTasks.in(Compile) := List(
         ScalaServer(
           file("modules/user-search-svc/src/main/openapi/UserSearchOpenApi.yaml"),
