@@ -1,4 +1,3 @@
-
 lazy val Versions = new {
   val kindProjector = "0.11.0"
   val scalamacros = "2.1.1"
@@ -14,9 +13,10 @@ lazy val Versions = new {
   val scalaTest = "3.0.8"
   val randomDataGenerator = "2.8"
   val pureconfig = "0.12.2"
+  val refined = "0.9.12"
   val logback = "1.2.3"
   val grpc = "1.27.2"
-  val chimney = "0.4.0"
+  val chimney = "0.4.2"
 }
 
 lazy val `zio-user-search` =
@@ -67,6 +67,7 @@ lazy val `user-search-svc` =
         "org.http4s" %% "http4s-circe"                        % Versions.http4s,
         "io.circe" %% "circe-generic"                         % Versions.circe,
         "com.github.pureconfig" %% "pureconfig"               % Versions.pureconfig,
+        "eu.timepit" %% "refined-pureconfig"                  % Versions.refined,
         "io.scalaland" %% "chimney"                           % Versions.chimney,
         "io.grpc"                                             % "grpc-services" % Versions.grpc,
         "io.grpc"                                             % "grpc-netty" % Versions.grpc,

@@ -27,6 +27,7 @@ import zio.metrics.prometheus._
 import zio.metrics.prometheus.exporters.Exporters
 import zio.metrics.prometheus.helpers._
 import scalapb.zio_grpc.{Server => GrpcServer}
+import eu.timepit.refined.auto._
 
 object Main extends App {
 

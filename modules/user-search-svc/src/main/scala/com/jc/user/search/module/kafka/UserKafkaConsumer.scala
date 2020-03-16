@@ -15,6 +15,7 @@ import zio.kafka.serde.Serde
 object UserKafkaConsumer {
 
   def consumerSettings(config: KafkaConfig): ConsumerSettings = {
+    import eu.timepit.refined.auto._
     ConsumerSettings(config.addresses)
       .withGroupId(s"user-search-${config.topic}")
       .withClientId("user-search-client")
