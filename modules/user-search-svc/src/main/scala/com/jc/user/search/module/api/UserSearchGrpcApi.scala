@@ -40,7 +40,7 @@ object UserSearchGrpcApiHandler {
     }
   }
 
-  val live: ZLayer[UserSearchRepo with Logging, Nothing, UserSearchGrpcApiHandler] =
+  val live: ZLayer[UserSearchRepo with Logging.Logging, Nothing, UserSearchGrpcApiHandler] =
     ZLayer.fromServices[UserSearchRepo.Service, Logging.Service, UserSearchApiService] {
       (userSearchRepo: UserSearchRepo.Service, logger: Logging.Service) =>
         LiveUserSearchApiService(userSearchRepo, logger.logger)

@@ -3,8 +3,9 @@ package com.jc.user.search.module.processor
 import com.jc.user.domain.proto.UserPayloadEvent
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.repo.UserSearchRepo
-import zio.{Has, ZIO, ZLayer}
-import zio.logging.{Logger, Logging}
+import zio.{ZIO, ZLayer}
+import zio.logging.Logging
+import zio.logging.Logger
 
 object UserEventProcessor {
 
@@ -21,7 +22,7 @@ object UserEventProcessor {
     }
   }
 
-  val live: ZLayer[UserSearchRepo with Logging, Nothing, UserEventProcessor] =
+  val live: ZLayer[UserSearchRepo with Logging.Logging, Nothing, UserEventProcessor] =
     ZLayer.fromServices[UserSearchRepo.Service, Logging.Service, UserEventProcessor.Service] {
       (userSearchRepo: UserSearchRepo.Service, logger: Logging.Service) =>
         LiveUserEventProcessorService(userSearchRepo, logger.logger)

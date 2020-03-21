@@ -6,7 +6,8 @@ import com.jc.user.search.model.{ExpectedFailure, RepoFailure}
 import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchAllQuery
 import com.sksamuel.elastic4s.requests.searches.sort.{FieldSort, SortOrder}
-import zio.logging.{Logger, Logging}
+import zio.logging.Logging
+import zio.logging.Logger
 import zio.{Has, ZIO, ZLayer}
 
 object UserSearchRepo {
@@ -127,7 +128,8 @@ object UserSearchRepo {
     }
   }
 
-  def elasticsearch(userSearchRepoIndexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, UserSearchRepo] =
+  def elasticsearch(
+    userSearchRepoIndexName: String): ZLayer[Has[ElasticClient] with Logging.Logging, Nothing, UserSearchRepo] =
     ZLayer.fromServices[ElasticClient, Logging.Service, UserSearchRepo.Service] {
       (elasticClient: ElasticClient, logger: Logging.Service) =>
         EsUserSearchRepoService(elasticClient, userSearchRepoIndexName, logger.logger)

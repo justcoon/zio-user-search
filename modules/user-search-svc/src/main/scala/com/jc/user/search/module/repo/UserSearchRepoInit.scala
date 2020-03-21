@@ -2,7 +2,9 @@ package com.jc.user.search.module.repo
 
 import com.sksamuel.elastic4s.ElasticClient
 import zio.{Has, ZIO, ZLayer}
-import zio.logging.{LogLevel, Logger, Logging}
+import zio.logging.LogLevel
+import zio.logging.Logging
+import zio.logging.Logger
 
 object UserSearchRepoInit {
 
@@ -56,7 +58,7 @@ object UserSearchRepoInit {
   }
 
   def elasticsearch(
-    userSearchRepoIndexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, UserSearchRepoInit] =
+    userSearchRepoIndexName: String): ZLayer[Has[ElasticClient] with Logging.Logging, Nothing, UserSearchRepoInit] =
     ZLayer.fromServices[ElasticClient, Logging.Service, UserSearchRepoInit.Service] {
       (elasticClient: ElasticClient, logger: Logging.Service) =>
         EsUserSearchRepoInitService(elasticClient, userSearchRepoIndexName, logger.logger)

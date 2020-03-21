@@ -1,13 +1,15 @@
+resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
+
 lazy val Versions = new {
   val kindProjector = "0.11.0"
   val scalamacros = "2.1.1"
   val http4s = "0.21.1"
-  val zio = "1.0.0-RC18-1"
-  val zioInteropCats = "2.0.0.0-RC11"
-  val zioKafka = "0.6.2"
-  val zioLogging = "0.2.3"
+  val zio = "1.0.0-RC18-2"
+  val zioInteropCats = "2.0.0.0-RC12"
+  val zioKafka = "0.7.0"
+  val zioLogging = "0.2.5"
   val zioMacro = "0.6.2"
-  val zioMetrics = "0.2.0"
+  val zioMetrics = "0.2.1"
   val elastic4s = "7.3.5"
   val circe = "0.12.3"
   val scalaTest = "3.0.8"
@@ -15,7 +17,7 @@ lazy val Versions = new {
   val pureconfig = "0.12.2"
   val refined = "0.9.12"
   val logback = "1.2.3"
-  val grpc = "1.27.2"
+  val grpc = "1.28.0"
   val chimney = "0.4.2"
 }
 

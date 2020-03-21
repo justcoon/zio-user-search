@@ -20,9 +20,6 @@ object UserKafkaConsumer {
       .withGroupId(s"user-search-${config.topic}")
       .withClientId("user-search-client")
       .withCloseTimeout(30.seconds)
-      //      .withPollInterval(250.millis)
-      //      .withPollTimeout(50.millis)
-      //      .withPerPartitionChunkPrefetch(2)
       .withOffsetRetrieval(Consumer.OffsetRetrieval.Auto(AutoOffsetStrategy.Earliest))
   }
 
