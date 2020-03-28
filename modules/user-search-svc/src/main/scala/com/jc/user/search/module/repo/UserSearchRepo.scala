@@ -6,8 +6,7 @@ import com.jc.user.search.model.{ExpectedFailure, RepoFailure}
 import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchAllQuery
 import com.sksamuel.elastic4s.requests.searches.sort.{FieldSort, SortOrder}
-import zio.logging.Logging
-import zio.logging.Logger
+import zio.logging.{LogLevel, Logger, Logging}
 import zio.{Has, ZIO, ZLayer}
 
 object UserSearchRepo {
@@ -74,34 +73,47 @@ object UserSearchRepo {
       logger.log(s"insert - id: ${user.id}") *>
         elasticClient.execute {
           indexInto(userSearchRepoIndexName).doc(user).id(user.id)
-        }.bimap(e => RepoFailure(e), _.isSuccess)
+        }.mapError(e => RepoFailure(e)).map(_.isSuccess).tapError { e =>
+          logger.log(LogLevel.Error)(s"insert - id: ${user.id} - error: ${e.throwable.getMessage}") *>
+            ZIO.fail(e)
+        }
     }
 
     override def update(user: UserSearchRepo.User): ZIO[Any, ExpectedFailure, Boolean] = {
       logger.log(s"update - id: ${user.id}") *>
         elasticClient.execute {
           updateIndex(user.id).in(userSearchRepoIndexName).doc(user)
-        }.bimap(e => RepoFailure(e), _.isSuccess)
+        }.mapError(e => RepoFailure(e)).map(_.isSuccess).tapError { e =>
+          logger.log(LogLevel.Error)(s"update - id: ${user.id} - error: ${e.throwable.getMessage}") *>
+            ZIO.fail(e)
+        }
     }
 
     override def find(id: UserId): ZIO[Any, ExpectedFailure, Option[UserSearchRepo.User]] = {
       logger.log(s"find - id: ${id}") *>
         elasticClient.execute {
           get(id).from(userSearchRepoIndexName)
-        }.bimap(
-          e => RepoFailure(e),
-          r =>
-            if (r.result.exists)
-              Option(r.result.to[UserSearchRepo.User])
-            else
-              Option.empty)
+        }.mapError { e =>
+          RepoFailure(e)
+        }.map { r =>
+          if (r.result.exists)
+            Option(r.result.to[UserSearchRepo.User])
+          else
+            Option.empty
+        }.tapError { e =>
+          logger.log(LogLevel.Error)(s"find - id: ${id} - error: ${e.throwable.getMessage}") *>
+            ZIO.fail(e)
+        }
     }
 
     override def findAll(): ZIO[Any, ExpectedFailure, Array[UserSearchRepo.User]] = {
       logger.log("findAll") *>
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).matchAllQuery
-        }.bimap(e => RepoFailure(e), _.result.to[UserSearchRepo.User].toArray)
+        }.mapError(e => RepoFailure(e)).map(_.result.to[UserSearchRepo.User].toArray).tapError { e =>
+          logger.log(LogLevel.Error)(s"findAll - error: ${e.throwable.getMessage}") *>
+            ZIO.fail(e)
+        }
     }
 
     override def search(query: Option[String], page: Int, pageSize: Int, sorts: Iterable[UserSearchRepo.FieldSort])
@@ -124,6 +136,10 @@ object UserSearchRepo {
           } else {
             ZIO.fail(RepoFailure(res.error.asException))
           }
+        }.tapError { e =>
+          logger.log(LogLevel.Error)(s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts
+            .mkString("[", ",", "]")} - error: ${e.throwable.getMessage}") *>
+            ZIO.fail(e)
         }
     }
   }
