@@ -1,4 +1,5 @@
 resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
+scalaVersion in Scope.Global := "2.13.1"
 
 lazy val Versions = new {
   val kindProjector = "0.11.0"
@@ -89,7 +90,6 @@ lazy val settings =
 
 lazy val commonSettings =
   Seq(
-    scalaVersion              := "2.13.1",
     organization              := "c",
     scalafmtOnCompile         := true,
     fork in Test              := true,
