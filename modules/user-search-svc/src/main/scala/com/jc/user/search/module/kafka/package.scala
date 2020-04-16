@@ -4,5 +4,5 @@ import com.jc.user.domain.proto.UserPayloadEvent
 import zio.kafka.consumer.Consumer
 
 package object kafka {
-  type UserKafkaConsumer = Consumer[Any, String, UserPayloadEvent]
+  type UserKafkaConsumer = Consumer //[Any, String, UserPayloadEvent]
 }

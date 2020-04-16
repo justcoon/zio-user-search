@@ -32,13 +32,13 @@ object UserKafkaConsumer {
   val userEventSerde = Serde(userEventDes)(userEventSer)
 
   def live(config: KafkaConfig): ZLayer[Clock with Blocking, Throwable, UserKafkaConsumer] = {
-    Consumer.make(consumerSettings(config), Serde.string, UserKafkaConsumer.userEventSerde)
+    Consumer.make(consumerSettings(config))
   }
 
   def consume(userKafkaTopic: String) = {
     Consumer
-      .subscribeAnd[Any, String, UserPayloadEvent](Subscription.topics(userKafkaTopic))
-      .plainStream
+      .subscribeAnd(Subscription.topics(userKafkaTopic))
+      .plainStream(Serde.string, UserKafkaConsumer.userEventSerde)
       .flattenChunks
       .tap { cr =>
         ZIO.accessM[UserEventProcessor] {

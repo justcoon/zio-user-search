@@ -61,7 +61,7 @@ object UserSearchRepo {
   final case class EsUserSearchRepoService(
     elasticClient: ElasticClient,
     userSearchRepoIndexName: String,
-    logger: Logger)
+    logger: Logger[String])
       extends UserSearchRepo.Service {
     import com.sksamuel.elastic4s.zio.instances._
     import com.sksamuel.elastic4s.ElasticDsl.{update => updateIndex, search => searchIndex, _}
@@ -74,7 +74,7 @@ object UserSearchRepo {
         elasticClient.execute {
           indexInto(userSearchRepoIndexName).doc(user).id(user.id)
         }.mapError(e => RepoFailure(e)).map(_.isSuccess).tapError { e =>
-          logger.log(LogLevel.Error)(s"insert - id: ${user.id} - error: ${e.throwable.getMessage}") *>
+          logger.error(s"insert - id: ${user.id} - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
     }
@@ -84,7 +84,7 @@ object UserSearchRepo {
         elasticClient.execute {
           updateIndex(user.id).in(userSearchRepoIndexName).doc(user)
         }.mapError(e => RepoFailure(e)).map(_.isSuccess).tapError { e =>
-          logger.log(LogLevel.Error)(s"update - id: ${user.id} - error: ${e.throwable.getMessage}") *>
+          logger.error(s"update - id: ${user.id} - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
     }
@@ -101,7 +101,7 @@ object UserSearchRepo {
           else
             Option.empty
         }.tapError { e =>
-          logger.log(LogLevel.Error)(s"find - id: ${id} - error: ${e.throwable.getMessage}") *>
+          logger.error(s"find - id: ${id} - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
     }
@@ -111,7 +111,7 @@ object UserSearchRepo {
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).matchAllQuery
         }.mapError(e => RepoFailure(e)).map(_.result.to[UserSearchRepo.User].toArray).tapError { e =>
-          logger.log(LogLevel.Error)(s"findAll - error: ${e.throwable.getMessage}") *>
+          logger.error(s"findAll - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
     }
@@ -137,17 +137,16 @@ object UserSearchRepo {
             ZIO.fail(RepoFailure(res.error.asException))
           }
         }.tapError { e =>
-          logger.log(LogLevel.Error)(s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts
+          logger.error(s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts
             .mkString("[", ",", "]")} - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
     }
   }
 
-  def elasticsearch(
-    userSearchRepoIndexName: String): ZLayer[Has[ElasticClient] with Logging.Logging, Nothing, UserSearchRepo] =
-    ZLayer.fromServices[ElasticClient, Logging.Service, UserSearchRepo.Service] {
-      (elasticClient: ElasticClient, logger: Logging.Service) =>
-        EsUserSearchRepoService(elasticClient, userSearchRepoIndexName, logger.logger)
+  def elasticsearch(userSearchRepoIndexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, UserSearchRepo] =
+    ZLayer.fromServices[ElasticClient, Logger[String], UserSearchRepo.Service] {
+      (elasticClient: ElasticClient, logger: Logger[String]) =>
+        EsUserSearchRepoService(elasticClient, userSearchRepoIndexName, logger)
     }
 }

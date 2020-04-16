@@ -13,7 +13,7 @@ import zio.logging.Logger
 
 object UserSearchGrpcApiHandler {
 
-  final case class LiveUserSearchApiService(userSearchRepo: UserSearchRepo.Service, logger: Logger)
+  final case class LiveUserSearchApiService(userSearchRepo: UserSearchRepo.Service, logger: Logger[String])
       extends UserSearchApiService {
     import io.scalaland.chimney.dsl._
 
@@ -40,9 +40,9 @@ object UserSearchGrpcApiHandler {
     }
   }
 
-  val live: ZLayer[UserSearchRepo with Logging.Logging, Nothing, UserSearchGrpcApiHandler] =
-    ZLayer.fromServices[UserSearchRepo.Service, Logging.Service, UserSearchApiService] {
-      (userSearchRepo: UserSearchRepo.Service, logger: Logging.Service) =>
-        LiveUserSearchApiService(userSearchRepo, logger.logger)
+  val live: ZLayer[UserSearchRepo with Logging, Nothing, UserSearchGrpcApiHandler] =
+    ZLayer.fromServices[UserSearchRepo.Service, Logger[String], UserSearchApiService] {
+      (userSearchRepo: UserSearchRepo.Service, logger: Logger[String]) =>
+        LiveUserSearchApiService(userSearchRepo, logger)
     }
 }

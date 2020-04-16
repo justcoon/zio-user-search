@@ -13,7 +13,7 @@ object UserEventProcessor {
     def process(event: UserPayloadEvent): ZIO[Any, ExpectedFailure, Boolean]
   }
 
-  final case class LiveUserEventProcessorService(userSearchRepo: UserSearchRepo.Service, logger: Logger)
+  final case class LiveUserEventProcessorService(userSearchRepo: UserSearchRepo.Service, logger: Logger[String])
       extends UserEventProcessor.Service {
 
     override def process(event: UserPayloadEvent): ZIO[Any, ExpectedFailure, Boolean] = {
@@ -22,10 +22,10 @@ object UserEventProcessor {
     }
   }
 
-  val live: ZLayer[UserSearchRepo with Logging.Logging, Nothing, UserEventProcessor] =
-    ZLayer.fromServices[UserSearchRepo.Service, Logging.Service, UserEventProcessor.Service] {
-      (userSearchRepo: UserSearchRepo.Service, logger: Logging.Service) =>
-        LiveUserEventProcessorService(userSearchRepo, logger.logger)
+  val live: ZLayer[UserSearchRepo with Logging, Nothing, UserEventProcessor] =
+    ZLayer.fromServices[UserSearchRepo.Service, Logger[String], UserEventProcessor.Service] {
+      (userSearchRepo: UserSearchRepo.Service, logger: Logger[String]) =>
+        LiveUserEventProcessorService(userSearchRepo, logger)
     }
 
   def index(event: UserPayloadEvent, userSearchRepo: UserSearchRepo.Service) = {

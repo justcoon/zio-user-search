@@ -22,7 +22,7 @@ import zio.clock.Clock
 import zio.console.putStrLn
 import zio.interop.catz._
 import zio.logging.slf4j.Slf4jLogger
-import zio.logging.Logging.Logging
+import zio.logging.Logging
 import zio.metrics.prometheus._
 import zio.metrics.prometheus.exporters.Exporters
 import zio.metrics.prometheus.helpers._
