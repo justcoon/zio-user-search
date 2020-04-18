@@ -1,9 +1,9 @@
 package com.jc.user.search.module.api
 
 import com.jc.user.domain.{proto, UserEntity}
-
 import com.jc.user.search.api.proto.ZioUserSearchApi.UserSearchApiService
 import com.jc.user.search.api.proto.{GetUserReq, GetUserRes, SearchUsersReq, SearchUsersRes}
+import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.repo.UserSearchRepo
 import io.grpc.Status
 import zio.IO
@@ -33,10 +33,16 @@ object UserSearchGrpcApiHandler {
       }
       userSearchRepo
         .search(Some(request.query), request.page, request.pageSize, ss)
-        .map { r =>
-          SearchUsersRes(r.items.map(_.transformInto[proto.User]), r.page, r.pageSize, r.count)
-        }
-        .mapError[Status](_ => Status.INTERNAL)
+        .fold(
+          e => SearchUsersRes(result = SearchUsersRes.Result.Failure(ExpectedFailure.getMessage(e))),
+          r =>
+            SearchUsersRes(
+              r.items.map(_.transformInto[proto.User]),
+              r.page,
+              r.pageSize,
+              r.count,
+              SearchUsersRes.Result.Success(""))
+        )
     }
   }
 

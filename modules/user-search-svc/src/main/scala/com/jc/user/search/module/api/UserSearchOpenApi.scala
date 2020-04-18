@@ -2,7 +2,7 @@ package com.jc.user.search.module.api
 
 import com.jc.user.domain.UserEntity
 import com.jc.user.search.api.openapi.user.{GetUserResponse, SearchUsersResponse, UserHandler}
-import com.jc.user.search.model.{NotFoundFailure, RepoFailure}
+import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.repo.UserSearchRepo
 import zio.ZIO
 
@@ -30,15 +30,15 @@ class UserSearchOpenApiHandler[R <: UserSearchRepo] extends UserHandler[ZIO[R, T
               (sort, true)
           }
         }
-        env.get.search(query, page, pageSize, ss).map { res =>
-          val items = res.items.map(_.transformInto[User]).toVector
-          respond.Ok(UserSearchResponse(items, res.page, res.pageSize, res.count))
-        }
+        env.get.search(query, page, pageSize, ss)
       }
-      .fold({
-        case RepoFailure(throwable) => respond.BadRequest(throwable.getMessage)
-        case NotFoundFailure(message) => respond.BadRequest(message)
-      }, identity)
+      .fold(
+        e => respond.BadRequest(ExpectedFailure.getMessage(e)),
+        r => {
+          val items = r.items.map(_.transformInto[User]).toVector
+          respond.Ok(UserSearchResponse(items, r.page, r.pageSize, r.count))
+        }
+      )
   }
 
   override def getUser(respond: GetUserResponse.type)(id: String): F[GetUserResponse] = {

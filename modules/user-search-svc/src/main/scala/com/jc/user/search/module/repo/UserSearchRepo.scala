@@ -134,7 +134,7 @@ object UserSearchRepo {
             val items = res.result.to[UserSearchRepo.User]
             ZIO.succeed(UserSearchRepo.PaginatedSequence(items, page, pageSize, res.result.totalHits.toInt))
           } else {
-            ZIO.fail(RepoFailure(res.error.asException))
+            ZIO.fail(RepoFailure(new Exception(ElasticUtils.getReason(res.error))))
           }
         }.tapError { e =>
           logger.error(s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts
