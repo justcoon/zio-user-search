@@ -1,5 +1,5 @@
 resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-scalaVersion in Scope.Global := "2.13.1"
+scalaVersion in Scope.Global := "2.13.2"
 
 lazy val Versions = new {
   val kindProjector = "0.11.0"
