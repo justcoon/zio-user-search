@@ -11,4 +11,4 @@ addSbtPlugin("com.thesamet"          % "sbt-protoc"    % "0.99.28")
 
 
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.10.2"
-libraryDependencies += "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-codegen" % "0.2.0"
+libraryDependencies += "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-codegen" % "0.2.0+50-38eb8920-SNAPSHOT"
