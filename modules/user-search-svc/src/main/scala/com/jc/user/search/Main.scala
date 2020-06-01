@@ -1,6 +1,5 @@
 package com.jc.user.search
 
-import cats.effect.ExitCode
 import com.jc.user.search.api.openapi.user.UserResource
 import com.jc.user.search.api.proto.ZioUserSearchApi.UserSearchApiService
 import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, HttpApiConfig, PrometheusConfig}
@@ -103,19 +102,20 @@ object Main extends App {
     appLayer
   }
 
-  override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
+  override def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] = {
     val result = for {
       appConfig <- AppConfig.getConfig
 
       runtime: ZIO[AppEnvironment, Throwable, Nothing] = ZIO.runtime[AppEnvironment].flatMap { implicit rts =>
+        val ec = rts.platform.executor.asEC
         UserSearchRepoInit.init *>
           metrics(appConfig.prometheus) *>
           UserKafkaConsumer.consume(appConfig.kafka.topic) &>
-          BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]]
+          BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]](ec)
             .bindHttp(appConfig.restApi.port, appConfig.restApi.address)
             .withHttpApp(httpApp)
             .serve
-            .compile[ZIO[AppEnvironment, Throwable, *], ZIO[AppEnvironment, Throwable, *], ExitCode]
+            .compile[ZIO[AppEnvironment, Throwable, *], ZIO[AppEnvironment, Throwable, *], cats.effect.ExitCode]
             .drain
             .forever
       }
@@ -126,6 +126,8 @@ object Main extends App {
     } yield program
 
     result
-      .foldM(failure = err => putStrLn(s"Execution failed with: $err") *> ZIO.succeed(1), success = _ => ZIO.succeed(0))
+      .foldM(
+        failure = err => putStrLn(s"Execution failed with: $err") *> ZIO.succeed(ExitCode.failure),
+        success = _ => ZIO.succeed(ExitCode.success))
   }
 }
