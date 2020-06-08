@@ -6,7 +6,7 @@ import com.jc.user.search.model.{ExpectedFailure, RepoFailure}
 import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchAllQuery
 import com.sksamuel.elastic4s.requests.searches.sort.{FieldSort, SortOrder}
-import zio.logging.{LogLevel, Logger, Logging}
+import zio.logging.{Logger, Logging}
 import zio.{Has, ZIO, ZLayer}
 
 object UserSearchRepo {
@@ -82,7 +82,7 @@ object UserSearchRepo {
     override def update(user: UserSearchRepo.User): ZIO[Any, ExpectedFailure, Boolean] = {
       logger.log(s"update - id: ${user.id}") *>
         elasticClient.execute {
-          updateIndex(user.id).in(userSearchRepoIndexName).doc(user)
+          updateById(userSearchRepoIndexName, user.id).doc(user)
         }.mapError(e => RepoFailure(e)).map(_.isSuccess).tapError { e =>
           logger.error(s"update - id: ${user.id} - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
@@ -92,7 +92,7 @@ object UserSearchRepo {
     override def find(id: UserId): ZIO[Any, ExpectedFailure, Option[UserSearchRepo.User]] = {
       logger.log(s"find - id: ${id}") *>
         elasticClient.execute {
-          get(id).from(userSearchRepoIndexName)
+          get(userSearchRepoIndexName, id)
         }.mapError { e =>
           RepoFailure(e)
         }.map { r =>
