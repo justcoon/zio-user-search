@@ -8,7 +8,7 @@ lazy val Versions = new {
   val zio = "1.0.0-RC20"
   val zioInteropCats = "2.1.3.0-RC15"
   val zioKafka = "0.10.1"
-  val zioLogging = "0.3.0"
+  val zioLogging = "0.3.1"
   val zioMacro = "0.6.2"
   val zioMetrics = "0.2.6"
   val elastic4s = "7.7.0"
@@ -18,7 +18,7 @@ lazy val Versions = new {
   val pureconfig = "0.12.3"
   val refined = "0.9.14"
   val logback = "1.2.3"
-  val grpc = "1.29.0"
+  val grpc = "1.30.0"
   val chimney = "0.5.2"
 }
 
