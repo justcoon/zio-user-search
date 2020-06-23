@@ -8,8 +8,8 @@ addSbtPlugin("au.com.onegeek" % "sbt-dotenv" % "2.1.147")
 //addSbtPlugin("org.duhemm"                % "sbt-errors-summary" % "0.6.3")
 addSbtPlugin("com.twilio"            % "sbt-guardrail" % "0.58.1")
 addSbtPlugin("com.typesafe.sbt"      % "sbt-git"       % "1.0.0")
-addSbtPlugin("com.thesamet"          % "sbt-protoc"    % "0.99.31")
+addSbtPlugin("com.thesamet"          % "sbt-protoc"    % "0.99.34")
 
 
-libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.10.4"
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.10.6"
 libraryDependencies += "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-codegen" % "0.3.0"
