@@ -14,4 +14,8 @@ object ElasticUtils {
       error.reason
     }
   }
+
+  def getTermSuggestionName(propertyName: String): String = {
+    s"${propertyName}_term"
+  }
 }

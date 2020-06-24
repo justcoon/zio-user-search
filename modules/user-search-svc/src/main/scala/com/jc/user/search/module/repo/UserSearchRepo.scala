@@ -4,8 +4,6 @@ import com.jc.user.domain.UserEntity
 import com.jc.user.domain.UserEntity.UserId
 import com.jc.user.search.model.{ExpectedFailure, RepoFailure}
 import com.sksamuel.elastic4s.ElasticClient
-import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchAllQuery
-import com.sksamuel.elastic4s.requests.searches.sort.{FieldSort, SortOrder}
 import zio.logging.{Logger, Logging}
 import zio.{Has, ZIO, ZLayer}
 
@@ -22,6 +20,8 @@ object UserSearchRepo {
 
     def search(query: Option[String], page: Int, pageSize: Int, sorts: Iterable[UserSearchRepo.FieldSort])
       : ZIO[Any, ExpectedFailure, UserSearchRepo.PaginatedSequence[UserSearchRepo.User]]
+
+    def suggest(query: String): ZIO[Any, ExpectedFailure, UserSearchRepo.SuggestResponse]
   }
 
   type FieldSort = (String, Boolean)
@@ -58,14 +58,24 @@ object UserSearchRepo {
 
   final case class PaginatedSequence[T](items: Seq[T], page: Int, pageSize: Int, count: Int)
 
+  final case class SuggestResponse(items: Seq[PropertySuggestions])
+
+  final case class TermSuggestion(text: String, score: Double, freq: Int)
+
+  final case class PropertySuggestions(property: String, suggestions: Seq[TermSuggestion])
+
   final case class EsUserSearchRepoService(
     elasticClient: ElasticClient,
     userSearchRepoIndexName: String,
     logger: Logger[String])
       extends UserSearchRepo.Service {
+
     import com.sksamuel.elastic4s.zio.instances._
-    import com.sksamuel.elastic4s.ElasticDsl.{update => updateIndex, search => searchIndex, _}
-    import com.sksamuel.elastic4s.requests.searches.queries.{NoopQuery, QueryStringQuery}
+    import com.sksamuel.elastic4s.ElasticDsl.{search => searchIndex, _}
+    import com.sksamuel.elastic4s.requests.searches.queries.QueryStringQuery
+    import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchAllQuery
+    import com.sksamuel.elastic4s.requests.searches.sort.{FieldSort, SortOrder}
+    import com.sksamuel.elastic4s.requests.searches.suggestion
     import com.sksamuel.elastic4s.circe._
     import io.circe.generic.auto._
 
@@ -142,6 +152,45 @@ object UserSearchRepo {
             ZIO.fail(e)
         }
     }
+
+    override def suggest(query: String): ZIO[Any, ExpectedFailure, SuggestResponse] = {
+
+      val termSuggestions = suggestFields.map { p =>
+        suggestion
+          .TermSuggestion(ElasticUtils.getTermSuggestionName(p), p, Some(query))
+          .mode(suggestion.SuggestMode.Always)
+      }
+
+      logger.log(s"suggest - query: '$query'") *>
+        elasticClient.execute {
+          searchIndex(userSearchRepoIndexName).suggestions(termSuggestions)
+        }.mapError { e =>
+          RepoFailure(e)
+        }.flatMap { res =>
+          if (res.isSuccess) {
+            val elasticSuggestions = res.result.suggestions
+            val suggestions = suggestFields.map { p =>
+              val propertySuggestions = elasticSuggestions(ElasticUtils.getTermSuggestionName(p))
+              val suggestions = propertySuggestions.flatMap { v =>
+                val t = v.toTerm
+                t.options.map { o =>
+                  TermSuggestion(o.text, o.score, o.freq)
+                }
+              }
+
+              PropertySuggestions(p, suggestions)
+            }
+            ZIO.succeed(SuggestResponse(suggestions))
+          } else {
+            ZIO.fail(RepoFailure(new Exception(ElasticUtils.getReason(res.error))))
+          }
+        }.tapError { e =>
+          logger.error(s"suggest - query: '$query' - error: ${e.throwable.getMessage}") *>
+            ZIO.fail(e)
+        }
+    }
+
+    private val suggestFields = Seq("username", "email")
   }
 
   def elasticsearch(userSearchRepoIndexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, UserSearchRepo] =

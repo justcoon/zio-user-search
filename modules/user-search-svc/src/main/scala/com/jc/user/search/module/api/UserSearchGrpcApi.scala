@@ -2,7 +2,15 @@ package com.jc.user.search.module.api
 
 import com.jc.user.domain.{proto, UserEntity}
 import com.jc.user.search.api.proto.ZioUserSearchApi.UserSearchApiService
-import com.jc.user.search.api.proto.{GetUserReq, GetUserRes, SearchUsersReq, SearchUsersRes}
+import com.jc.user.search.api.proto.{
+  GetUserReq,
+  GetUserRes,
+  PropertySuggestion,
+  SearchUsersReq,
+  SearchUsersRes,
+  SuggestUsersReq,
+  SuggestUsersRes
+}
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.repo.UserSearchRepo
 import io.grpc.Status
@@ -42,6 +50,15 @@ object UserSearchGrpcApiHandler {
               r.pageSize,
               r.count,
               SearchUsersRes.Result.Success(""))
+        )
+    }
+
+    override def suggestUsers(request: SuggestUsersReq): IO[Status, SuggestUsersRes] = {
+      userSearchRepo
+        .suggest(request.query)
+        .fold(
+          e => SuggestUsersRes(result = SuggestUsersRes.Result.Failure(ExpectedFailure.getMessage(e))),
+          r => SuggestUsersRes(r.items.map(_.transformInto[PropertySuggestion]), SuggestUsersRes.Result.Success(""))
         )
     }
   }

@@ -53,11 +53,37 @@ message SearchUsersRes {
 }
 
 
+message SuggestUsersReq {
+    string query = 1 [(scalapb.field).no_box = false];
+}
+
+message TermSuggestion {
+    string text = 1 [(scalapb.field).no_box = false];
+    double score = 2;
+    int32 freq = 3;
+}
+
+message PropertySuggestion {
+    string property = 1 [(scalapb.field).no_box = false];
+    repeated TermSuggestion suggestions = 2;
+}
+
+message SuggestUsersRes {
+    repeated PropertySuggestion suggestions = 1;
+    oneof result {
+        string success = 2;
+        string failure = 3;
+    }
+}
+
 service UserSearchApiService {
 
     rpc GetUser (GetUserReq) returns (GetUserRes) {
     }
 
     rpc SearchUsers (SearchUsersReq) returns (SearchUsersRes) {
+    }
+
+    rpc SuggestUsers (SuggestUsersReq) returns (SuggestUsersRes) {
     }
 }

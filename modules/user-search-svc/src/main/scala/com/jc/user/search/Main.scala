@@ -3,7 +3,7 @@ package com.jc.user.search
 import com.jc.user.search.api.openapi.user.UserResource
 import com.jc.user.search.api.proto.ZioUserSearchApi.UserSearchApiService
 import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, HttpApiConfig, PrometheusConfig}
-import com.jc.user.search.module.api.{UserSearchGrpcApiHandler, UserSearchOpenApiHandler}
+import com.jc.user.search.module.api.{HttpServer, UserSearchGrpcApiHandler, UserSearchOpenApiHandler}
 import com.jc.user.search.module.kafka.UserKafkaConsumer
 import com.jc.user.search.module.processor.UserEventProcessor
 import com.jc.user.search.module.repo.{UserSearchRepo, UserSearchRepoInit}
@@ -108,16 +108,19 @@ object Main extends App {
 
       runtime: ZIO[AppEnvironment, Throwable, Nothing] = ZIO.runtime[AppEnvironment].flatMap { implicit rts =>
         val ec = rts.platform.executor.asEC
+        val server: ZIO[AppEnvironment, Throwable, Nothing] = BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]](ec)
+          .bindHttp(appConfig.restApi.port, appConfig.restApi.address)
+          .withHttpApp(httpApp)
+          .serve
+          .compile[ZIO[AppEnvironment, Throwable, *], ZIO[AppEnvironment, Throwable, *], cats.effect.ExitCode]
+          .drain
+          .forever
         UserSearchRepoInit.init *>
           metrics(appConfig.prometheus) *>
           UserKafkaConsumer.consume(appConfig.kafka.topic) &>
-          BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]](ec)
-            .bindHttp(appConfig.restApi.port, appConfig.restApi.address)
-            .withHttpApp(httpApp)
-            .serve
-            .compile[ZIO[AppEnvironment, Throwable, *], ZIO[AppEnvironment, Throwable, *], cats.effect.ExitCode]
-            .drain
-            .forever
+          server
+//          HttpServer.server(appConfig.restApi)
+
       }
 
       appLayer = createAppLayer(appConfig)
