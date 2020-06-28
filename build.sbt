@@ -1,16 +1,16 @@
 resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-scalaVersion in Scope.Global := "2.13.2"
+scalaVersion in Scope.Global := "2.13.3"
 
 lazy val Versions = new {
   val kindProjector = "0.11.0"
   val scalamacros = "2.1.1"
-  val http4s = "0.21.4"
+  val http4s = "0.21.6"
   val zio = "1.0.0-RC21"
   val zioInteropCats = "2.1.3.0-RC16"
   val zioKafka = "0.11.0"
   val zioLogging = "0.3.2"
   val zioMacro = "0.6.2"
-  val zioMetrics = "0.2.6"
+  val zioMetrics = "0.2.7"
   val elastic4s = "7.8.0"
   val circe = "0.13.0"
   val scalaTest = "3.2.0"
@@ -113,7 +113,6 @@ lazy val commonSettings =
       "-Xlint:delayedinit-select",
       "-Xlint:inaccessible",
       "-Xlint:missing-interpolator",
-      "-Xlint:nullary-override",
       "-Xlint:nullary-unit",
       "-Xlint:option-implicit",
       "-Xlint:package-object-classes",

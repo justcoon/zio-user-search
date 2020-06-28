@@ -6,7 +6,7 @@ import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.repo.UserSearchRepo
 import zio.ZIO
 
-class UserSearchOpenApiHandler[R <: UserSearchRepo] extends UserHandler[ZIO[R, Throwable, *]] {
+final class UserSearchOpenApiHandler[R <: UserSearchRepo] extends UserHandler[ZIO[R, Throwable, *]] {
   type F[A] = ZIO[R, Throwable, A]
 
   import UserEntity._
@@ -20,16 +20,8 @@ class UserSearchOpenApiHandler[R <: UserSearchRepo] extends UserHandler[ZIO[R, T
     sort: Option[Iterable[String]] = None): F[SearchUsersResponse] = {
     ZIO
       .accessM[R] { env =>
-        // sort - field:order (username:asc,email:desc)
-        // TODO improve parsing
-        val ss = sort.getOrElse(Seq.empty).map { sort =>
-          sort.split(":").toList match {
-            case p :: o :: Nil if o.toLowerCase == "desc" =>
-              (p, false)
-            case _ =>
-              (sort, true)
-          }
-        }
+        val ss = sort.getOrElse(Seq.empty).map(UserSearchOpenApiHandler.toFieldSort)
+
         env.get.search(query, page, pageSize, ss)
       }
       .fold(
@@ -51,4 +43,17 @@ class UserSearchOpenApiHandler[R <: UserSearchRepo] extends UserHandler[ZIO[R, T
       }
       .mapError[Throwable](e => new Exception(e))
   }
+}
+
+object UserSearchOpenApiHandler {
+
+  // TODO improve parsing
+  // sort - field:order, examples: username:asc, email:desc
+  def toFieldSort(sort: String): UserSearchRepo.FieldSort =
+    sort.split(":").toList match {
+      case p :: o :: Nil if o.toLowerCase == "desc" =>
+        (p, false)
+      case _ =>
+        (sort, true)
+    }
 }

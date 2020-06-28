@@ -119,7 +119,7 @@ object UserSearchRepo {
     override def findAll(): ZIO[Any, ExpectedFailure, Array[UserSearchRepo.User]] = {
       logger.log("findAll") *>
         elasticClient.execute {
-          searchIndex(userSearchRepoIndexName).matchAllQuery
+          searchIndex(userSearchRepoIndexName).matchAllQuery()
         }.mapError(e => RepoFailure(e)).map(_.result.to[UserSearchRepo.User].toArray).tapError { e =>
           logger.error(s"findAll - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)

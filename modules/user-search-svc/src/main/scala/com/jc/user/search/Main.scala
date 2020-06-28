@@ -119,8 +119,6 @@ object Main extends App {
           metrics(appConfig.prometheus) *>
           UserKafkaConsumer.consume(appConfig.kafka.topic) &>
           server
-//          HttpServer.server(appConfig.restApi)
-
       }
 
       appLayer = createAppLayer(appConfig)
