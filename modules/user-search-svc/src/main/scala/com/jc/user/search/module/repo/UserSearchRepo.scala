@@ -16,7 +16,7 @@ object UserSearchRepo {
 
     def find(id: UserEntity.UserId): ZIO[Any, ExpectedFailure, Option[UserSearchRepo.User]]
 
-    def findAll(): ZIO[Any, ExpectedFailure, Array[UserSearchRepo.User]]
+    def findAll(): ZIO[Any, ExpectedFailure, Seq[UserSearchRepo.User]]
 
     def search(query: Option[String], page: Int, pageSize: Int, sorts: Iterable[UserSearchRepo.FieldSort])
       : ZIO[Any, ExpectedFailure, UserSearchRepo.PaginatedSequence[UserSearchRepo.User]]
@@ -116,11 +116,11 @@ object UserSearchRepo {
         }
     }
 
-    override def findAll(): ZIO[Any, ExpectedFailure, Array[UserSearchRepo.User]] = {
+    override def findAll(): ZIO[Any, ExpectedFailure, Seq[UserSearchRepo.User]] = {
       logger.log("findAll") *>
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).matchAllQuery()
-        }.mapError(e => RepoFailure(e)).map(_.result.to[UserSearchRepo.User].toArray).tapError { e =>
+        }.mapError(e => RepoFailure(e)).map(_.result.to[UserSearchRepo.User]).tapError { e =>
           logger.error(s"findAll - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
