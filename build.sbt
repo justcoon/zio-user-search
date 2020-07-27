@@ -17,7 +17,7 @@ lazy val Versions = new {
   val refined = "0.9.15"
   val logback = "1.2.3"
   val grpc = "1.30.2"
-  val chimney = "0.5.2"
+  val chimney = "0.5.3"
 }
 
 lazy val `zio-user-search` =
