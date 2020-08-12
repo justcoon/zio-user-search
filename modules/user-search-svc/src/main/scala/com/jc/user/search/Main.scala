@@ -58,7 +58,7 @@ object Main extends App {
     }(_.close()))
   }
 
-  private def createGrpcServer(config: HttpApiConfig): ZLayer[UserSearchGrpcApiHandler, Nothing, GrpcServer] = {
+  private def createGrpcServer(config: HttpApiConfig): ZLayer[UserSearchGrpcApiHandler, Throwable, GrpcServer] = {
     GrpcServer.live[UserSearchApiService](ServerBuilder.forPort(config.port))
   }
 
