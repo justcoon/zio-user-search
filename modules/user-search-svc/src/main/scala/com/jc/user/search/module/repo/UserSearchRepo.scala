@@ -137,7 +137,7 @@ object UserSearchRepo {
           FieldSort(property, order = o)
       }
       serviceLogger.debug(
-        s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts.mkString("[", ",", "]")}") *>
+        s"search - query: '${query.getOrElse("N/A")}', page: $page, pageSize: $pageSize, sorts: ${sorts.mkString("[", ",", "]")}") *>
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).query(q).from(page * pageSize).limit(pageSize).sortBy(ss)
         }.mapError { e =>
@@ -150,7 +150,7 @@ object UserSearchRepo {
             ZIO.fail(RepoFailure(new Exception(ElasticUtils.getReason(res.error))))
           }
         }.tapError { e =>
-          serviceLogger.error(s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts
+          serviceLogger.error(s"search - query: '${query.getOrElse("N/A")}', page: $page, pageSize: $pageSize, sorts: ${sorts
             .mkString("[", ",", "]")} - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }

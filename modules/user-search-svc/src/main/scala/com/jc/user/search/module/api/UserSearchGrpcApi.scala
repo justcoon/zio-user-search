@@ -39,8 +39,9 @@ object UserSearchGrpcApiHandler {
       val ss = request.sorts.map { sort =>
         (sort.field, sort.order.isAsc)
       }
+      val q = if (request.query.isBlank) None else Some(request.query)
       userSearchRepo
-        .search(Some(request.query), request.page, request.pageSize, ss)
+        .search(q, request.page, request.pageSize, ss)
         .fold(
           e => SearchUsersRes(result = SearchUsersRes.Result.Failure(ExpectedFailure.getMessage(e))),
           r =>
