@@ -79,28 +79,30 @@ object UserSearchRepo {
     import com.sksamuel.elastic4s.circe._
     import io.circe.generic.auto._
 
+    val serviceLogger = logger.named(getClass.getName)
+
     override def insert(user: UserSearchRepo.User): ZIO[Any, ExpectedFailure, Boolean] = {
-      logger.log(s"insert - id: ${user.id}") *>
+      serviceLogger.debug(s"insert - id: ${user.id}") *>
         elasticClient.execute {
           indexInto(userSearchRepoIndexName).doc(user).id(user.id)
         }.mapError(e => RepoFailure(e)).map(_.isSuccess).tapError { e =>
-          logger.error(s"insert - id: ${user.id} - error: ${e.throwable.getMessage}") *>
+          serviceLogger.error(s"insert - id: ${user.id} - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
     }
 
     override def update(user: UserSearchRepo.User): ZIO[Any, ExpectedFailure, Boolean] = {
-      logger.log(s"update - id: ${user.id}") *>
+      serviceLogger.debug(s"update - id: ${user.id}") *>
         elasticClient.execute {
           updateById(userSearchRepoIndexName, user.id).doc(user)
         }.mapError(e => RepoFailure(e)).map(_.isSuccess).tapError { e =>
-          logger.error(s"update - id: ${user.id} - error: ${e.throwable.getMessage}") *>
+          serviceLogger.error(s"update - id: ${user.id} - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
     }
 
     override def find(id: UserId): ZIO[Any, ExpectedFailure, Option[UserSearchRepo.User]] = {
-      logger.log(s"find - id: ${id}") *>
+      serviceLogger.debug(s"find - id: ${id}") *>
         elasticClient.execute {
           get(userSearchRepoIndexName, id)
         }.mapError { e =>
@@ -111,17 +113,17 @@ object UserSearchRepo {
           else
             Option.empty
         }.tapError { e =>
-          logger.error(s"find - id: ${id} - error: ${e.throwable.getMessage}") *>
+          serviceLogger.error(s"find - id: ${id} - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
     }
 
     override def findAll(): ZIO[Any, ExpectedFailure, Seq[UserSearchRepo.User]] = {
-      logger.log("findAll") *>
+      serviceLogger.debug("findAll") *>
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).matchAllQuery()
         }.mapError(e => RepoFailure(e)).map(_.result.to[UserSearchRepo.User]).tapError { e =>
-          logger.error(s"findAll - error: ${e.throwable.getMessage}") *>
+          serviceLogger.error(s"findAll - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
     }
@@ -134,7 +136,8 @@ object UserSearchRepo {
           val o = if (asc) SortOrder.Asc else SortOrder.Desc
           FieldSort(property, order = o)
       }
-      logger.log(s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts.mkString("[", ",", "]")}") *>
+      serviceLogger.debug(
+        s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts.mkString("[", ",", "]")}") *>
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).query(q).from(page * pageSize).limit(pageSize).sortBy(ss)
         }.mapError { e =>
@@ -147,7 +150,7 @@ object UserSearchRepo {
             ZIO.fail(RepoFailure(new Exception(ElasticUtils.getReason(res.error))))
           }
         }.tapError { e =>
-          logger.error(s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts
+          serviceLogger.error(s"search - query: '$query', page: $page, pageSize: $pageSize, sorts: ${sorts
             .mkString("[", ",", "]")} - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
@@ -161,7 +164,7 @@ object UserSearchRepo {
           .mode(suggestion.SuggestMode.Always)
       }
 
-      logger.log(s"suggest - query: '$query'") *>
+      serviceLogger.debug(s"suggest - query: '$query'") *>
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).suggestions(termSuggestions)
         }.mapError { e =>
@@ -185,7 +188,7 @@ object UserSearchRepo {
             ZIO.fail(RepoFailure(new Exception(ElasticUtils.getReason(res.error))))
           }
         }.tapError { e =>
-          logger.error(s"suggest - query: '$query' - error: ${e.throwable.getMessage}") *>
+          serviceLogger.error(s"suggest - query: '$query' - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
     }

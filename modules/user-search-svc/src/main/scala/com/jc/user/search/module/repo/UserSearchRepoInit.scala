@@ -2,9 +2,7 @@ package com.jc.user.search.module.repo
 
 import com.sksamuel.elastic4s.ElasticClient
 import zio.{Has, ZIO, ZLayer}
-import zio.logging.LogLevel
-import zio.logging.Logging
-import zio.logging.Logger
+import zio.logging.{Logger, Logging}
 
 object UserSearchRepoInit {
 
@@ -20,25 +18,27 @@ object UserSearchRepoInit {
     import com.sksamuel.elastic4s.ElasticDsl._
     import com.sksamuel.elastic4s.zio.instances._
 
+    val serviceLogger = logger.named(getClass.getName)
+
     override def init(): ZIO[Any, Throwable, Boolean] = {
       for {
         existResp <- elasticClient.execute {
           indexExists(userSearchRepoIndexName)
         }
         initResp <- if (!existResp.result.exists) {
-          logger.debug(s"init: $userSearchRepoIndexName - initializing ...") *>
+          serviceLogger.debug(s"init: $userSearchRepoIndexName - initializing ...") *>
             elasticClient.execute {
               createIndex(userSearchRepoIndexName).mapping(properties(EsUserSearchRepoInitService.fields))
             }.map(r => r.result.acknowledged).tapError { e =>
-              logger.error(s"init: $userSearchRepoIndexName - error: ${e.getMessage}") *>
+              serviceLogger.error(s"init: $userSearchRepoIndexName - error: ${e.getMessage}") *>
                 ZIO.fail(e)
             }
         } else {
-          logger.debug(s"init: $userSearchRepoIndexName - updating ...") *>
+          serviceLogger.debug(s"init: $userSearchRepoIndexName - updating ...") *>
             elasticClient.execute {
               putMapping(userSearchRepoIndexName).fields(EsUserSearchRepoInitService.fields)
             }.map(r => r.result.acknowledged).tapError { e =>
-              logger.error(s"init: $userSearchRepoIndexName - error: ${e.getMessage}") *>
+              serviceLogger.error(s"init: $userSearchRepoIndexName - error: ${e.getMessage}") *>
                 ZIO.fail(e)
             }
         }

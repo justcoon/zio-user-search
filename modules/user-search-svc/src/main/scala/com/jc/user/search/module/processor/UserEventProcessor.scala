@@ -4,8 +4,7 @@ import com.jc.user.domain.proto.UserPayloadEvent
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.repo.UserSearchRepo
 import zio.{ZIO, ZLayer}
-import zio.logging.Logging
-import zio.logging.Logger
+import zio.logging.{Logger, Logging}
 
 object UserEventProcessor {
 
@@ -16,8 +15,11 @@ object UserEventProcessor {
   final case class LiveUserEventProcessorService(userSearchRepo: UserSearchRepo.Service, logger: Logger[String])
       extends UserEventProcessor.Service {
 
+    val serviceLogger = logger.named(getClass.getName)
+
     override def process(event: UserPayloadEvent): ZIO[Any, ExpectedFailure, Boolean] = {
-      logger.log(s"processing event - entityId: ${event.entityId}, type: ${event.payload.getClass.getSimpleName}") *>
+      serviceLogger.log(
+        s"processing event - entityId: ${event.entityId}, type: ${event.payload.getClass.getSimpleName}") *>
         UserEventProcessor.index(event, userSearchRepo)
     }
   }
