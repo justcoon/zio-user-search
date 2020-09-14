@@ -26,6 +26,7 @@ import zio.metrics.prometheus._
 import zio.metrics.prometheus.exporters.Exporters
 import zio.metrics.prometheus.helpers._
 import scalapb.zio_grpc.{Server => GrpcServer}
+import scalapb.zio_grpc.{ServerLayer => GrpcServerLayer}
 import eu.timepit.refined.auto._
 
 object Main extends App {
@@ -59,7 +60,7 @@ object Main extends App {
   }
 
   private def createGrpcServer(config: HttpApiConfig): ZLayer[UserSearchGrpcApiHandler, Throwable, GrpcServer] = {
-    GrpcServer.live[UserSearchApiService](ServerBuilder.forPort(config.port))
+    GrpcServerLayer.access[UserSearchApiService](ServerBuilder.forPort(config.port))
   }
 
   private def createAppLayer(appConfig: AppConfig): ZLayer[Any with Clock with Blocking, Throwable, AppEnvironment] = {
