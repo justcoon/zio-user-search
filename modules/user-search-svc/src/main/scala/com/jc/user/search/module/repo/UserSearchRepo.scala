@@ -136,7 +136,7 @@ object UserSearchRepo {
           val o = if (asc) SortOrder.Asc else SortOrder.Desc
           FieldSort(property, order = o)
       }
-``      serviceLogger.debug(s"search - query: '${query
+      serviceLogger.debug(s"search - query: '${query
         .getOrElse("N/A")}', page: $page, pageSize: $pageSize, sorts: ${sorts.mkString("[", ",", "]")}") *>
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).query(q).from(page * pageSize).limit(pageSize).sortBy(ss)
