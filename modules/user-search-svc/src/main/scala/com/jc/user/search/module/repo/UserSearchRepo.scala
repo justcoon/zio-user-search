@@ -54,6 +54,26 @@ object UserSearchRepo {
     val deletedLens: Lens[User, Boolean] = lens[User].deleted
 
     val usernameEmailPassAddressLens = usernameLens ~ emailLens ~ passLens ~ addressLens
+
+    import io.circe._, io.circe.generic.semiauto._
+
+    implicit val addressDecoder: Decoder[Address] = deriveDecoder[Address]
+
+    implicit val addressEncoder: Encoder[Address] = deriveEncoder[Address]
+
+    implicit val userDecoder: Decoder[User] = deriveDecoder[User]
+
+    implicit val userEncoder: Encoder[User] = new Encoder[User] {
+
+      val derived: Encoder[User] = deriveEncoder[User]
+
+      override def apply(a: User): Json = {
+        derived(a).mapObject { jo =>
+          jo.add(ElasticUtils.getSuggestPropertyName("username"), Json.fromString(a.username))
+            .add(ElasticUtils.getSuggestPropertyName("email"), Json.fromString(a.email))
+        }
+      }
+    }
   }
 
   final case class PaginatedSequence[T](items: Seq[T], page: Int, pageSize: Int, count: Int)
@@ -77,7 +97,7 @@ object UserSearchRepo {
     import com.sksamuel.elastic4s.requests.searches.sort.{FieldSort, SortOrder}
     import com.sksamuel.elastic4s.requests.searches.suggestion
     import com.sksamuel.elastic4s.circe._
-    import io.circe.generic.auto._
+    import User._
 
     val serviceLogger = logger.named(getClass.getName)
 
@@ -157,28 +177,65 @@ object UserSearchRepo {
         }
     }
 
-    override def suggest(query: String): ZIO[Any, ExpectedFailure, SuggestResponse] = {
+//    override def suggest(query: String): ZIO[Any, ExpectedFailure, SuggestResponse] = {
+//      // term suggestion
+//      val termSuggestions = suggestFields.map { p =>
+//        suggestion
+//          .TermSuggestion(ElasticUtils.getTermSuggestionName(p), p, Some(query))
+//          .mode(suggestion.SuggestMode.Always)
+//      }
+//
+//      serviceLogger.debug(s"suggest - query: '$query'") *>
+//        elasticClient.execute {
+//          searchIndex(userSearchRepoIndexName).suggestions(termSuggestions)
+//        }.mapError { e =>
+//          RepoFailure(e)
+//        }.flatMap { res =>
+//          if (res.isSuccess) {
+//            val elasticSuggestions = res.result.suggestions
+//            val suggestions = suggestFields.map { p =>
+//              val propertySuggestions = elasticSuggestions(ElasticUtils.getTermSuggestionName(p))
+//              val suggestions = propertySuggestions.flatMap { v =>
+//                val t = v.toTerm
+//                t.options.map { o =>
+//                  TermSuggestion(o.text, o.score, o.freq)
+//                }
+//              }
+//
+//              PropertySuggestions(p, suggestions)
+//            }
+//            ZIO.succeed(SuggestResponse(suggestions))
+//          } else {
+//            ZIO.fail(RepoFailure(new Exception(ElasticUtils.getReason(res.error))))
+//          }
+//        }.tapError { e =>
+//          serviceLogger.error(s"suggest - query: '$query' - error: ${e.throwable.getMessage}") *>
+//            ZIO.fail(e)
+//        }
+//    }
 
-      val termSuggestions = suggestFields.map { p =>
+    override def suggest(query: String): ZIO[Any, ExpectedFailure, SuggestResponse] = {
+      // completion suggestion
+      val complSuggestions = suggestFields.map { p =>
         suggestion
-          .TermSuggestion(ElasticUtils.getTermSuggestionName(p), p, Some(query))
-          .mode(suggestion.SuggestMode.Always)
+          .CompletionSuggestion(ElasticUtils.getSuggestPropertyName(p), ElasticUtils.getSuggestPropertyName(p))
+          .prefix(query)
       }
 
       serviceLogger.debug(s"suggest - query: '$query'") *>
         elasticClient.execute {
-          searchIndex(userSearchRepoIndexName).suggestions(termSuggestions)
+          searchIndex(userSearchRepoIndexName).suggestions(complSuggestions)
         }.mapError { e =>
           RepoFailure(e)
         }.flatMap { res =>
           if (res.isSuccess) {
             val elasticSuggestions = res.result.suggestions
             val suggestions = suggestFields.map { p =>
-              val propertySuggestions = elasticSuggestions(ElasticUtils.getTermSuggestionName(p))
+              val propertySuggestions = elasticSuggestions(ElasticUtils.getSuggestPropertyName(p))
               val suggestions = propertySuggestions.flatMap { v =>
-                val t = v.toTerm
-                t.options.map { o =>
-                  TermSuggestion(o.text, o.score, o.freq)
+                val r = v.toCompletion
+                r.options.map { o =>
+                  TermSuggestion(o.text, o.score, o.score.toInt)
                 }
               }
 

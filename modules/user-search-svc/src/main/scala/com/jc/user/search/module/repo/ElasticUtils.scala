@@ -18,4 +18,17 @@ object ElasticUtils {
   def getTermSuggestionName(propertyName: String): String = {
     s"${propertyName}_term"
   }
+
+  val SuggestPropertySuffix: String = "_sugg"
+
+  def getSuggestPropertyName(propertyName: String): String = {
+    s"${propertyName}${SuggestPropertySuffix}"
+  }
+
+  def getPropertyNameFromSuggest(propertyName: String): String = {
+    propertyName.endsWith(SuggestPropertySuffix) match {
+      case true => propertyName.substring(0, propertyName.length - SuggestPropertySuffix.length)
+      case false => propertyName
+    }
+  }
 }

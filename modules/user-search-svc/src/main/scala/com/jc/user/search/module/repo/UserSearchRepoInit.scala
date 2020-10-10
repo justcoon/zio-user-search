@@ -53,6 +53,8 @@ object UserSearchRepoInit {
       textField("id").fielddata(true),
       textField("username").fielddata(true),
       textField("email").fielddata(true),
+      completionField(ElasticUtils.getSuggestPropertyName("username")),
+      completionField(ElasticUtils.getSuggestPropertyName("email")),
       textField("address.street").fielddata(true),
       textField("address.number").fielddata(true),
       textField("address.city").fielddata(true),
