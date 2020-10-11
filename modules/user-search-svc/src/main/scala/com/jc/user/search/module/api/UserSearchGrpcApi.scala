@@ -1,11 +1,13 @@
 package com.jc.user.search.module.api
 
+import com.jc.user.domain.proto.User
 import com.jc.user.domain.{proto, UserEntity}
 import com.jc.user.search.api.proto.ZioUserSearchApi.UserSearchApiService
 import com.jc.user.search.api.proto.{
   GetUserReq,
   GetUserRes,
   PropertySuggestion,
+  SearchUserStreamReq,
   SearchUsersReq,
   SearchUsersRes,
   SuggestUsersReq,
@@ -18,6 +20,7 @@ import zio.IO
 import zio.ZLayer
 import zio.logging.Logging
 import zio.logging.Logger
+import zio.stream.ZStream
 
 object UserSearchGrpcApiHandler {
 
@@ -33,6 +36,21 @@ object UserSearchGrpcApiHandler {
           GetUserRes(r.map(_.transformInto[proto.User]))
         }
         .mapError[Status](_ => Status.INTERNAL)
+    }
+
+    override def searchUserStream(request: SearchUserStreamReq): ZStream[Any, Status, User] = {
+      val ss = request.sorts.map { sort =>
+        (sort.field, sort.order.isAsc)
+      }
+      val q = if (request.query.isBlank) None else Some(request.query)
+      ZStream.fromIterableM {
+        userSearchRepo
+          .search(q, ss)
+          .fold(
+            _ => Seq.empty[proto.User],
+            r => r.map(_.transformInto[proto.User])
+          )
+      }
     }
 
     override def searchUsers(request: SearchUsersReq): IO[Status, SearchUsersRes] = {

@@ -40,7 +40,6 @@ message SearchUsersReq {
     repeated FieldSort sorts = 4;
 }
 
-
 message SearchUsersRes {
     repeated com.jc.user.domain.proto.User users = 1;
     int32 page = 2;
@@ -52,6 +51,10 @@ message SearchUsersRes {
     }
 }
 
+message SearchUserStreamReq {
+    string query = 1 [(scalapb.field).no_box = false];
+    repeated FieldSort sorts = 2;
+}
 
 message SuggestUsersReq {
     string query = 1 [(scalapb.field).no_box = false];
@@ -82,6 +85,9 @@ service UserSearchApiService {
     }
 
     rpc SearchUsers (SearchUsersReq) returns (SearchUsersRes) {
+    }
+
+    rpc SearchUserStream (SearchUserStreamReq) returns (stream com.jc.user.domain.proto.User) {
     }
 
     rpc SuggestUsers (SuggestUsersReq) returns (SuggestUsersRes) {

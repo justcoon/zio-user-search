@@ -18,6 +18,10 @@ object UserSearchRepo {
 
     def findAll(): ZIO[Any, ExpectedFailure, Seq[UserSearchRepo.User]]
 
+    def search(
+      query: Option[String],
+      sorts: Iterable[UserSearchRepo.FieldSort]): ZIO[Any, ExpectedFailure, Seq[UserSearchRepo.User]]
+
     def search(query: Option[String], page: Int, pageSize: Int, sorts: Iterable[UserSearchRepo.FieldSort])
       : ZIO[Any, ExpectedFailure, UserSearchRepo.PaginatedSequence[UserSearchRepo.User]]
 
@@ -144,6 +148,35 @@ object UserSearchRepo {
           searchIndex(userSearchRepoIndexName).matchAllQuery()
         }.mapError(e => RepoFailure(e)).map(_.result.to[UserSearchRepo.User]).tapError { e =>
           serviceLogger.error(s"findAll - error: ${e.throwable.getMessage}") *>
+            ZIO.fail(e)
+        }
+    }
+
+    override def search(
+      query: Option[String],
+      sorts: Iterable[(String, Boolean)]): ZIO[Any, ExpectedFailure, Seq[User]] = {
+      val q = query.map(QueryStringQuery(_)).getOrElse(MatchAllQuery())
+      val ss = sorts.map {
+        case (property, asc) =>
+          val o = if (asc) SortOrder.Asc else SortOrder.Desc
+          FieldSort(property, order = o)
+      }
+      serviceLogger.debug(s"search - query: '${query
+        .getOrElse("N/A")}', sorts: ${sorts.mkString("[", ",", "]")}") *>
+        elasticClient.execute {
+          searchIndex(userSearchRepoIndexName).sortBy(ss)
+        }.mapError { e =>
+          RepoFailure(e)
+        }.flatMap { res =>
+          if (res.isSuccess) {
+            val items = res.result.to[UserSearchRepo.User]
+            ZIO.succeed(items)
+          } else {
+            ZIO.fail(RepoFailure(new Exception(ElasticUtils.getReason(res.error))))
+          }
+        }.tapError { e =>
+          serviceLogger.error(s"search - query: '${query.getOrElse("N/A")}', sorts: ${sorts
+            .mkString("[", ",", "]")} - error: ${e.throwable.getMessage}") *>
             ZIO.fail(e)
         }
     }
