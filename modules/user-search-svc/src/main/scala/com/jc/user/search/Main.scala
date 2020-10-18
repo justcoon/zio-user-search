@@ -1,9 +1,10 @@
 package com.jc.user.search
 
 import com.jc.user.search.api.openapi.user.UserResource
-import com.jc.user.search.api.proto.ZioUserSearchApi.UserSearchApiService
+import com.jc.user.search.api.proto.ZioUserSearchApi.{RCUserSearchApiService, UserSearchApiService}
 import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, HttpApiConfig, PrometheusConfig}
 import com.jc.user.search.module.api.{HttpServer, UserSearchGrpcApiHandler, UserSearchOpenApiHandler}
+import com.jc.user.search.module.auth.JwtAuthenticator
 import com.jc.user.search.module.kafka.UserKafkaConsumer
 import com.jc.user.search.module.processor.UserEventProcessor
 import com.jc.user.search.module.repo.{UserSearchRepo, UserSearchRepoInit}
@@ -60,13 +61,15 @@ object Main extends App {
   }
 
   private def createGrpcServer(config: HttpApiConfig): ZLayer[UserSearchGrpcApiHandler, Throwable, GrpcServer] = {
-    GrpcServerLayer.access[UserSearchApiService](ServerBuilder.forPort(config.port))
+    GrpcServerLayer.access[RCUserSearchApiService[Any]](ServerBuilder.forPort(config.port))
   }
 
   private def createAppLayer(appConfig: AppConfig): ZLayer[Any with Clock with Blocking, Throwable, AppEnvironment] = {
     val elasticLayer: ZLayer[Any, Throwable, Has[ElasticClient]] = createElasticClient(appConfig.elasticsearch)
 
     val loggerLayer: ZLayer[Any, Nothing, Logging] = makeLogger
+
+    val jwtAuthLayer: ZLayer[Any, Nothing, JwtAuthenticator] = JwtAuthenticator.live(appConfig.jwt)
 
     val userSearchRepoInitLayer: ZLayer[Any, Throwable, UserSearchRepoInit] = (elasticLayer ++ loggerLayer) >>>
       UserSearchRepoInit.elasticsearch(appConfig.elasticsearch.indexName)
@@ -81,7 +84,7 @@ object Main extends App {
       UserKafkaConsumer.live(appConfig.kafka)
 
     val userSearchGrpcApiHandlerLayer
-      : ZLayer[Any, Throwable, UserSearchGrpcApiHandler] = (userSearchRepoLayer ++ loggerLayer) >>> UserSearchGrpcApiHandler.live
+      : ZLayer[Any, Throwable, UserSearchGrpcApiHandler] = (userSearchRepoLayer ++ jwtAuthLayer ++ loggerLayer) >>> UserSearchGrpcApiHandler.live
 
     val grpcServerLayer: ZLayer[Any, Throwable, GrpcServer] = userSearchGrpcApiHandlerLayer >>> createGrpcServer(
       appConfig.grpcApi)

@@ -95,6 +95,34 @@ paths:
             application/json:
               schema:
                 type: string
+  /user/suggest:
+    get:
+      tags:
+        - user
+      summary: Suggest users
+      description: ''
+      operationId: suggestUsers
+      parameters:
+        - name: query
+          description: suggest query
+          in: query
+          required: false
+          schema:
+            type: string
+          example: search
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSuggestResponse'
+        '400':
+          description: failed operation
+          content:
+            application/json:
+              schema:
+                type: string
 externalDocs:
   description: Find out more about Swagger
   url: 'http://swagger.io'
@@ -129,7 +157,6 @@ components:
         - zip
         - country
     User:
-      x-swagger-router-model: io.swagger.user.model.User
       properties:
         id:
           type: string
@@ -180,6 +207,45 @@ components:
         - page
         - pageSize
         - count
+    UserSuggestResponse:
+      description: User suggest response
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertySuggestion'
+      type: object
+      required:
+        - suggestions
+    PropertySuggestion:
+      description: Property suggestion
+      properties:
+        property:
+          type: string
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TermSuggestion'
+      type: object
+      required:
+        - property
+        - suggestions
+    TermSuggestion:
+      description: Term suggestion
+      properties:
+        text:
+          type: string
+        score:
+          type: number
+          format: double
+#        freq:
+#          type: number
+#          format: int32
+      type: object
+      required:
+        - text
+        - score
+#        - freq
   securitySchemes:
     bearerAuth:            # arbitrary name for the security scheme
       type: http

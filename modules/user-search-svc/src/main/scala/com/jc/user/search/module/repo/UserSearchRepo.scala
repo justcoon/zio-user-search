@@ -164,7 +164,7 @@ object UserSearchRepo {
       serviceLogger.debug(s"search - query: '${query
         .getOrElse("N/A")}', sorts: ${sorts.mkString("[", ",", "]")}") *>
         elasticClient.execute {
-          searchIndex(userSearchRepoIndexName).sortBy(ss)
+          searchIndex(userSearchRepoIndexName).query(q).sortBy(ss)
         }.mapError { e =>
           RepoFailure(e)
         }.flatMap { res =>

@@ -1,7 +1,8 @@
 package com.jc.user.search.module.api
 
 import com.jc.user.domain.UserEntity
-import com.jc.user.search.api.openapi.user.{GetUserResponse, SearchUsersResponse, UserHandler}
+import com.jc.user.search.api.openapi.definitions.{PropertySuggestion, TermSuggestion, UserSuggestResponse}
+import com.jc.user.search.api.openapi.user.{GetUserResponse, SearchUsersResponse, SuggestUsersResponse, UserHandler}
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.repo.UserSearchRepo
 import zio.ZIO
@@ -29,6 +30,26 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo] extends UserHandler[ZI
         r => {
           val items = r.items.map(_.transformInto[User]).toVector
           respond.Ok(UserSearchResponse(items, r.page, r.pageSize, r.count))
+        }
+      )
+  }
+
+  override def suggestUsers(respond: SuggestUsersResponse.type)(
+    query: Option[String]): ZIO[R, Throwable, SuggestUsersResponse] = {
+    ZIO
+      .accessM[R] { env =>
+        env.get.suggest(query.getOrElse(""))
+      }
+      .fold(
+        e => respond.BadRequest(ExpectedFailure.getMessage(e)),
+        r => {
+          val items = r.items
+            .map(
+              _.into[PropertySuggestion]
+                .withFieldComputed(_.suggestions, v => v.suggestions.map(_.transformInto[TermSuggestion]).toVector)
+                .transform)
+            .toVector
+          respond.Ok(UserSuggestResponse(items))
         }
       )
   }

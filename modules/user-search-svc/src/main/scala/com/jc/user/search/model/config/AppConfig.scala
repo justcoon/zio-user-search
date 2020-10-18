@@ -10,7 +10,8 @@ final case class AppConfig(
   kafka: KafkaConfig,
   grpcApi: HttpApiConfig,
   restApi: HttpApiConfig,
-  prometheus: PrometheusConfig)
+  prometheus: PrometheusConfig,
+  jwt: JwtConfig)
 
 object AppConfig {
   implicit lazy val appConfigReader = deriveReader[AppConfig]

@@ -3,10 +3,10 @@ scalaVersion in Scope.Global := "2.13.3"
 
 lazy val Versions = new {
   val kindProjector = "0.11.0"
-  val http4s = "0.21.7"
+  val http4s = "0.21.8"
   val zio = "1.0.3"
   val zioInteropCats = "2.2.0.1"
-  val zioKafka = "0.12.1"
+  val zioKafka = "0.13.0"
   val zioLogging = "0.5.3"
   val zioMetrics = "1.0.0"
   val elastic4s = "7.9.1"
@@ -16,8 +16,9 @@ lazy val Versions = new {
   val pureconfig = "0.14.0"
   val refined = "0.9.17"
   val logback = "1.2.3"
-  val grpc = "1.32.1"
-  val chimney = "0.5.3"
+  val grpc = "1.32.2"
+  val chimney = "0.6.0"
+  val pauldijouJwt = "4.3.0"
 }
 
 lazy val `zio-user-search` =
@@ -67,6 +68,7 @@ lazy val `user-search-svc` =
         "org.http4s" %% "http4s-blaze-client"                 % Versions.http4s,
         "org.http4s" %% "http4s-circe"                        % Versions.http4s,
         "io.circe" %% "circe-generic"                         % Versions.circe,
+        "com.pauldijou" %% "jwt-circe"                        % Versions.pauldijouJwt,
         "com.github.pureconfig" %% "pureconfig"               % Versions.pureconfig,
         "eu.timepit" %% "refined-pureconfig"                  % Versions.refined,
         "io.scalaland" %% "chimney"                           % Versions.chimney,
