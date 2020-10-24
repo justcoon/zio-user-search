@@ -16,7 +16,7 @@ lazy val Versions = new {
   val pureconfig = "0.14.0"
   val refined = "0.9.17"
   val logback = "1.2.3"
-  val grpc = "1.32.2"
+  val grpc = "1.33.0"
   val chimney = "0.6.0"
   val pauldijouJwt = "4.3.0"
 }

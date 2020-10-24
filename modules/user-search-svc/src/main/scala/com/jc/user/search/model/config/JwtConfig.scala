@@ -1,8 +1,10 @@
 package com.jc.user.search.model.config
 
+import eu.timepit.refined.types.numeric.PosLong
+import eu.timepit.refined.types.string.NonEmptyString
 import pureconfig.generic.semiauto.deriveReader
 
-case class JwtConfig(secret: String, expiration: Long, issuer: Option[String] = None)
+final case class JwtConfig(secret: NonEmptyString, expiration: PosLong, issuer: Option[NonEmptyString] = None)
 
 object JwtConfig {
   import eu.timepit.refined.pureconfig._

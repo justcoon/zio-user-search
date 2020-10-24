@@ -25,7 +25,6 @@ object JwtAuthenticator {
           claim.subject
         } else None
       } yield subject
-
   }
 
   def live(config: JwtConfig): ZLayer[Any, Nothing, JwtAuthenticator] = {
@@ -34,7 +33,8 @@ object JwtAuthenticator {
   }
 }
 
-class PdiJwtHelper(val config: JwtConfig) {
+final class PdiJwtHelper(val config: JwtConfig) {
+  import eu.timepit.refined.auto._
 
   def claim[T: Encoder](
     content: T,
@@ -45,7 +45,11 @@ class PdiJwtHelper(val config: JwtConfig) {
     import io.circe.syntax._
     val jsContent = content.asJson.noSpaces
 
-    JwtClaim(content = jsContent, issuer = issuer.orElse(config.issuer), subject = subject, audience = audience).issuedNow
+    JwtClaim(
+      content = jsContent,
+      issuer = issuer.orElse(config.issuer.map(_.value)),
+      subject = subject,
+      audience = audience).issuedNow
       .expiresIn(config.expiration)
   }
 

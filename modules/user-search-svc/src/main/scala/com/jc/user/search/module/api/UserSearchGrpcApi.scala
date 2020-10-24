@@ -34,9 +34,7 @@ object UserSearchGrpcApiHandler {
     for {
       ctx <- ZIO.service[scalapb.zio_grpc.RequestContext]
       maybeHeader <- ctx.metadata.get(jwtAuthHeader)
-      subject <- maybeHeader.flatMap { rawToken =>
-        authenticator.authenticated(rawToken)
-      } match {
+      subject <- maybeHeader.flatMap { rawToken => authenticator.authenticated(rawToken) } match {
         case Some(subject) => ZIO.succeed(subject)
         case None => ZIO.fail(io.grpc.Status.UNAUTHENTICATED)
       }
@@ -65,20 +63,9 @@ object UserSearchGrpcApiHandler {
 
       res
     }
-//    override def getUser(request: GetUserReq): IO[Status, GetUserRes] = {
-//      import UserEntity._
-//      userSearchRepo
-//        .find(request.id.asUserId)
-//        .map { r =>
-//          GetUserRes(r.map(_.transformInto[proto.User]))
-//        }
-//        .mapError[Status](e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)))
-//    }
 
     override def searchUserStream(request: SearchUserStreamReq): ZStream[Any, Status, User] = {
-      val ss = request.sorts.map { sort =>
-        (sort.field, sort.order.isAsc)
-      }
+      val ss = request.sorts.map { sort => (sort.field, sort.order.isAsc) }
       val q = if (request.query.isBlank) None else Some(request.query)
 
       val pageInitial = 0
@@ -95,15 +82,11 @@ object UserSearchGrpcApiHandler {
         }
         .mapConcat(identity)
         .map(_.transformInto[proto.User])
-        .mapError { e =>
-          Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e))
-        }
+        .mapError { e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)) }
     }
 
     override def searchUsers(request: SearchUsersReq): IO[Status, SearchUsersRes] = {
-      val ss = request.sorts.map { sort =>
-        (sort.field, sort.order.isAsc)
-      }
+      val ss = request.sorts.map { sort => (sort.field, sort.order.isAsc) }
       val q = if (request.query.isBlank) None else Some(request.query)
       userSearchRepo
         .search(q, request.page, request.pageSize, ss)

@@ -37,9 +37,7 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo] extends UserHandler[ZI
   override def suggestUsers(respond: SuggestUsersResponse.type)(
     query: Option[String]): ZIO[R, Throwable, SuggestUsersResponse] = {
     ZIO
-      .accessM[R] { env =>
-        env.get.suggest(query.getOrElse(""))
-      }
+      .accessM[R] { env => env.get.suggest(query.getOrElse("")) }
       .fold(
         e => respond.BadRequest(ExpectedFailure.getMessage(e)),
         r => {

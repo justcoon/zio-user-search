@@ -129,9 +129,7 @@ object UserSearchRepo {
       serviceLogger.debug(s"find - id: ${id}") *>
         elasticClient.execute {
           get(userSearchRepoIndexName, id)
-        }.mapError { e =>
-          RepoFailure(e)
-        }.map { r =>
+        }.mapError { e => RepoFailure(e) }.map { r =>
           if (r.result.exists)
             Option(r.result.to[UserSearchRepo.User])
           else
@@ -165,9 +163,7 @@ object UserSearchRepo {
         .getOrElse("N/A")}', sorts: ${sorts.mkString("[", ",", "]")}") *>
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).query(q).sortBy(ss)
-        }.mapError { e =>
-          RepoFailure(e)
-        }.flatMap { res =>
+        }.mapError { e => RepoFailure(e) }.flatMap { res =>
           if (res.isSuccess) {
             val items = res.result.to[UserSearchRepo.User]
             ZIO.succeed(items)
@@ -193,9 +189,7 @@ object UserSearchRepo {
         .getOrElse("N/A")}', page: $page, pageSize: $pageSize, sorts: ${sorts.mkString("[", ",", "]")}") *>
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).query(q).from(page * pageSize).limit(pageSize).sortBy(ss)
-        }.mapError { e =>
-          RepoFailure(e)
-        }.flatMap { res =>
+        }.mapError { e => RepoFailure(e) }.flatMap { res =>
           if (res.isSuccess) {
             val items = res.result.to[UserSearchRepo.User]
             ZIO.succeed(UserSearchRepo.PaginatedSequence(items, page, pageSize, res.result.totalHits.toInt))
@@ -210,42 +204,42 @@ object UserSearchRepo {
         }
     }
 
-//    override def suggest(query: String): ZIO[Any, ExpectedFailure, SuggestResponse] = {
-//      // term suggestion
-//      val termSuggestions = suggestFields.map { p =>
-//        suggestion
-//          .TermSuggestion(ElasticUtils.getTermSuggestionName(p), p, Some(query))
-//          .mode(suggestion.SuggestMode.Always)
-//      }
-//
-//      serviceLogger.debug(s"suggest - query: '$query'") *>
-//        elasticClient.execute {
-//          searchIndex(userSearchRepoIndexName).suggestions(termSuggestions)
-//        }.mapError { e =>
-//          RepoFailure(e)
-//        }.flatMap { res =>
-//          if (res.isSuccess) {
-//            val elasticSuggestions = res.result.suggestions
-//            val suggestions = suggestFields.map { p =>
-//              val propertySuggestions = elasticSuggestions(ElasticUtils.getTermSuggestionName(p))
-//              val suggestions = propertySuggestions.flatMap { v =>
-//                val t = v.toTerm
-//                t.options.map { o =>
-//                  TermSuggestion(o.text, o.score, o.freq)
-//                }
-//              }
-//
-//              PropertySuggestions(p, suggestions)
-//            }
-//            ZIO.succeed(SuggestResponse(suggestions))
-//          } else {
-//            ZIO.fail(RepoFailure(new Exception(ElasticUtils.getReason(res.error))))
-//          }
-//        }.tapError { e =>
-//          serviceLogger.error(s"suggest - query: '$query' - error: ${e.throwable.getMessage}") *>
-//            ZIO.fail(e)
-//        }
-//    }
+    //    override def suggest(query: String): ZIO[Any, ExpectedFailure, SuggestResponse] = {
+    //      // term suggestion
+    //      val termSuggestions = suggestFields.map { p =>
+    //        suggestion
+    //          .TermSuggestion(ElasticUtils.getTermSuggestionName(p), p, Some(query))
+    //          .mode(suggestion.SuggestMode.Always)
+    //      }
+    //
+    //      serviceLogger.debug(s"suggest - query: '$query'") *>
+    //        elasticClient.execute {
+    //          searchIndex(userSearchRepoIndexName).suggestions(termSuggestions)
+    //        }.mapError { e =>
+    //          RepoFailure(e)
+    //        }.flatMap { res =>
+    //          if (res.isSuccess) {
+    //            val elasticSuggestions = res.result.suggestions
+    //            val suggestions = suggestFields.map { p =>
+    //              val propertySuggestions = elasticSuggestions(ElasticUtils.getTermSuggestionName(p))
+    //              val suggestions = propertySuggestions.flatMap { v =>
+    //                val t = v.toTerm
+    //                t.options.map { o =>
+    //                  TermSuggestion(o.text, o.score, o.freq)
+    //                }
+    //              }
+    //
+    //              PropertySuggestions(p, suggestions)
+    //            }
+    //            ZIO.succeed(SuggestResponse(suggestions))
+    //          } else {
+    //            ZIO.fail(RepoFailure(new Exception(ElasticUtils.getReason(res.error))))
+    //          }
+    //        }.tapError { e =>
+    //          serviceLogger.error(s"suggest - query: '$query' - error: ${e.throwable.getMessage}") *>
+    //            ZIO.fail(e)
+    //        }
+    //    }
 
     override def suggest(query: String): ZIO[Any, ExpectedFailure, SuggestResponse] = {
       // completion suggestion
@@ -258,18 +252,14 @@ object UserSearchRepo {
       serviceLogger.debug(s"suggest - query: '$query'") *>
         elasticClient.execute {
           searchIndex(userSearchRepoIndexName).suggestions(complSuggestions)
-        }.mapError { e =>
-          RepoFailure(e)
-        }.flatMap { res =>
+        }.mapError { e => RepoFailure(e) }.flatMap { res =>
           if (res.isSuccess) {
             val elasticSuggestions = res.result.suggestions
             val suggestions = suggestFields.map { p =>
               val propertySuggestions = elasticSuggestions(ElasticUtils.getSuggestPropertyName(p))
               val suggestions = propertySuggestions.flatMap { v =>
                 val r = v.toCompletion
-                r.options.map { o =>
-                  TermSuggestion(o.text, o.score, o.score.toInt)
-                }
+                r.options.map { o => TermSuggestion(o.text, o.score, o.score.toInt) }
               }
 
               PropertySuggestions(p, suggestions)

@@ -77,17 +77,17 @@ object Main extends App {
     val userSearchRepoLayer: ZLayer[Any, Throwable, UserSearchRepo] = (elasticLayer ++ loggerLayer) >>>
       UserSearchRepo.elasticsearch(appConfig.elasticsearch.indexName)
 
-    val userEventProcessorLayer
-      : ZLayer[Any, Throwable, UserEventProcessor] = (userSearchRepoLayer ++ loggerLayer) >>> UserEventProcessor.live
+    val userEventProcessorLayer: ZLayer[Any, Throwable, UserEventProcessor] =
+      (userSearchRepoLayer ++ loggerLayer) >>> UserEventProcessor.live
 
     val userKafkaConsumerLayer: ZLayer[Clock with Blocking, Throwable, UserKafkaConsumer] =
       UserKafkaConsumer.live(appConfig.kafka)
 
-    val userSearchGrpcApiHandlerLayer
-      : ZLayer[Any, Throwable, UserSearchGrpcApiHandler] = (userSearchRepoLayer ++ jwtAuthLayer ++ loggerLayer) >>> UserSearchGrpcApiHandler.live
+    val userSearchGrpcApiHandlerLayer: ZLayer[Any, Throwable, UserSearchGrpcApiHandler] =
+      (userSearchRepoLayer ++ jwtAuthLayer ++ loggerLayer) >>> UserSearchGrpcApiHandler.live
 
-    val grpcServerLayer: ZLayer[Any, Throwable, GrpcServer] = userSearchGrpcApiHandlerLayer >>> createGrpcServer(
-      appConfig.grpcApi)
+    val grpcServerLayer: ZLayer[Any, Throwable, GrpcServer] =
+      userSearchGrpcApiHandlerLayer >>> createGrpcServer(appConfig.grpcApi)
 
     val metricsLayer: ZLayer[Any, Nothing, Registry with Exporters] = Registry.live ++ Exporters.live
 
