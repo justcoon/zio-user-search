@@ -49,12 +49,12 @@ object UserSearchRepoInit {
   object EsUserSearchRepoInitService {
     import com.sksamuel.elastic4s.ElasticDsl._
 
+    val suggestProperties = Seq("username", "email")
+
     val fields = Seq(
       textField("id").fielddata(true),
       textField("username").fielddata(true),
       textField("email").fielddata(true),
-      completionField(ElasticUtils.getSuggestPropertyName("username")),
-      completionField(ElasticUtils.getSuggestPropertyName("email")),
       textField("address.street").fielddata(true),
       textField("address.number").fielddata(true),
       textField("address.city").fielddata(true),
@@ -62,7 +62,7 @@ object UserSearchRepoInit {
       textField("address.zip").fielddata(true),
       textField("address.country").fielddata(true),
       booleanField("deleted")
-    )
+    ) ++ suggestProperties.map(prop => completionField(ElasticUtils.getSuggestPropertyName(prop)))
   }
 
   def elasticsearch(

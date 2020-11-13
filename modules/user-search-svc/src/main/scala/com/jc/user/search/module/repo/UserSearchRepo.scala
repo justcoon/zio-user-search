@@ -3,6 +3,7 @@ package com.jc.user.search.module.repo
 import com.jc.user.domain.UserEntity
 import com.jc.user.domain.UserEntity.UserId
 import com.jc.user.search.model.{ExpectedFailure, RepoFailure}
+import com.jc.user.search.module.repo.UserSearchRepoInit.EsUserSearchRepoInitService
 import com.sksamuel.elastic4s.ElasticClient
 import zio.logging.{Logger, Logging}
 import zio.{Has, ZIO, ZLayer}
@@ -39,6 +40,15 @@ object UserSearchRepo {
     country: String
   )
 
+  object Address {
+
+    import io.circe._, io.circe.generic.semiauto._
+
+    implicit val addressDecoder: Decoder[Address] = deriveDecoder[Address]
+
+    implicit val addressEncoder: Encoder[Address] = deriveEncoder[Address]
+  }
+
   final case class User(
     id: UserEntity.UserId,
     username: String,
@@ -60,10 +70,6 @@ object UserSearchRepo {
     val usernameEmailPassAddressLens = usernameLens ~ emailLens ~ passLens ~ addressLens
 
     import io.circe._, io.circe.generic.semiauto._
-
-    implicit val addressDecoder: Decoder[Address] = deriveDecoder[Address]
-
-    implicit val addressEncoder: Encoder[Address] = deriveEncoder[Address]
 
     implicit val userDecoder: Decoder[User] = deriveDecoder[User]
 
@@ -206,7 +212,7 @@ object UserSearchRepo {
 
     //    override def suggest(query: String): ZIO[Any, ExpectedFailure, SuggestResponse] = {
     //      // term suggestion
-    //      val termSuggestions = suggestFields.map { p =>
+    //      val termSuggestions = EsUserSearchRepoInitService.suggestProperties.map { p =>
     //        suggestion
     //          .TermSuggestion(ElasticUtils.getTermSuggestionName(p), p, Some(query))
     //          .mode(suggestion.SuggestMode.Always)
@@ -220,7 +226,7 @@ object UserSearchRepo {
     //        }.flatMap { res =>
     //          if (res.isSuccess) {
     //            val elasticSuggestions = res.result.suggestions
-    //            val suggestions = suggestFields.map { p =>
+    //            val suggestions = EsUserSearchRepoInitService.suggestProperties.map { p =>
     //              val propertySuggestions = elasticSuggestions(ElasticUtils.getTermSuggestionName(p))
     //              val suggestions = propertySuggestions.flatMap { v =>
     //                val t = v.toTerm
@@ -243,7 +249,7 @@ object UserSearchRepo {
 
     override def suggest(query: String): ZIO[Any, ExpectedFailure, SuggestResponse] = {
       // completion suggestion
-      val complSuggestions = suggestFields.map { p =>
+      val complSuggestions = EsUserSearchRepoInitService.suggestProperties.map { p =>
         suggestion
           .CompletionSuggestion(ElasticUtils.getSuggestPropertyName(p), ElasticUtils.getSuggestPropertyName(p))
           .prefix(query)
@@ -255,7 +261,7 @@ object UserSearchRepo {
         }.mapError { e => RepoFailure(e) }.flatMap { res =>
           if (res.isSuccess) {
             val elasticSuggestions = res.result.suggestions
-            val suggestions = suggestFields.map { p =>
+            val suggestions = EsUserSearchRepoInitService.suggestProperties.map { p =>
               val propertySuggestions = elasticSuggestions(ElasticUtils.getSuggestPropertyName(p))
               val suggestions = propertySuggestions.flatMap { v =>
                 val r = v.toCompletion
@@ -273,8 +279,6 @@ object UserSearchRepo {
             ZIO.fail(e)
         }
     }
-
-    private val suggestFields = Seq("username", "email")
   }
 
   def elasticsearch(userSearchRepoIndexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, UserSearchRepo] =
