@@ -1,9 +1,9 @@
 resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-scalaVersion in Scope.Global := "2.13.3"
+scalaVersion in Scope.Global := "2.13.4"
 
 lazy val Versions = new {
-  val kindProjector = "0.11.0"
-  val http4s = "0.21.9"
+  val kindProjector = "0.11.1"
+  val http4s = "0.21.11"
   val zio = "1.0.3"
   val zioInteropCats = "2.2.0.1"
   val zioKafka = "0.13.0"
@@ -14,11 +14,12 @@ lazy val Versions = new {
   val scalaTest = "3.2.3"
   val randomDataGenerator = "2.9"
   val pureconfig = "0.14.0"
-  val refined = "0.9.17"
+  val refined = "0.9.18"
   val logback = "1.2.3"
   val grpc = "1.33.1"
   val chimney = "0.6.1"
   val pauldijouJwt = "4.3.0"
+  val tapir = "0.16.16"
 }
 
 lazy val `zio-user-search` =
@@ -44,12 +45,13 @@ lazy val `user-search-svc` =
       ),
       guardrailTasks.in(Compile) := List(
         ScalaServer(
-          file("modules/user-search-svc/src/main/openapi/UserSearchOpenApi.yaml"),
+          file(s"${baseDirectory.value}/src/main/openapi/UserSearchOpenApi.yaml"),
           pkg = "com.jc.user.search.api.openapi",
           framework = "http4s",
           tracing = false)
       )
     )
+    .settings(unmanagedResourceDirectories in Compile += baseDirectory.value / "src" / "main" / "openapi")
     .settings(
       libraryDependencies ++= Seq(
         // Scala libraries
@@ -67,6 +69,8 @@ lazy val `user-search-svc` =
         "org.http4s" %% "http4s-blaze-server"                 % Versions.http4s,
         "org.http4s" %% "http4s-blaze-client"                 % Versions.http4s,
         "org.http4s" %% "http4s-circe"                        % Versions.http4s,
+        "com.softwaremill.sttp.tapir" %% "tapir-zio-http4s-server" % Versions.tapir,
+        "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-http4s" % Versions.tapir,
         "io.circe" %% "circe-generic"                         % Versions.circe,
         "com.pauldijou" %% "jwt-circe"                        % Versions.pauldijouJwt,
         "com.github.pureconfig" %% "pureconfig"               % Versions.pureconfig,

@@ -1,9 +1,8 @@
 package com.jc.user.search
 
-import com.jc.user.search.api.openapi.user.UserResource
-import com.jc.user.search.api.proto.ZioUserSearchApi.{RCUserSearchApiService, UserSearchApiService}
+import com.jc.user.search.api.proto.ZioUserSearchApi.{RCUserSearchApiService}
 import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, HttpApiConfig, PrometheusConfig}
-import com.jc.user.search.module.api.{HttpServer, UserSearchGrpcApiHandler, UserSearchOpenApiHandler}
+import com.jc.user.search.module.api.{UserSearchGrpcApiHandler, UserSearchOpenApiHandler}
 import com.jc.user.search.module.auth.JwtAuthenticator
 import com.jc.user.search.module.kafka.UserKafkaConsumer
 import com.jc.user.search.module.processor.UserEventProcessor
@@ -37,7 +36,7 @@ object Main extends App {
     with UserEventProcessor with UserSearchGrpcApiHandler with GrpcServer with Logging with Registry with Exporters
 
   private val httpRoutes: HttpRoutes[ZIO[AppEnvironment, Throwable, *]] =
-    new UserResource[ZIO[AppEnvironment, Throwable, *]]().routes(new UserSearchOpenApiHandler[AppEnvironment]())
+    UserSearchOpenApiHandler.httpRoutes[AppEnvironment]()
 
   private val httpApp: HttpApp[ZIO[AppEnvironment, Throwable, *]] =
     HttpServerLogger.httpApp[ZIO[AppEnvironment, Throwable, *]](true, true)(httpRoutes.orNotFound)

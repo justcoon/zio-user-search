@@ -2,10 +2,23 @@ package com.jc.user.search.module.api
 
 import com.jc.user.domain.UserEntity
 import com.jc.user.search.api.openapi.definitions.{PropertySuggestion, TermSuggestion, UserSuggestResponse}
-import com.jc.user.search.api.openapi.user.{GetUserResponse, SearchUsersResponse, SuggestUsersResponse, UserHandler}
+import com.jc.user.search.api.openapi.user.{
+  GetUserResponse,
+  SearchUsersResponse,
+  SuggestUsersResponse,
+  UserHandler,
+  UserResource
+}
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.repo.UserSearchRepo
+import org.http4s.HttpRoutes
+import org.http4s.server.Router
+import sttp.tapir.swagger.http4s.SwaggerHttp4s
 import zio.ZIO
+import zio.blocking.Blocking
+import zio.clock.Clock
+
+import scala.io.Source
 
 final class UserSearchOpenApiHandler[R <: UserSearchRepo] extends UserHandler[ZIO[R, Throwable, *]] {
   type F[A] = ZIO[R, Throwable, A]
@@ -70,9 +83,23 @@ object UserSearchOpenApiHandler {
   // sort - field:order, examples: username:asc, email:desc
   def toFieldSort(sort: String): UserSearchRepo.FieldSort =
     sort.split(":").toList match {
-      case p :: o :: Nil if o.toLowerCase == "desc" =>
-        (p, false)
+      case p :: o :: Nil =>
+        (p, o.toLowerCase != "desc")
       case _ =>
         (sort, true)
     }
+
+  def httpRoutes[E <: UserSearchRepo]() = {
+    import zio.interop.catz._
+    import sttp.tapir.server.http4s.ztapir._
+    val yaml = Source.fromResource("UserSearchOpenApi.yaml").mkString
+
+    val docRoutes: HttpRoutes[ZIO[E, Throwable, *]] = new SwaggerHttp4s(yaml).routes
+
+    val userSearchApiRoutes: HttpRoutes[ZIO[E, Throwable, *]] =
+      new UserResource[ZIO[E, Throwable, *]]().routes(new UserSearchOpenApiHandler[E]())
+
+    Router("/" -> userSearchApiRoutes, "/" -> docRoutes)
+  }
+
 }
