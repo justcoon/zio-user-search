@@ -2,7 +2,7 @@ package com.jc.user.search.module.api
 
 import com.jc.user.domain.proto.User
 import com.jc.user.domain.{proto, UserEntity}
-import com.jc.user.search.api.proto.ZioUserSearchApi.{RCUserSearchApiService, UserSearchApiService}
+import com.jc.user.search.api.proto.ZioUserSearchApi.RCUserSearchApiService
 import com.jc.user.search.api.proto.{
   GetUserReq,
   GetUserRes,
@@ -51,7 +51,6 @@ object UserSearchGrpcApiHandler {
     import io.scalaland.chimney.dsl._
 
     override def getUser(request: GetUserReq): ZIO[Has[RequestContext], Status, GetUserRes] = {
-
       import UserEntity._
 
       val res: ZIO[Has[RequestContext], Status, GetUserRes] = for {

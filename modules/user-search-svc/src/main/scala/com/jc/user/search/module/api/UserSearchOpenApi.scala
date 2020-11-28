@@ -15,8 +15,6 @@ import org.http4s.HttpRoutes
 import org.http4s.server.Router
 import sttp.tapir.swagger.http4s.SwaggerHttp4s
 import zio.ZIO
-import zio.blocking.Blocking
-import zio.clock.Clock
 
 import scala.io.Source
 
@@ -89,7 +87,7 @@ object UserSearchOpenApiHandler {
         (sort, true)
     }
 
-  def httpRoutes[E <: UserSearchRepo]() = {
+  def httpRoutes[E <: UserSearchRepo]: HttpRoutes[ZIO[E, Throwable, *]] = {
     import zio.interop.catz._
     import sttp.tapir.server.http4s.ztapir._
     val yaml = Source.fromResource("UserSearchOpenApi.yaml").mkString

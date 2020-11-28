@@ -3,13 +3,13 @@ scalaVersion in Scope.Global := "2.13.4"
 
 lazy val Versions = new {
   val kindProjector = "0.11.1"
-  val http4s = "0.21.11"
+  val http4s = "0.21.13"
   val zio = "1.0.3"
   val zioInteropCats = "2.2.0.1"
   val zioKafka = "0.13.0"
   val zioLogging = "0.5.3"
   val zioMetrics = "1.0.1"
-  val elastic4s = "7.9.1"
+  val elastic4s = "7.9.2"
   val circe = "0.13.0"
   val scalaTest = "3.2.3"
   val randomDataGenerator = "2.9"
@@ -36,7 +36,8 @@ lazy val `zio-user-search` =
 
 lazy val `user-search-svc` =
   (project in file("modules/user-search-svc"))
-    .settings(settings)
+    .enablePlugins(JavaAppPackaging, DockerPlugin)
+    .settings(settings ++ dockerSettings)
     .settings(
       addCompilerPlugin("org.typelevel" %% "kind-projector" % Versions.kindProjector cross CrossVersion.full),
       PB.targets in Compile := Seq(
@@ -55,34 +56,34 @@ lazy val `user-search-svc` =
     .settings(
       libraryDependencies ++= Seq(
         // Scala libraries
-        "dev.zio" %% "zio"                                    % Versions.zio,
-        "dev.zio" %% "zio-streams"                            % Versions.zio,
-        "dev.zio" %% "zio-interop-cats"                       % Versions.zioInteropCats,
-        "dev.zio" %% "zio-kafka"                              % Versions.zioKafka,
-        "dev.zio" %% "zio-logging-slf4j"                      % Versions.zioLogging,
-        "dev.zio" %% "zio-metrics-prometheus"                 % Versions.zioMetrics,
-        "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % Versions.elastic4s,
-        "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"    % Versions.elastic4s,
-        "com.sksamuel.elastic4s" %% "elastic4s-json-circe"    % Versions.elastic4s,
-        "org.http4s" %% "http4s-core"                         % Versions.http4s,
-        "org.http4s" %% "http4s-dsl"                          % Versions.http4s,
-        "org.http4s" %% "http4s-blaze-server"                 % Versions.http4s,
-        "org.http4s" %% "http4s-blaze-client"                 % Versions.http4s,
-        "org.http4s" %% "http4s-circe"                        % Versions.http4s,
+        "dev.zio" %% "zio"                                         % Versions.zio,
+        "dev.zio" %% "zio-streams"                                 % Versions.zio,
+        "dev.zio" %% "zio-interop-cats"                            % Versions.zioInteropCats,
+        "dev.zio" %% "zio-kafka"                                   % Versions.zioKafka,
+        "dev.zio" %% "zio-logging-slf4j"                           % Versions.zioLogging,
+        "dev.zio" %% "zio-metrics-prometheus"                      % Versions.zioMetrics,
+        "com.sksamuel.elastic4s" %% "elastic4s-client-esjava"      % Versions.elastic4s,
+        "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"         % Versions.elastic4s,
+        "com.sksamuel.elastic4s" %% "elastic4s-json-circe"         % Versions.elastic4s,
+        "org.http4s" %% "http4s-core"                              % Versions.http4s,
+        "org.http4s" %% "http4s-dsl"                               % Versions.http4s,
+        "org.http4s" %% "http4s-blaze-server"                      % Versions.http4s,
+        "org.http4s" %% "http4s-blaze-client"                      % Versions.http4s,
+        "org.http4s" %% "http4s-circe"                             % Versions.http4s,
         "com.softwaremill.sttp.tapir" %% "tapir-zio-http4s-server" % Versions.tapir,
         "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-http4s" % Versions.tapir,
-        "io.circe" %% "circe-generic"                         % Versions.circe,
-        "com.pauldijou" %% "jwt-circe"                        % Versions.pauldijouJwt,
-        "com.github.pureconfig" %% "pureconfig"               % Versions.pureconfig,
-        "eu.timepit" %% "refined-pureconfig"                  % Versions.refined,
-        "io.scalaland" %% "chimney"                           % Versions.chimney,
-        "io.grpc"                                             % "grpc-services" % Versions.grpc,
-        "io.grpc"                                             % "grpc-netty" % Versions.grpc,
-        "io.grpc"                                             % "grpc-netty-shaded" % Versions.grpc,
-        "com.thesamet.scalapb" %% "scalapb-runtime"           % scalapb.compiler.Version.scalapbVersion % "protobuf",
-        "com.thesamet.scalapb" %% "scalapb-runtime-grpc"      % scalapb.compiler.Version.scalapbVersion,
-        "org.scalatest" %% "scalatest"                        % Versions.scalaTest % "test",
-        "com.danielasfregola" %% "random-data-generator"      % Versions.randomDataGenerator % "test",
+        "io.circe" %% "circe-generic"                              % Versions.circe,
+        "com.pauldijou" %% "jwt-circe"                             % Versions.pauldijouJwt,
+        "com.github.pureconfig" %% "pureconfig"                    % Versions.pureconfig,
+        "eu.timepit" %% "refined-pureconfig"                       % Versions.refined,
+        "io.scalaland" %% "chimney"                                % Versions.chimney,
+        "io.grpc"                                                  % "grpc-services" % Versions.grpc,
+        "io.grpc"                                                  % "grpc-netty" % Versions.grpc,
+        "io.grpc"                                                  % "grpc-netty-shaded" % Versions.grpc,
+        "com.thesamet.scalapb" %% "scalapb-runtime"                % scalapb.compiler.Version.scalapbVersion % "protobuf",
+        "com.thesamet.scalapb" %% "scalapb-runtime-grpc"           % scalapb.compiler.Version.scalapbVersion,
+        "org.scalatest" %% "scalatest"                             % Versions.scalaTest % "test",
+        "com.danielasfregola" %% "random-data-generator"           % Versions.randomDataGenerator % "test",
         // Java libraries
         "ch.qos.logback" % "logback-classic" % Versions.logback
       )
@@ -155,4 +156,14 @@ lazy val commonSettings =
 lazy val gitSettings =
   Seq(
     git.useGitDescribe := true
+  )
+
+lazy val dockerSettings =
+  Seq(
+    maintainer.in(Docker) := "justcoon",
+    version.in(Docker) := "latest",
+    dockerExposedPorts := Vector(8030, 8040, 9050),
+//    dockerBaseImage    := "oracle/graalvm-ce:20.3.0-java11"
+    dockerBaseImage    := "openjdk:11-jre",
+
   )
