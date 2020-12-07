@@ -15,7 +15,7 @@ import com.jc.user.search.api.proto.{
 }
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.auth.JwtAuthenticator
-import com.jc.user.search.module.repo.UserSearchRepo
+import com.jc.user.search.module.repo.{SearchRepository, UserSearchRepo}
 import io.grpc.Status
 import scalapb.zio_grpc.RequestContext
 import zio.{Has, IO, ZIO, ZLayer}
@@ -64,7 +64,7 @@ object UserSearchGrpcApiHandler {
     }
 
     override def searchUserStream(request: SearchUserStreamReq): ZStream[Any, Status, User] = {
-      val ss = request.sorts.map { sort => (sort.field, sort.order.isAsc) }
+      val ss = request.sorts.map { sort => SearchRepository.FieldSort(sort.field, sort.order.isAsc) }
       val q = if (request.query.isBlank) None else Some(request.query)
 
       val pageInitial = 0
@@ -85,7 +85,7 @@ object UserSearchGrpcApiHandler {
     }
 
     override def searchUsers(request: SearchUsersReq): IO[Status, SearchUsersRes] = {
-      val ss = request.sorts.map { sort => (sort.field, sort.order.isAsc) }
+      val ss = request.sorts.map { sort => SearchRepository.FieldSort(sort.field, sort.order.isAsc) }
       val q = if (request.query.isBlank) None else Some(request.query)
       userSearchRepo
         .search(q, request.page, request.pageSize, ss)

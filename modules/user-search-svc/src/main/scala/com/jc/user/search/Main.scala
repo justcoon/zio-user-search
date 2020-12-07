@@ -74,10 +74,10 @@ object Main extends App {
     val jwtAuthLayer: ZLayer[Any, Nothing, JwtAuthenticator] = JwtAuthenticator.live(appConfig.jwt)
 
     val userSearchRepoInitLayer: ZLayer[Any, Throwable, UserSearchRepoInit] = (elasticLayer ++ loggerLayer) >>>
-      UserSearchRepoInit.elasticsearch(appConfig.elasticsearch.indexName)
+      UserSearchRepoInit.elasticsearch(appConfig.elasticsearch.userIndexName)
 
     val userSearchRepoLayer: ZLayer[Any, Throwable, UserSearchRepo] = (elasticLayer ++ loggerLayer) >>>
-      UserSearchRepo.elasticsearch(appConfig.elasticsearch.indexName)
+      UserSearchRepo.elasticsearch(appConfig.elasticsearch.userIndexName)
 
     val userEventProcessorLayer: ZLayer[Any, Throwable, UserEventProcessor] =
       (userSearchRepoLayer ++ loggerLayer) >>> UserEventProcessor.live
@@ -123,7 +123,7 @@ object Main extends App {
           .forever
         UserSearchRepoInit.init *>
           metrics(appConfig.prometheus) *>
-          UserKafkaConsumer.consume(appConfig.kafka.topic) &>
+          UserKafkaConsumer.consume(appConfig.kafka.userTopic) &>
           server
       }
 

@@ -2,21 +2,21 @@ resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/con
 scalaVersion in Scope.Global := "2.13.4"
 
 lazy val Versions = new {
-  val kindProjector = "0.11.1"
+  val kindProjector = "0.11.2"
   val http4s = "0.21.13"
   val zio = "1.0.3"
   val zioInteropCats = "2.2.0.1"
   val zioKafka = "0.13.0"
-  val zioLogging = "0.5.3"
+  val zioLogging = "0.5.4"
   val zioMetrics = "1.0.1"
   val elastic4s = "7.9.2"
   val circe = "0.13.0"
   val scalaTest = "3.2.3"
   val randomDataGenerator = "2.9"
   val pureconfig = "0.14.0"
-  val refined = "0.9.18"
+  val refined = "0.9.19"
   val logback = "1.2.3"
-  val grpc = "1.33.1"
+  val grpc = "1.34.0"
   val chimney = "0.6.1"
   val pauldijouJwt = "4.3.0"
   val tapir = "0.16.16"
@@ -161,9 +161,8 @@ lazy val gitSettings =
 lazy val dockerSettings =
   Seq(
     maintainer.in(Docker) := "justcoon",
-    version.in(Docker) := "latest",
-    dockerExposedPorts := Vector(8030, 8040, 9050),
-//    dockerBaseImage    := "oracle/graalvm-ce:20.3.0-java11"
-    dockerBaseImage    := "openjdk:11-jre",
-
+//    version.in(Docker) := "latest",
+    dockerUpdateLatest := true,
+    dockerExposedPorts := Vector(8000, 8010, 9080),
+    dockerBaseImage    := "openjdk:11-jre"
   )

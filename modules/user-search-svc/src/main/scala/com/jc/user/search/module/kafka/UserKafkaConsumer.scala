@@ -17,7 +17,7 @@ object UserKafkaConsumer {
   def consumerSettings(config: KafkaConfig): ConsumerSettings = {
     import eu.timepit.refined.auto._
     ConsumerSettings(config.addresses)
-      .withGroupId(s"user-search-${config.topic}")
+      .withGroupId(s"user-search-${config.userTopic}")
       .withClientId("user-search-client")
       .withCloseTimeout(30.seconds)
       .withOffsetRetrieval(Consumer.OffsetRetrieval.Auto(AutoOffsetStrategy.Earliest))

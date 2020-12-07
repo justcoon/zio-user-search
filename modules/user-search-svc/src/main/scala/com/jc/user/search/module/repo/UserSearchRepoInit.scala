@@ -6,45 +6,7 @@ import zio.logging.{Logger, Logging}
 
 object UserSearchRepoInit {
 
-  trait Service {
-    def init(): ZIO[Any, Throwable, Boolean]
-  }
-
-  final case class EsUserSearchRepoInitService(
-    elasticClient: ElasticClient,
-    userSearchRepoIndexName: String,
-    logger: Logger[String])
-      extends UserSearchRepoInit.Service {
-    import com.sksamuel.elastic4s.ElasticDsl._
-    import com.sksamuel.elastic4s.zio.instances._
-
-    val serviceLogger = logger.named(getClass.getName)
-
-    override def init(): ZIO[Any, Throwable, Boolean] = {
-      for {
-        existResp <- elasticClient.execute {
-          indexExists(userSearchRepoIndexName)
-        }
-        initResp <- if (!existResp.result.exists) {
-          serviceLogger.debug(s"init: $userSearchRepoIndexName - initializing ...") *>
-            elasticClient.execute {
-              createIndex(userSearchRepoIndexName).mapping(properties(EsUserSearchRepoInitService.fields))
-            }.map(r => r.result.acknowledged).tapError { e =>
-              serviceLogger.error(s"init: $userSearchRepoIndexName - error: ${e.getMessage}") *>
-                ZIO.fail(e)
-            }
-        } else {
-          serviceLogger.debug(s"init: $userSearchRepoIndexName - updating ...") *>
-            elasticClient.execute {
-              putMapping(userSearchRepoIndexName).fields(EsUserSearchRepoInitService.fields)
-            }.map(r => r.result.acknowledged).tapError { e =>
-              serviceLogger.error(s"init: $userSearchRepoIndexName - error: ${e.getMessage}") *>
-                ZIO.fail(e)
-            }
-        }
-      } yield initResp
-    }
-  }
+  trait Service extends RepositoryInitializer
 
   object EsUserSearchRepoInitService {
     import com.sksamuel.elastic4s.ElasticDsl._
@@ -69,7 +31,8 @@ object UserSearchRepoInit {
     userSearchRepoIndexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, UserSearchRepoInit] =
     ZLayer.fromServices[ElasticClient, Logger[String], UserSearchRepoInit.Service] {
       (elasticClient: ElasticClient, logger: Logger[String]) =>
-        EsUserSearchRepoInitService(elasticClient, userSearchRepoIndexName, logger)
+        new ESRepositoryInitializer(userSearchRepoIndexName, EsUserSearchRepoInitService.fields, elasticClient, logger)
+          with Service
     }
 
   val init: ZIO[UserSearchRepoInit, Throwable, Boolean] = ZIO.accessM[UserSearchRepoInit](_.get.init())

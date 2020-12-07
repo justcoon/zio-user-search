@@ -10,7 +10,7 @@ import com.jc.user.search.api.openapi.user.{
   UserResource
 }
 import com.jc.user.search.model.ExpectedFailure
-import com.jc.user.search.module.repo.UserSearchRepo
+import com.jc.user.search.module.repo.{SearchRepository, UserSearchRepo}
 import org.http4s.HttpRoutes
 import org.http4s.server.Router
 import sttp.tapir.swagger.http4s.SwaggerHttp4s
@@ -79,12 +79,12 @@ object UserSearchOpenApiHandler {
 
   // TODO improve parsing
   // sort - field:order, examples: username:asc, email:desc
-  def toFieldSort(sort: String): UserSearchRepo.FieldSort =
+  def toFieldSort(sort: String): SearchRepository.FieldSort =
     sort.split(":").toList match {
       case p :: o :: Nil =>
-        (p, o.toLowerCase != "desc")
+        SearchRepository.FieldSort(p, o.toLowerCase != "desc")
       case _ =>
-        (sort, true)
+        SearchRepository.FieldSort(sort, true)
     }
 
   def httpRoutes[E <: UserSearchRepo]: HttpRoutes[ZIO[E, Throwable, *]] = {
