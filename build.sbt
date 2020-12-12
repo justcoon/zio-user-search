@@ -3,7 +3,7 @@ scalaVersion in Scope.Global := "2.13.4"
 
 lazy val Versions = new {
   val kindProjector = "0.11.2"
-  val http4s = "0.21.13"
+  val http4s = "0.21.14"
   val zio = "1.0.3"
   val zioInteropCats = "2.2.0.1"
   val zioKafka = "0.13.0"

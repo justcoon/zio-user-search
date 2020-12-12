@@ -20,12 +20,60 @@ message Address {
     string country = 6;
 }
 
+
+message Department {
+    string id = 1 [(scalapb.field).type = "com.jc.user.domain.DepartmentEntity.DepartmentId"];
+    string name = 2;
+    string description = 3 [(scalapb.field).no_box = false];
+}
+
+message DepartmentEntityState {
+    Department entity = 1;
+}
+
+message DepartmentPayloadEvent {
+
+    option (scalapb.message).extends = "com.jc.user.domain.DepartmentEntity.DepartmentEvent";
+    string entityId = 1 [(scalapb.field).type = "com.jc.user.domain.DepartmentEntity.DepartmentId"];
+    google.protobuf.Timestamp timestamp = 2 [(scalapb.field).type = "java.time.Instant", (scalapb.field).no_box = true];
+
+    oneof payload {
+        DepartmentCreatedPayload created = 3;
+        DepartmentUpdatedPayload updated = 4;
+        DepartmentRemovedPayload removed = 5;
+    }
+}
+
+message DepartmentUpdatedPayload {
+    string name = 1;
+    string description = 2 [(scalapb.field).no_box = false];
+}
+
+message DepartmentCreatedPayload {
+    string name = 1;
+    string description = 2 [(scalapb.field).no_box = false];
+}
+
+
+message DepartmentRemovedPayload {
+
+}
+
+message DepartmentRef {
+    string id = 6 [(scalapb.field).type = "com.jc.user.domain.DepartmentEntity.DepartmentId", (scalapb.field).no_box = false];
+}
+
 message User {
     string id = 1 [(scalapb.field).type = "com.jc.user.domain.UserEntity.UserId"];
     string username = 2;
     string email = 3;
     string pass = 4;
     Address address = 5;
+    DepartmentRef department = 6;
+}
+
+message UserEntityState {
+    User entity = 1;
 }
 
 message UserPayloadEvent {
@@ -40,6 +88,7 @@ message UserPayloadEvent {
         UserAddressUpdatedPayload addressUpdated = 5;
         UserPasswordUpdatedPayload passwordUpdated = 6;
         UserEmailUpdatedPayload emailUpdated = 7;
+        UserDepartmentUpdatedPayload departmentUpdated = 8;
     }
 }
 
@@ -48,6 +97,7 @@ message UserCreatedPayload {
     string email = 2;
     string pass = 3;
     Address address = 4;
+    DepartmentRef department = 5;
 }
 
 
@@ -65,4 +115,8 @@ message UserPasswordUpdatedPayload {
 
 message UserEmailUpdatedPayload {
     string email = 1;
+}
+
+message UserDepartmentUpdatedPayload {
+    DepartmentRef department = 1;
 }

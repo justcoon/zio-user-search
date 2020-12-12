@@ -15,13 +15,6 @@ option (scalapb.options) = {
 //option java_multiple_files = true;
 //option java_package = "com.jc.user.api.proto";
 
-message GetUserReq {
-    string id = 1;
-}
-
-message GetUserRes {
-    com.jc.user.domain.proto.User user = 1;
-}
 
 enum SortOrder {
     ASC = 0;
@@ -31,6 +24,26 @@ enum SortOrder {
 message FieldSort {
     string field = 1;
     SortOrder order = 2;
+}
+
+
+message TermSuggestion {
+    string text = 1 [(scalapb.field).no_box = false];
+    double score = 2;
+    int32 freq = 3;
+}
+
+message PropertySuggestion {
+    string property = 1 [(scalapb.field).no_box = false];
+    repeated TermSuggestion suggestions = 2;
+}
+
+message GetUserReq {
+    string id = 1;
+}
+
+message GetUserRes {
+    com.jc.user.domain.proto.User user = 1;
 }
 
 message SearchUsersReq {
@@ -60,18 +73,50 @@ message SuggestUsersReq {
     string query = 1 [(scalapb.field).no_box = false];
 }
 
-message TermSuggestion {
-    string text = 1 [(scalapb.field).no_box = false];
-    double score = 2;
-    int32 freq = 3;
-}
-
-message PropertySuggestion {
-    string property = 1 [(scalapb.field).no_box = false];
-    repeated TermSuggestion suggestions = 2;
-}
-
 message SuggestUsersRes {
+    repeated PropertySuggestion suggestions = 1;
+    oneof result {
+        string success = 2;
+        string failure = 3;
+    }
+}
+
+message GetDepartmentReq {
+    string id = 1;
+}
+
+message GetDepartmentRes {
+    com.jc.user.domain.proto.Department department = 1;
+}
+
+message SearchDepartmentsReq {
+    string query = 1 [(scalapb.field).no_box = false];
+    int32 page = 2;
+    int32 pageSize = 3;
+    repeated FieldSort sorts = 4;
+}
+
+message SearchDepartmentsRes {
+    repeated com.jc.user.domain.proto.Department departments = 1;
+    int32 page = 2;
+    int32 pageSize = 3;
+    int32 count = 4;
+    oneof result {
+        string success = 5;
+        string failure = 6;
+    }
+}
+
+message SearchDepartmentStreamReq {
+    string query = 1 [(scalapb.field).no_box = false];
+    repeated FieldSort sorts = 2;
+}
+
+message SuggestDepartmentsReq {
+    string query = 1 [(scalapb.field).no_box = false];
+}
+
+message SuggestDepartmentsRes {
     repeated PropertySuggestion suggestions = 1;
     oneof result {
         string success = 2;
@@ -91,5 +136,17 @@ service UserSearchApiService {
     }
 
     rpc SuggestUsers (SuggestUsersReq) returns (SuggestUsersRes) {
+    }
+
+    rpc GetDepartment (GetDepartmentReq) returns (GetDepartmentRes) {
+    }
+
+    rpc SearchDepartments (SearchDepartmentsReq) returns (SearchDepartmentsRes) {
+    }
+
+    rpc SearchDepartmentStream (SearchDepartmentStreamReq) returns (stream com.jc.user.domain.proto.Department) {
+    }
+
+    rpc SuggestDepartments (SuggestDepartmentsReq) returns (SuggestDepartmentsRes) {
     }
 }

@@ -1,7 +1,6 @@
 package com.jc.user.search.module.repo
 
 import com.jc.user.search.model.{ExpectedFailure, RepoFailure}
-import com.jc.user.search.module.repo.UserSearchRepoInit.EsUserSearchRepoInitService
 import com.sksamuel.elastic4s.ElasticClient
 import io.circe.{Decoder, Encoder}
 import zio.ZIO

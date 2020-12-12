@@ -1,6 +1,7 @@
 package com.jc.user.search.module.repo
 
 import com.jc.user.domain.UserEntity.UserId
+import com.jc.user.domain.DepartmentEntity.DepartmentId
 import com.jc.user.search.model.ExpectedFailure
 import com.sksamuel.elastic4s.ElasticClient
 import zio.logging.{Logger, Logging}
@@ -9,6 +10,16 @@ import zio.{Has, ZIO, ZLayer}
 object UserSearchRepo {
 
   trait Service extends Repository[UserId, User] with SearchRepository[User]
+
+  final case class Department(
+    id: DepartmentId
+  ) extends Repository.Entity[DepartmentId]
+
+  object Department {
+    import io.circe._, io.circe.generic.semiauto._
+    implicit val departmentDecoder: Decoder[Department] = deriveDecoder[Department]
+    implicit val departmentEncoder: Encoder[Department] = deriveEncoder[Department]
+  }
 
   final case class Address(
     street: String,
@@ -20,11 +31,8 @@ object UserSearchRepo {
   )
 
   object Address {
-
     import io.circe._, io.circe.generic.semiauto._
-
     implicit val addressDecoder: Decoder[Address] = deriveDecoder[Address]
-
     implicit val addressEncoder: Encoder[Address] = deriveEncoder[Address]
   }
 
@@ -34,7 +42,7 @@ object UserSearchRepo {
     email: String,
     pass: String,
     address: Option[Address] = None,
-    deleted: Boolean = false
+    department: Option[Department] = None
   ) extends Repository.Entity[UserId]
 
   object User {
@@ -44,9 +52,11 @@ object UserSearchRepo {
     val emailLens: Lens[User, String] = lens[User].email
     val passLens: Lens[User, String] = lens[User].pass
     val addressLens: Lens[User, Option[Address]] = lens[User].address
-    val deletedLens: Lens[User, Boolean] = lens[User].deleted
+    val departmentLens: Lens[User, Option[Department]] = lens[User].department
 
-    val usernameEmailPassAddressLens = usernameLens ~ emailLens ~ passLens ~ addressLens
+    val usernameEmailPassAddressDepartmentLens
+      : ProductLensBuilder[User, (String, String, String, Option[Address], Option[Department])] =
+      usernameLens ~ emailLens ~ passLens ~ addressLens ~ departmentLens
 
     import io.circe._, io.circe.generic.semiauto._
 
@@ -67,9 +77,10 @@ object UserSearchRepo {
 
   final case class EsUserSearchRepoService(indexName: String, elasticClient: ElasticClient, logger: Logger[String])
       extends UserSearchRepo.Service {
-    private val suggestProperties = Seq("username", "email")
     private val repo = new ESRepository[UserId, User](indexName, elasticClient, logger)
-    private val searchRepo = new ESSearchRepository[User](indexName, suggestProperties, elasticClient, logger)
+
+    private val searchRepo =
+      new ESSearchRepository[User](indexName, EsUserSearchRepoService.suggestProperties, elasticClient, logger)
 
     override def insert(value: User): ZIO[Any, ExpectedFailure, Boolean] = repo.insert(value)
 
@@ -89,9 +100,28 @@ object UserSearchRepo {
       searchRepo.suggest(query)
   }
 
-  def elasticsearch(userSearchRepoIndexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, UserSearchRepo] =
+  object EsUserSearchRepoService {
+    import com.sksamuel.elastic4s.ElasticDsl._
+
+    val suggestProperties = Seq("username", "email")
+
+    val fields = Seq(
+      textField("id").fielddata(true),
+      textField("username").fielddata(true),
+      textField("email").fielddata(true),
+      textField("address.street").fielddata(true),
+      textField("address.number").fielddata(true),
+      textField("address.city").fielddata(true),
+      textField("address.state").fielddata(true),
+      textField("address.zip").fielddata(true),
+      textField("address.country").fielddata(true),
+      textField("department.id").fielddata(true)
+    ) ++ suggestProperties.map(prop => completionField(ElasticUtils.getSuggestPropertyName(prop)))
+  }
+
+  def elasticsearch(indexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, UserSearchRepo] =
     ZLayer.fromServices[ElasticClient, Logger[String], UserSearchRepo.Service] {
       (elasticClient: ElasticClient, logger: Logger[String]) =>
-        EsUserSearchRepoService(userSearchRepoIndexName, elasticClient, logger)
+        EsUserSearchRepoService(indexName, elasticClient, logger)
     }
 }

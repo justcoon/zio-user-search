@@ -31,12 +31,23 @@ object UserEventProcessor {
     }
 
   def index(event: UserPayloadEvent, userSearchRepo: UserSearchRepo.Service) = {
-    userSearchRepo
-      .find(event.entityId)
-      .flatMap {
-        case u @ Some(_) => userSearchRepo.update(getUpdatedUser(event, u))
-        case None => userSearchRepo.insert(getUpdatedUser(event, None))
-      }
+    if (isUserRemoved(event))
+      userSearchRepo.delete(event.entityId)
+    else
+      userSearchRepo
+        .find(event.entityId)
+        .flatMap {
+          case u @ Some(_) => userSearchRepo.update(getUpdatedUser(event, u))
+          case None => userSearchRepo.insert(getUpdatedUser(event, None))
+        }
+  }
+
+  def isUserRemoved(event: UserPayloadEvent): Boolean = {
+    import com.jc.user.domain.proto._
+    event match {
+      case UserPayloadEvent(_, _, _: UserPayloadEvent.Payload.Removed, _) => true
+      case _ => false
+    }
   }
 
   def createUser(id: com.jc.user.domain.UserEntity.UserId): UserSearchRepo.User = UserSearchRepo.User(id, "", "", "")
@@ -51,12 +62,14 @@ object UserEventProcessor {
     event match {
       case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.Created, _) =>
         val na = payload.value.address.map(_.transformInto[UserSearchRepo.Address])
-        usernameEmailPassAddressLens.set(currentUser)(
+        val nd = payload.value.department.map(_.transformInto[UserSearchRepo.Department])
+        usernameEmailPassAddressDepartmentLens.set(currentUser)(
           (
             payload.value.username,
             payload.value.email,
             payload.value.pass,
-            na
+            na,
+            nd
           ))
 
       case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.PasswordUpdated, _) =>
@@ -69,8 +82,9 @@ object UserEventProcessor {
         val na = payload.value.address.map(_.transformInto[UserSearchRepo.Address])
         addressLens.set(currentUser)(na)
 
-      case UserPayloadEvent(_, _, _: UserPayloadEvent.Payload.Removed, _) =>
-        deletedLens.set(currentUser)(true)
+      case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.DepartmentUpdated, _) =>
+        val nd = payload.value.department.map(_.transformInto[UserSearchRepo.Department])
+        departmentLens.set(currentUser)(nd)
 
       case _ => currentUser
     }

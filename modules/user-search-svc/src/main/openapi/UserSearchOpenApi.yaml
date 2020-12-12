@@ -1,4 +1,4 @@
-openapi: 3.0.2
+openapi: 3.0.3
 servers:
   - url: /v1
 info:
@@ -83,7 +83,7 @@ paths:
             type: array
             items:
               type: string
-          example: username:asc
+          example: ['username:asc']
       responses:
         '200':
           description: successful operation
@@ -137,7 +137,7 @@ components:
           example: Lytton
         number:
           type: string
-          example: 437
+          example: '437'
         city:
           type: string
           example: Palo Alto
@@ -146,7 +146,7 @@ components:
           example: CA
         zip:
           type: string
-          example: 94301
+          example: '94301'
         country:
           type: string
           example: USA
@@ -158,11 +158,19 @@ components:
         - state
         - zip
         - country
+    DepartmentRef:
+      properties:
+        id:
+          type: string
+          example: d1
+      type: object
+      required:
+        - id
     User:
       properties:
         id:
           type: string
-          example: 10
+          example: '10'
         username:
           type: string
           example: theUser
@@ -171,9 +179,11 @@ components:
           example: john@email.com
         pass:
           type: string
-          example: 12345
+          example: '12345'
         address:
           $ref: '#/components/schemas/Address'
+        department:
+          $ref: '#/components/schemas/DepartmentRef'
       type: object
       required:
         - username

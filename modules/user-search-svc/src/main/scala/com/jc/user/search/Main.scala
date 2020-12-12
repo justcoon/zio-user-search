@@ -5,8 +5,13 @@ import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, HttpApiC
 import com.jc.user.search.module.api.{HealthCheckApi, UserSearchGrpcApiHandler, UserSearchOpenApiHandler}
 import com.jc.user.search.module.auth.JwtAuthenticator
 import com.jc.user.search.module.kafka.UserKafkaConsumer
-import com.jc.user.search.module.processor.UserEventProcessor
-import com.jc.user.search.module.repo.{UserSearchRepo, UserSearchRepoInit}
+import com.jc.user.search.module.processor.{DepartmentEventProcessor, UserEventProcessor}
+import com.jc.user.search.module.repo.{
+  DepartmentSearchRepo,
+  DepartmentSearchRepoInit,
+  UserSearchRepo,
+  UserSearchRepoInit
+}
 import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties}
 import io.grpc._
@@ -34,7 +39,8 @@ object Main extends App {
 
   type AppEnvironment = Clock
     with Blocking with Has[ElasticClient] with UserKafkaConsumer with UserSearchRepo with UserSearchRepoInit
-    with UserEventProcessor with UserSearchGrpcApiHandler with GrpcServer with Logging with Registry with Exporters
+    with UserEventProcessor with DepartmentSearchRepo with DepartmentSearchRepoInit with DepartmentEventProcessor
+    with UserSearchGrpcApiHandler with GrpcServer with Logging with Registry with Exporters
 
   private val httpRoutes: HttpRoutes[ZIO[AppEnvironment, Throwable, *]] =
     Router[ZIO[AppEnvironment, Throwable, *]](
@@ -73,6 +79,16 @@ object Main extends App {
 
     val jwtAuthLayer: ZLayer[Any, Nothing, JwtAuthenticator] = JwtAuthenticator.live(appConfig.jwt)
 
+    val departmentSearchRepoInitLayer: ZLayer[Any, Throwable, DepartmentSearchRepoInit] =
+      (elasticLayer ++ loggerLayer) >>>
+        DepartmentSearchRepoInit.elasticsearch(appConfig.elasticsearch.departmentIndexName)
+
+    val departmentSearchRepoLayer: ZLayer[Any, Throwable, DepartmentSearchRepo] = (elasticLayer ++ loggerLayer) >>>
+      DepartmentSearchRepo.elasticsearch(appConfig.elasticsearch.departmentIndexName)
+
+    val departmentEventProcessorLayer: ZLayer[Any, Throwable, DepartmentEventProcessor] =
+      (departmentSearchRepoLayer ++ loggerLayer) >>> DepartmentEventProcessor.live
+
     val userSearchRepoInitLayer: ZLayer[Any, Throwable, UserSearchRepoInit] = (elasticLayer ++ loggerLayer) >>>
       UserSearchRepoInit.elasticsearch(appConfig.elasticsearch.userIndexName)
 
@@ -86,7 +102,7 @@ object Main extends App {
       UserKafkaConsumer.live(appConfig.kafka)
 
     val userSearchGrpcApiHandlerLayer: ZLayer[Any, Throwable, UserSearchGrpcApiHandler] =
-      (userSearchRepoLayer ++ jwtAuthLayer ++ loggerLayer) >>> UserSearchGrpcApiHandler.live
+      (userSearchRepoLayer ++ departmentSearchRepoLayer ++ jwtAuthLayer ++ loggerLayer) >>> UserSearchGrpcApiHandler.live
 
     val grpcServerLayer: ZLayer[Any, Throwable, GrpcServer] =
       userSearchGrpcApiHandlerLayer >>> createGrpcServer(appConfig.grpcApi)
@@ -98,6 +114,9 @@ object Main extends App {
       elasticLayer ++
       loggerLayer ++
       userKafkaConsumerLayer ++
+      departmentSearchRepoInitLayer ++
+      departmentSearchRepoLayer ++
+      departmentEventProcessorLayer ++
       userSearchRepoInitLayer ++
       userSearchRepoLayer ++
       userEventProcessorLayer ++
@@ -122,8 +141,9 @@ object Main extends App {
           .drain
           .forever
         UserSearchRepoInit.init *>
+          DepartmentSearchRepoInit.init *>
           metrics(appConfig.prometheus) *>
-          UserKafkaConsumer.consume(appConfig.kafka.userTopic) &>
+          UserKafkaConsumer.consume(appConfig.kafka.userTopic, appConfig.kafka.departmentTopic) &>
           server
       }
 
