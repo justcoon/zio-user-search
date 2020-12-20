@@ -51,6 +51,10 @@ object UserSearchGrpcApiHandler {
     }
   }
 
+  def toRepoFieldSort(sort: FieldSort): SearchRepository.FieldSort = {
+    SearchRepository.FieldSort(sort.field, sort.order.isAsc)
+  }
+
   final case class LiveUserSearchApiService(
     userSearchRepo: UserSearchRepo.Service,
     departmentSearchRepo: DepartmentSearchRepo.Service,
@@ -182,9 +186,6 @@ object UserSearchGrpcApiHandler {
         )
     }
 
-    private def toRepoFieldSort(sort: FieldSort) = {
-      SearchRepository.FieldSort(sort.field, sort.order.isAsc)
-    }
   }
 
   val live: ZLayer[
@@ -196,11 +197,7 @@ object UserSearchGrpcApiHandler {
       DepartmentSearchRepo.Service,
       JwtAuthenticator.Service,
       Logger[String],
-      RCUserSearchApiService[Any]] {
-      (
-        userSearchRepo: UserSearchRepo.Service,
-        departmentSearchRepo: DepartmentSearchRepo.Service,
-        jwtAuth: JwtAuthenticator.Service,
-        logger: Logger[String]) => LiveUserSearchApiService(userSearchRepo, departmentSearchRepo, jwtAuth, logger)
+      RCUserSearchApiService[Any]] { (userSearchRepo, departmentSearchRepo, jwtAuth, logger) =>
+      LiveUserSearchApiService(userSearchRepo, departmentSearchRepo, jwtAuth, logger)
     }
 }

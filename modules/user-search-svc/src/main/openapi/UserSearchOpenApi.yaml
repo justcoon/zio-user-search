@@ -19,6 +19,112 @@ tags:
       description: TODO
       url: 'http://swagger.io'
 paths:
+  '/department/{id}':
+    get:
+      tags:
+        - user
+      summary: Get department by department id
+      description: ''
+      operationId: getDepartment
+      parameters:
+        - name: id
+          in: path
+          description: 'The id that needs to be fetched. Department dep1 for testing. '
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+        '404':
+          description: Department not found
+  /department/search:
+    get:
+      tags:
+        - user
+      summary: Search departments
+      description: ''
+      operationId: searchDepartments
+      parameters:
+        - name: query
+          description: search query
+          in: query
+          required: false
+          schema:
+            type: string
+          example: search
+        - name: page
+          description: page number
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+          example: 0
+          default: 0
+        - name: pageSize
+          description: page size
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+          example: 10
+          default: 10
+        - name: sort
+          description: sort
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          example: [ 'name:asc' ]
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentSearchResponse'
+        '400':
+          description: failed operation
+          content:
+            application/json:
+              schema:
+                type: string
+  /department/suggest:
+    get:
+      tags:
+        - user
+      summary: Suggest departents
+      description: ''
+      operationId: suggestDepartments
+      parameters:
+        - name: query
+          description: suggest query
+          in: query
+          required: false
+          schema:
+            type: string
+          example: search
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentSuggestResponse'
+        '400':
+          description: failed operation
+          content:
+            application/json:
+              schema:
+                type: string
   '/user/{id}':
     get:
       tags:
@@ -83,7 +189,7 @@ paths:
             type: array
             items:
               type: string
-          example: ['username:asc']
+          example: [ 'username:asc' ]
       responses:
         '200':
           description: successful operation
@@ -166,6 +272,57 @@ components:
       type: object
       required:
         - id
+    Department:
+      properties:
+        id:
+          type: string
+          example: d1
+        name:
+          type: string
+          example: dep 1
+        description:
+          type: string
+          example: department 1
+      type: object
+      required:
+        - id
+        - name
+        - description
+    DepartmentSearchResponse:
+      description: Department search response
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Department'
+        page:
+          type: integer
+          format: int32
+          example: 0
+        pageSize:
+          type: integer
+          format: int32
+          example: 10
+        count:
+          type: integer
+          format: int32
+          example: 12
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - count
+    DepartmentSuggestResponse:
+      description: Department suggest response
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertySuggestion'
+      type: object
+      required:
+        - suggestions
     User:
       properties:
         id:
@@ -189,11 +346,6 @@ components:
         - username
         - email
         - pass
-    UserArray:
-      type: array
-      items:
-        $ref: '#/components/schemas/User'
-      description: List of user object
     UserSearchResponse:
       description: User search response
       properties:
@@ -250,16 +402,16 @@ components:
         score:
           type: number
           format: double
-#        freq:
-#          type: number
-#          format: int32
+      #        freq:
+      #          type: number
+      #          format: int32
       type: object
       required:
         - text
         - score
-#        - freq
+  #        - freq
   securitySchemes:
-    bearerAuth:            # arbitrary name for the security scheme
+    bearerAuth: # arbitrary name for the security scheme
       type: http
       scheme: bearer
       bearerFormat: JWT

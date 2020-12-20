@@ -9,10 +9,9 @@ object UserSearchRepoInit {
   trait Service extends RepositoryInitializer
 
   def elasticsearch(indexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, UserSearchRepoInit] =
-    ZLayer.fromServices[ElasticClient, Logger[String], UserSearchRepoInit.Service] {
-      (elasticClient: ElasticClient, logger: Logger[String]) =>
-        new ESRepositoryInitializer(indexName, UserSearchRepo.EsUserSearchRepoService.fields, elasticClient, logger)
-          with Service
+    ZLayer.fromServices[ElasticClient, Logger[String], UserSearchRepoInit.Service] { (elasticClient, logger) =>
+      new ESRepositoryInitializer(indexName, UserSearchRepo.EsUserSearchRepoService.fields, elasticClient, logger)
+        with Service
     }
 
   val init: ZIO[UserSearchRepoInit, Throwable, Boolean] = ZIO.accessM[UserSearchRepoInit](_.get.init())

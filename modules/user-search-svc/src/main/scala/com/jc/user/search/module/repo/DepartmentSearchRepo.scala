@@ -25,8 +25,17 @@ object DepartmentSearchRepo {
     val nameDescriptionLens: ProductLensBuilder[Department, (String, String)] = nameLens ~ descriptionLens
 
     import io.circe._, io.circe.generic.semiauto._
+
     implicit val departmentDecoder: Decoder[Department] = deriveDecoder[Department]
-    implicit val departmentEncoder: Encoder[Department] = deriveEncoder[Department]
+
+    implicit val departmentEncoder: Encoder[Department] = new Encoder[Department] {
+
+      val derived: Encoder[Department] = deriveEncoder[Department]
+
+      override def apply(a: Department): Json = {
+        derived(a).mapObject { jo => jo.add(ElasticUtils.getSuggestPropertyName("name"), Json.fromString(a.name)) }
+      }
+    }
   }
 
   final case class EsDepartmentSearchRepoService(
@@ -74,8 +83,7 @@ object DepartmentSearchRepo {
   }
 
   def elasticsearch(indexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, DepartmentSearchRepo] =
-    ZLayer.fromServices[ElasticClient, Logger[String], DepartmentSearchRepo.Service] {
-      (elasticClient: ElasticClient, logger: Logger[String]) =>
-        EsDepartmentSearchRepoService(indexName, elasticClient, logger)
+    ZLayer.fromServices[ElasticClient, Logger[String], DepartmentSearchRepo.Service] { (elasticClient, logger) =>
+      EsDepartmentSearchRepoService(indexName, elasticClient, logger)
     }
 }

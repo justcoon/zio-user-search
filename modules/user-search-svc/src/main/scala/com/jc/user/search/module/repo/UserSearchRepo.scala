@@ -120,8 +120,7 @@ object UserSearchRepo {
   }
 
   def elasticsearch(indexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, UserSearchRepo] =
-    ZLayer.fromServices[ElasticClient, Logger[String], UserSearchRepo.Service] {
-      (elasticClient: ElasticClient, logger: Logger[String]) =>
-        EsUserSearchRepoService(indexName, elasticClient, logger)
+    ZLayer.fromServices[ElasticClient, Logger[String], UserSearchRepo.Service] { (elasticClient, logger) =>
+      EsUserSearchRepoService(indexName, elasticClient, logger)
     }
 }
