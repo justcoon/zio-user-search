@@ -73,7 +73,7 @@ class ESRepository[ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: De
     serviceLogger.debug(s"insert - ${indexName} - id: ${id}") *>
       elasticClient.execute {
         indexInto(indexName).doc(value).id(id)
-      }.mapError(e => RepoFailure(e)).map(_.isSuccess).tapError { e =>
+      }.map(_.isSuccess).mapError(RepoFailure).tapError { e =>
         serviceLogger.error(s"insert - ${indexName} - id: ${value.id} - error: ${e.throwable.getMessage}") *>
           ZIO.fail(e)
       }
@@ -84,7 +84,7 @@ class ESRepository[ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: De
     serviceLogger.debug(s"update - ${indexName} - id: ${id}") *>
       elasticClient.execute {
         updateById(indexName, value.id.toString).doc(value)
-      }.mapError(e => RepoFailure(e)).map(_.isSuccess).tapError { e =>
+      }.map(_.isSuccess).mapError(RepoFailure).tapError { e =>
         serviceLogger.error(s"update - ${indexName} - id: ${id} - error: ${e.throwable.getMessage}") *>
           ZIO.fail(e)
       }
@@ -94,7 +94,7 @@ class ESRepository[ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: De
     serviceLogger.debug(s"update - id: ${id}") *>
       elasticClient.execute {
         deleteById(indexName, id.toString)
-      }.mapError(e => RepoFailure(e)).map(_.isSuccess).tapError { e =>
+      }.map(_.isSuccess).mapError(RepoFailure).tapError { e =>
         serviceLogger.error(s"update - id: ${id} - error: ${e.throwable.getMessage}") *>
           ZIO.fail(e)
       }
@@ -104,12 +104,12 @@ class ESRepository[ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: De
     serviceLogger.debug(s"find - ${indexName} - id: ${id}") *>
       elasticClient.execute {
         get(indexName, id.toString)
-      }.mapError { e => RepoFailure(e) }.map { r =>
+      }.map { r =>
         if (r.result.exists)
           Option(r.result.to[E])
         else
           Option.empty
-      }.tapError { e =>
+      }.mapError(RepoFailure).tapError { e =>
         serviceLogger.error(s"find - ${indexName} - id: ${id} - error: ${e.throwable.getMessage}") *>
           ZIO.fail(e)
       }
@@ -119,7 +119,7 @@ class ESRepository[ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: De
     serviceLogger.debug(s"findAll - ${indexName}") *>
       elasticClient.execute {
         searchIndex(indexName).matchAllQuery()
-      }.mapError(e => RepoFailure(e)).map(_.result.to[E]).tapError { e =>
+      }.map(_.result.to[E]).mapError(RepoFailure).tapError { e =>
         serviceLogger.error(s"findAll - ${indexName} - error: ${e.throwable.getMessage}") *>
           ZIO.fail(e)
       }
@@ -158,57 +158,22 @@ class ESSearchRepository[E <: Repository.Entity[_]: Encoder: Decoder: ClassTag](
       .getOrElse("N/A")}', page: $page, pageSize: $pageSize, sorts: ${sorts.mkString("[", ",", "]")}") *>
       elasticClient.execute {
         searchIndex(indexName).query(q).from(page * pageSize).limit(pageSize).sortBy(ss)
-      }.mapError { e => RepoFailure(e) }.flatMap { res =>
+      }.flatMap { res =>
         if (res.isSuccess) {
-          val items = res.result.to[E]
-          ZIO.succeed(SearchRepository.PaginatedSequence(items, page, pageSize, res.result.totalHits.toInt))
+          ZIO {
+            val items = res.result.to[E]
+            SearchRepository.PaginatedSequence(items, page, pageSize, res.result.totalHits.toInt)
+          }
         } else {
-          ZIO.fail(RepoFailure(new Exception(ElasticUtils.getReason(res.error))))
+          ZIO.fail(new Exception(ElasticUtils.getReason(res.error)))
         }
-      }.tapError { e =>
+      }.mapError(RepoFailure).tapError { e =>
         serviceLogger.error(
           s"search - ${indexName} - query: '${query.getOrElse("N/A")}', page: $page, pageSize: $pageSize, sorts: ${sorts
             .mkString("[", ",", "]")} - error: ${e.throwable.getMessage}") *>
           ZIO.fail(e)
       }
   }
-
-  //    override def suggest(query: String): ZIO[Any, ExpectedFailure, SuggestResponse] = {
-  //      // term suggestion
-  //      val termSuggestions = EsUserSearchRepoInitService.suggestProperties.map { p =>
-  //        suggestion
-  //          .TermSuggestion(ElasticUtils.getTermSuggestionName(p), p, Some(query))
-  //          .mode(suggestion.SuggestMode.Always)
-  //      }
-  //
-  //      serviceLogger.debug(s"suggest - query: '$query'") *>
-  //        elasticClient.execute {
-  //          searchIndex(indexName).suggestions(termSuggestions)
-  //        }.mapError { e =>
-  //          RepoFailure(e)
-  //        }.flatMap { res =>
-  //          if (res.isSuccess) {
-  //            val elasticSuggestions = res.result.suggestions
-  //            val suggestions = EsUserSearchRepoInitService.suggestProperties.map { p =>
-  //              val propertySuggestions = elasticSuggestions(ElasticUtils.getTermSuggestionName(p))
-  //              val suggestions = propertySuggestions.flatMap { v =>
-  //                val t = v.toTerm
-  //                t.options.map { o =>
-  //                  TermSuggestion(o.text, o.score, o.freq)
-  //                }
-  //              }
-  //
-  //              PropertySuggestions(p, suggestions)
-  //            }
-  //            ZIO.succeed(SuggestResponse(suggestions))
-  //          } else {
-  //            ZIO.fail(RepoFailure(new Exception(ElasticUtils.getReason(res.error))))
-  //          }
-  //        }.tapError { e =>
-  //          serviceLogger.error(s"suggest - query: '$query' - error: ${e.throwable.getMessage}") *>
-  //            ZIO.fail(e)
-  //        }
-  //    }
 
   override def suggest(query: String): ZIO[Any, ExpectedFailure, SearchRepository.SuggestResponse] = {
     // completion suggestion
@@ -221,7 +186,7 @@ class ESSearchRepository[E <: Repository.Entity[_]: Encoder: Decoder: ClassTag](
     serviceLogger.debug(s"suggest - ${indexName} - query: '$query'") *>
       elasticClient.execute {
         searchIndex(indexName).suggestions(complSuggestions)
-      }.mapError { e => RepoFailure(e) }.flatMap { res =>
+      }.flatMap { res =>
         if (res.isSuccess) {
           val elasticSuggestions = res.result.suggestions
           val suggestions = suggestProperties.map { p =>
@@ -235,9 +200,9 @@ class ESSearchRepository[E <: Repository.Entity[_]: Encoder: Decoder: ClassTag](
           }
           ZIO.succeed(SearchRepository.SuggestResponse(suggestions))
         } else {
-          ZIO.fail(RepoFailure(new Exception(ElasticUtils.getReason(res.error))))
+          ZIO.fail(new Exception(ElasticUtils.getReason(res.error)))
         }
-      }.tapError { e =>
+      }.mapError(RepoFailure).tapError { e =>
         serviceLogger.error(s"suggest - ${indexName} - query: '$query' - error: ${e.throwable.getMessage}") *>
           ZIO.fail(e)
       }

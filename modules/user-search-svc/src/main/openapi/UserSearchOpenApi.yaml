@@ -264,14 +264,6 @@ components:
         - state
         - zip
         - country
-    DepartmentRef:
-      properties:
-        id:
-          type: string
-          example: d1
-      type: object
-      required:
-        - id
     Department:
       properties:
         id:
@@ -340,7 +332,7 @@ components:
         address:
           $ref: '#/components/schemas/Address'
         department:
-          $ref: '#/components/schemas/DepartmentRef'
+          $ref: '#/components/schemas/Department'
       type: object
       required:
         - username

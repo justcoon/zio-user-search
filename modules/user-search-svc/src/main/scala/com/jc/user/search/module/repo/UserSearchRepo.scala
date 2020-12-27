@@ -12,13 +12,16 @@ object UserSearchRepo {
   trait Service extends Repository[UserId, User] with SearchRepository[User]
 
   final case class Department(
-    id: DepartmentId
+    id: DepartmentId,
+    name: String = "",
+    description: String = ""
   ) extends Repository.Entity[DepartmentId]
 
   object Department {
-    import io.circe._, io.circe.generic.semiauto._
-    implicit val departmentDecoder: Decoder[Department] = deriveDecoder[Department]
-    implicit val departmentEncoder: Encoder[Department] = deriveEncoder[Department]
+    import io.circe._, io.circe.generic.extras.semiauto._, io.circe.generic.extras.Configuration
+    implicit val departmentConfig: Configuration = Configuration.default.withDefaults
+    implicit val departmentDecoder: Decoder[Department] = deriveConfiguredDecoder[Department]
+    implicit val departmentEncoder: Encoder[Department] = deriveConfiguredEncoder[Department]
   }
 
   final case class Address(
@@ -115,7 +118,9 @@ object UserSearchRepo {
       textField("address.state").fielddata(true),
       textField("address.zip").fielddata(true),
       textField("address.country").fielddata(true),
-      textField("department.id").fielddata(true)
+      textField("department.id").fielddata(true),
+      textField("department.name").fielddata(true),
+      textField("department.description").fielddata(true)
     ) ++ suggestProperties.map(prop => completionField(ElasticUtils.getSuggestPropertyName(prop)))
   }
 

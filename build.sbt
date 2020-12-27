@@ -9,7 +9,7 @@ lazy val Versions = new {
   val zioKafka = "0.13.0"
   val zioLogging = "0.5.4"
   val zioMetrics = "1.0.1"
-  val elastic4s = "7.9.2"
+  val elastic4s = "7.10.0"
   val circe = "0.13.0"
   val scalaTest = "3.2.3"
   val randomDataGenerator = "2.9"
@@ -19,7 +19,7 @@ lazy val Versions = new {
   val grpc = "1.34.1"
   val chimney = "0.6.1"
   val pauldijouJwt = "4.3.0"
-  val tapir = "0.17.0"
+  val tapir = "0.17.1"
 }
 
 lazy val `zio-user-search` =
@@ -73,6 +73,7 @@ lazy val `user-search-svc` =
         "com.softwaremill.sttp.tapir" %% "tapir-zio-http4s-server" % Versions.tapir,
         "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-http4s" % Versions.tapir,
         "io.circe" %% "circe-generic"                              % Versions.circe,
+        "io.circe" %% "circe-generic-extras"                       % Versions.circe,
         "com.pauldijou" %% "jwt-circe"                             % Versions.pauldijouJwt,
         "com.github.pureconfig" %% "pureconfig"                    % Versions.pureconfig,
         "eu.timepit" %% "refined-pureconfig"                       % Versions.refined,
