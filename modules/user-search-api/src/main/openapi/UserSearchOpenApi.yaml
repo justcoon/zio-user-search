@@ -40,8 +40,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Department'
+        '401':
+          description: unauthorized
         '404':
-          description: Department not found
+          description: department not found
   /department/search:
     get:
       tags:
@@ -146,8 +148,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+        '401':
+          description: unauthorized
         '404':
-          description: User not found
+          description: user not found
   /user/search:
     get:
       tags:

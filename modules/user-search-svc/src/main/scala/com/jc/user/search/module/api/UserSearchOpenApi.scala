@@ -22,16 +22,18 @@ import com.jc.user.search.api.openapi.user.{
   UserResource
 }
 import com.jc.user.search.model.ExpectedFailure
+import com.jc.user.search.module.auth.JwtAuthenticator
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
-import org.http4s.HttpRoutes
+import org.http4s.{Headers, HttpRoutes, Status}
+import org.http4s.headers.Authorization
 import org.http4s.server.Router
 import sttp.tapir.swagger.http4s.SwaggerHttp4s
 import zio.ZIO
 
 import scala.io.Source
 
-final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRepo]
-    extends UserHandler[ZIO[R, Throwable, *]] {
+final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator]
+    extends UserHandler[ZIO[R, Throwable, *], Headers] {
   type F[A] = ZIO[R, Throwable, A]
 
   import UserEntity._
@@ -39,26 +41,40 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
 
   import io.scalaland.chimney.dsl._
 
-  override def getDepartment(respond: GetDepartmentResponse.type)(id: String): F[GetDepartmentResponse] = {
-    ZIO
-      .accessM[DepartmentSearchRepo] { env =>
-        env.get.find(id.asDepartmentId).map {
-          case Some(dep) => respond.Ok(dep.transformInto[Department])
-          case None => respond.NotFound
-        }
-      }
-      .mapError[Throwable](e => new Exception(e))
+  def authenticated(headers: Headers, authenticator: JwtAuthenticator.Service) = {
+    val maybeHeader: Option[Authorization] = headers.get(Authorization)
+    maybeHeader.flatMap { rawToken => authenticator.authenticated(rawToken.value) } match {
+      case Some(subject) => ZIO.succeed(subject)
+      case None => ZIO.fail(Status.Unauthorized)
+    }
+  }
+
+  override def getDepartment(respond: GetDepartmentResponse.type)(id: String)(
+    extracted: Headers): F[GetDepartmentResponse] = {
+    ZIO.services[DepartmentSearchRepo.Service, JwtAuthenticator.Service].flatMap {
+      case (repo, authenticator) =>
+        authenticated(extracted, authenticator).foldM(
+          _ => ZIO.succeed(respond.Unauthorized),
+          _ =>
+            repo
+              .find(id.asDepartmentId)
+              .map {
+                case Some(dep) => respond.Ok(dep.transformInto[Department])
+                case None => respond.NotFound
+              }
+              .mapError[Throwable](e => new Exception(e))
+        )
+    }
   }
 
   override def searchDepartments(respond: SearchDepartmentsResponse.type)(
     query: Option[String],
     page: Int,
     pageSize: Int,
-    sort: Option[Iterable[String]]): F[SearchDepartmentsResponse] = {
+    sort: Option[Iterable[String]])(extracted: Headers): F[SearchDepartmentsResponse] = {
     ZIO
       .accessM[DepartmentSearchRepo] { env =>
         val ss = sort.getOrElse(Seq.empty).map(UserSearchOpenApiHandler.toFieldSort)
-
         env.get.search(query, page, pageSize, ss)
       }
       .fold(
@@ -70,8 +86,8 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
       )
   }
 
-  override def suggestDepartments(respond: SuggestDepartmentsResponse.type)(
-    query: Option[String]): F[SuggestDepartmentsResponse] = {
+  override def suggestDepartments(respond: SuggestDepartmentsResponse.type)(query: Option[String])(
+    extracted: Headers): F[SuggestDepartmentsResponse] = {
     ZIO
       .accessM[DepartmentSearchRepo] { env => env.get.suggest(query.getOrElse("")) }
       .fold(
@@ -88,26 +104,31 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
       )
   }
 
-  override def getUser(respond: GetUserResponse.type)(id: String): F[GetUserResponse] = {
-    ZIO
-      .accessM[UserSearchRepo] { env =>
-        env.get.find(id.asUserId).map {
-          case Some(user) => respond.Ok(user.transformInto[User])
-          case None => respond.NotFound
-        }
-      }
-      .mapError[Throwable](e => new Exception(e))
+  override def getUser(respond: GetUserResponse.type)(id: String)(extracted: Headers): F[GetUserResponse] = {
+    ZIO.services[UserSearchRepo.Service, JwtAuthenticator.Service].flatMap {
+      case (repo, authenticator) =>
+        authenticated(extracted, authenticator).foldM(
+          _ => ZIO.succeed(respond.Unauthorized),
+          _ =>
+            repo
+              .find(id.asUserId)
+              .map {
+                case Some(user) => respond.Ok(user.transformInto[User])
+                case None => respond.NotFound
+              }
+              .mapError[Throwable](e => new Exception(e))
+        )
+    }
   }
 
   override def searchUsers(respond: SearchUsersResponse.type)(
     query: Option[String],
     page: Int,
     pageSize: Int,
-    sort: Option[Iterable[String]] = None): F[SearchUsersResponse] = {
+    sort: Option[Iterable[String]] = None)(extracted: Headers): F[SearchUsersResponse] = {
     ZIO
       .accessM[UserSearchRepo] { env =>
         val ss = sort.getOrElse(Seq.empty).map(UserSearchOpenApiHandler.toFieldSort)
-
         env.get.search(query, page, pageSize, ss)
       }
       .fold(
@@ -119,7 +140,8 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
       )
   }
 
-  override def suggestUsers(respond: SuggestUsersResponse.type)(query: Option[String]): F[SuggestUsersResponse] = {
+  override def suggestUsers(respond: SuggestUsersResponse.type)(query: Option[String])(
+    extracted: Headers): F[SuggestUsersResponse] = {
     ZIO
       .accessM[UserSearchRepo] { env => env.get.suggest(query.getOrElse("")) }
       .fold(
@@ -149,7 +171,8 @@ object UserSearchOpenApiHandler {
         SearchRepository.FieldSort(sort, true)
     }
 
-  def httpRoutes[E <: UserSearchRepo with DepartmentSearchRepo]: HttpRoutes[ZIO[E, Throwable, *]] = {
+  def httpRoutes[E <: UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator]
+    : HttpRoutes[ZIO[E, Throwable, *]] = {
     import zio.interop.catz._
     import sttp.tapir.server.http4s.ztapir._
     val yaml = Source.fromResource("UserSearchOpenApi.yaml").mkString
@@ -157,7 +180,8 @@ object UserSearchOpenApiHandler {
     val docRoutes: HttpRoutes[ZIO[E, Throwable, *]] = new SwaggerHttp4s(yaml).routes
 
     val userSearchApiRoutes: HttpRoutes[ZIO[E, Throwable, *]] =
-      new UserResource[ZIO[E, Throwable, *]]().routes(new UserSearchOpenApiHandler[E]())
+      new UserResource[ZIO[E, Throwable, *], Headers](customExtract = _ => req => req.headers)
+        .routes(new UserSearchOpenApiHandler[E]())
 
     Router("/" -> userSearchApiRoutes, "/" -> docRoutes)
   }

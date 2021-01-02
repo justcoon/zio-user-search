@@ -7,7 +7,7 @@ addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.7.5")
 //addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat"       % "0.1.8")
 addSbtPlugin("au.com.onegeek" % "sbt-dotenv" % "2.1.147")
 //addSbtPlugin("org.duhemm"                % "sbt-errors-summary" % "0.6.3")
-addSbtPlugin("com.twilio"            % "sbt-guardrail" % "0.61.0.1")
+addSbtPlugin("com.twilio"            % "sbt-guardrail" % "0.62.0")
 addSbtPlugin("com.typesafe.sbt"      % "sbt-git"       % "1.0.0")
 addSbtPlugin("com.thesamet"          % "sbt-protoc"    % "1.0.0-RC4")
 

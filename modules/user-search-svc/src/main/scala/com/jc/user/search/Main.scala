@@ -38,9 +38,9 @@ import org.http4s.server.Router
 object Main extends App {
 
   type AppEnvironment = Clock
-    with Blocking with Has[ElasticClient] with UserSearchRepo with UserSearchRepoInit with DepartmentSearchRepo
-    with DepartmentSearchRepoInit with EventProcessor with KafkaConsumer with UserSearchGrpcApiHandler with GrpcServer
-    with Logging with Registry with Exporters
+    with Blocking with Has[ElasticClient] with JwtAuthenticator with UserSearchRepo with UserSearchRepoInit
+    with DepartmentSearchRepo with DepartmentSearchRepoInit with EventProcessor with KafkaConsumer
+    with UserSearchGrpcApiHandler with GrpcServer with Logging with Registry with Exporters
 
   private val httpRoutes: HttpRoutes[ZIO[AppEnvironment, Throwable, *]] =
     Router[ZIO[AppEnvironment, Throwable, *]](
@@ -110,6 +110,7 @@ object Main extends App {
       ZLayer.requires[Blocking] ++
       elasticLayer ++
       loggerLayer ++
+      jwtAuthLayer ++
       kafkaConsumerLayer ++
       departmentSearchRepoInitLayer ++
       departmentSearchRepoLayer ++
