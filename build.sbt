@@ -1,3 +1,4 @@
+
 resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 scalaVersion in Scope.Global := "2.13.4"
 
@@ -9,17 +10,20 @@ lazy val Versions = new {
   val zioKafka = "0.13.0"
   val zioLogging = "0.5.4"
   val zioMetrics = "1.0.1"
-  val elastic4s = "7.10.0"
+  val elastic4s = "7.10.2"
   val circe = "0.13.0"
   val scalaTest = "3.2.3"
   val randomDataGenerator = "2.9"
   val pureconfig = "0.14.0"
-  val refined = "0.9.19"
+  val refined = "0.9.20"
   val logback = "1.2.3"
   val grpc = "1.34.1"
   val chimney = "0.6.1"
   val pauldijouJwt = "4.3.0"
-  val tapir = "0.17.1"
+  val tapir = "0.17.2"
+
+  val gatling = "3.5.0"
+  val gatlingGrpc = "0.11.1"
 }
 
 lazy val library =
@@ -56,6 +60,10 @@ lazy val library =
       "com.thesamet.scalapb" %% "scalapb-runtime"                             % scalapb.compiler.Version.scalapbVersion % "protobuf"
     val scalapbRuntimeGrpc = "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion
 
+    val gatlingCharts = "io.gatling.highcharts" % "gatling-charts-highcharts" % Versions.gatling
+    val gatlingTest = "io.gatling"              % "gatling-test-framework"    % Versions.gatling
+    val gatlingGrpc = "com.github.phisgr"       % "gatling-grpc"              % Versions.gatlingGrpc
+
     val scalatest = "org.scalatest" %% "scalatest"                             % Versions.scalaTest           % "test"
     val randomDataGenerator = "com.danielasfregola" %% "random-data-generator" % Versions.randomDataGenerator % "test"
 
@@ -67,7 +75,7 @@ lazy val `zio-user-search` =
   project
     .in(file("."))
     .enablePlugins(GitVersioning)
-    .aggregate(`user-search-api`, `user-search-svc`)
+    .aggregate(`user-search-api`, `user-search-svc`, `user-search-bench`)
     .settings(settings)
     .settings(
       unmanagedSourceDirectories.in(Compile) := Seq.empty,
@@ -84,7 +92,7 @@ lazy val `user-search-api` =
         scalapb.gen(grpc = true) -> (sourceManaged in Compile).value,
         scalapb.zio_grpc.ZioCodeGenerator -> (sourceManaged in Compile).value
       ),
-      guardrailTasks.in(Compile) := List(
+      guardrailTasks in Compile := List(
         ScalaServer(
           file(s"${baseDirectory.value}/src/main/openapi/UserSearchOpenApi.yaml"),
           pkg = "com.jc.user.search.api.openapi",
@@ -154,6 +162,30 @@ lazy val `user-search-svc` =
         library.randomDataGenerator,
         // Java libraries
         library.logback
+      )
+    )
+    .aggregate(`user-search-api`)
+    .dependsOn(`user-search-api`)
+
+lazy val `user-search-bench` =
+  (project in file("modules/user-search-bench"))
+    .enablePlugins(GatlingPlugin)
+    .settings(settings)
+    .settings(
+      addCompilerPlugin("org.typelevel" %% "kind-projector" % Versions.kindProjector cross CrossVersion.full)
+    )
+    .settings(
+      libraryDependencies ++= Seq(
+        library.pureconfig,
+        library.refinedPureconfig,
+        library.grpcServices,
+        library.grpcNetty,
+        library.grpcNettyShadded,
+        library.scalapbRuntime,
+        library.scalapbRuntimeGrpc,
+        library.gatlingCharts,
+        library.gatlingTest,
+        library.gatlingGrpc
       )
     )
     .aggregate(`user-search-api`)

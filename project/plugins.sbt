@@ -10,7 +10,7 @@ addSbtPlugin("au.com.onegeek" % "sbt-dotenv" % "2.1.147")
 addSbtPlugin("com.twilio"            % "sbt-guardrail" % "0.62.0")
 addSbtPlugin("com.typesafe.sbt"      % "sbt-git"       % "1.0.0")
 addSbtPlugin("com.thesamet"          % "sbt-protoc"    % "1.0.0-RC4")
-
+addSbtPlugin("io.gatling" % "gatling-sbt" % "3.2.1")
 
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.10.9"
 libraryDependencies += "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-codegen" % "0.4.2"
