@@ -12,22 +12,17 @@ import io.grpc.Metadata
 
 final class UserSearchGrpcApiSimulation extends Simulation {
 
+  import Feeders._
+
   val config = ConfigFactory.load
   val grpcApiConfig = ConfigSource.fromConfig(config.getConfig("grpc-api")).loadOrThrow[HttpApiConfig]
 
   val grpcConf = grpc(managedChannelBuilder(name = grpcApiConfig.address, port = grpcApiConfig.port).usePlaintext())
 
-  val jwtAuthHeader: Metadata.Key[String] =
-    Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER)
+  val jwtAuthHeader: Metadata.Key[String] = Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER)
 
   val jwtToken =
     "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJ6aW8tdXNlci1zZWFyY2giLCJzdWIiOiJ0ZXN0IiwiZXhwIjoyMjE1MDc4MTYwLCJpYXQiOjE2MTAyNzgxNjB9.CCTmZT-Iy-0bq2WnoEbr6E5hhP-VYI_YlaUUolH5y00kvBA5AYgR2BQyLSCO6QhG1i2Yv0_2Xv4w8PWoqfvcZg"
-
-  val departmentIdFeeder = Array("d1", "d2", "d3", "d4").map(v => Map("id" -> v)).random
-
-  val countryFeeder = Array("CA", "UK", "UA", "US", "MX").map(v => Map("id" -> v)).random
-
-  val suggestFeeder = Array("bla", "blue", "red", "bl").map(v => Map("id" -> v)).random
 
   val getDepartmentPayload: Expression[GetDepartmentReq] = GetDepartmentReq.defaultInstance
     .updateExpr(
@@ -67,6 +62,6 @@ final class UserSearchGrpcApiSimulation extends Simulation {
     .exec(suggestUsersSuccessfulCall)
 
   setUp(
-    s.inject(atOnceUsers(54))
+    s.inject(atOnceUsers(200))
   ).protocols(grpcConf)
 }

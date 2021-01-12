@@ -24,9 +24,9 @@ import com.jc.user.search.api.openapi.user.{
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.auth.JwtAuthenticator
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
-import org.http4s.{Headers, HttpRoutes, Status}
-import org.http4s.headers.Authorization
+import org.http4s.{Header, Headers, HttpRoutes, Status}
 import org.http4s.server.Router
+import org.http4s.util.CaseInsensitiveString
 import sttp.tapir.swagger.http4s.SwaggerHttp4s
 import zio.ZIO
 
@@ -41,8 +41,10 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
 
   import io.scalaland.chimney.dsl._
 
+  private val AuthHeader = CaseInsensitiveString(JwtAuthenticator.AuthHeader)
+
   def authenticated(headers: Headers, authenticator: JwtAuthenticator.Service) = {
-    val maybeHeader: Option[Authorization] = headers.get(Authorization)
+    val maybeHeader: Option[Header] = headers.get(AuthHeader)
     maybeHeader.flatMap { rawToken => authenticator.authenticated(rawToken.value) } match {
       case Some(subject) => ZIO.succeed(subject)
       case None => ZIO.fail(Status.Unauthorized)
