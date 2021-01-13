@@ -17,10 +17,10 @@ lazy val Versions = new {
   val pureconfig = "0.14.0"
   val refined = "0.9.20"
   val logback = "1.2.3"
-  val grpc = "1.34.1"
+  val grpc = "1.35.0"
   val chimney = "0.6.1"
   val pauldijouJwt = "4.3.0"
-  val tapir = "0.17.3"
+  val tapir = "0.17.4"
 
   val gatling = "3.5.0"
   val gatlingGrpc = "0.11.1"

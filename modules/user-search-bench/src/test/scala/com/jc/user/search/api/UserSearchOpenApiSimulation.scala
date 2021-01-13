@@ -37,13 +37,15 @@ final class UserSearchOpenApiSimulation extends Simulation {
   }.header(jwtAuthHeader, jwtToken)
 
   val s = scenario("UserSearchOpenApi")
-    .feed(departmentIdFeeder)
-    .exec(getDepartmentSuccessfulCall)
-    .exec(searchUsersSuccessfulCall)
-    .feed(countryFeeder)
-    .exec(searchUsersSuccessfulCall)
-    .feed(suggestFeeder)
-    .exec(suggestUsersSuccessfulCall)
+    .repeat(100) {
+      feed(departmentIdFeeder)
+        .exec(getDepartmentSuccessfulCall)
+        .exec(searchUsersSuccessfulCall)
+        .feed(countryFeeder)
+        .exec(searchUsersSuccessfulCall)
+        .feed(suggestFeeder)
+        .exec(suggestUsersSuccessfulCall)
+    }
 
   setUp(
     s.inject(atOnceUsers(200))

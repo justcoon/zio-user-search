@@ -15,9 +15,9 @@ final class UserSearchGrpcApiSimulation extends Simulation {
   import Feeders._
 
   val config = ConfigFactory.load
-  val grpcApiConfig = ConfigSource.fromConfig(config.getConfig("grpc-api")).loadOrThrow[HttpApiConfig]
+  val apiConfig = ConfigSource.fromConfig(config.getConfig("grpc-api")).loadOrThrow[HttpApiConfig]
 
-  val grpcConf = grpc(managedChannelBuilder(name = grpcApiConfig.address, port = grpcApiConfig.port).usePlaintext())
+  val grpcConf = grpc(managedChannelBuilder(name = apiConfig.address, port = apiConfig.port).usePlaintext())
 
   val jwtAuthHeader: Metadata.Key[String] = Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER)
 
@@ -52,14 +52,17 @@ final class UserSearchGrpcApiSimulation extends Simulation {
     .rpc(com.jc.user.search.api.proto.UserSearchApiServiceGrpc.METHOD_SUGGEST_USERS)
     .payload(suggestUserPayload)
 
-  val s = scenario("UserSearchGrpcApi")
-    .feed(departmentIdFeeder)
-    .exec(getDepartmentSuccessfulCall)
-    .exec(searchUsersSuccessfulCall)
-    .feed(countryFeeder)
-    .exec(searchUsersSuccessfulCall)
-    .feed(suggestFeeder)
-    .exec(suggestUsersSuccessfulCall)
+  val s =
+    scenario("UserSearchGrpcApi")
+      .repeat(100) {
+        feed(departmentIdFeeder)
+          .exec(getDepartmentSuccessfulCall)
+          .exec(searchUsersSuccessfulCall)
+          .feed(countryFeeder)
+          .exec(searchUsersSuccessfulCall)
+          .feed(suggestFeeder)
+          .exec(suggestUsersSuccessfulCall)
+      }
 
   setUp(
     s.inject(atOnceUsers(200))
