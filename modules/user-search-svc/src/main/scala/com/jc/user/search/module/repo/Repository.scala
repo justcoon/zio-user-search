@@ -143,6 +143,35 @@ class ESSearchRepository[E <: Repository.Entity[_]: Encoder: Decoder: ClassTag](
 
   val serviceLogger = logger.named(getClass.getName)
 
+  def search(
+    query: com.sksamuel.elastic4s.requests.searches.queries.Query,
+    page: Int,
+    pageSize: Int,
+    sorts: Iterable[com.sksamuel.elastic4s.requests.searches.sort.FieldSort])
+    : ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[E]] = {
+
+    val elasticQuery = searchIndex(indexName).query(query).from(page * pageSize).limit(pageSize).sortBy(sorts)
+
+    val q = elasticClient.show(elasticQuery)
+
+    serviceLogger.debug(s"search - ${indexName} - query: '${q}'") *>
+      elasticClient.execute {
+        elasticQuery
+      }.flatMap { res =>
+        if (res.isSuccess) {
+          ZIO {
+            val items = res.result.to[E]
+            SearchRepository.PaginatedSequence(items, page, pageSize, res.result.totalHits.toInt)
+          }
+        } else {
+          ZIO.fail(new Exception(ElasticUtils.getReason(res.error)))
+        }
+      }.mapError(RepoFailure).tapError { e =>
+        serviceLogger.error(s"search - ${indexName} - query: '${q}' - error: ${e.throwable.getMessage}") *>
+          ZIO.fail(e)
+      }
+  }
+
   override def search(
     query: Option[String],
     page: Int,

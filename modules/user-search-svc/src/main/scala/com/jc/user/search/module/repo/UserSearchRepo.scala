@@ -9,7 +9,13 @@ import zio.{Has, ZIO, ZLayer}
 
 object UserSearchRepo {
 
-  trait Service extends Repository[UserId, User] with SearchRepository[User]
+  trait Service extends Repository[UserId, User] with SearchRepository[User] {
+
+    def searchByDepartment(
+      id: DepartmentId,
+      page: Int,
+      pageSize: Int): ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[User]]
+  }
 
   final case class Department(
     id: DepartmentId,
@@ -94,6 +100,17 @@ object UserSearchRepo {
     override def find(id: UserId): ZIO[Any, ExpectedFailure, Option[User]] = repo.find(id)
 
     override def findAll(): ZIO[Any, ExpectedFailure, Seq[User]] = repo.findAll()
+
+    override def searchByDepartment(
+      id: DepartmentId,
+      page: Int,
+      pageSize: Int): ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[User]] = {
+      import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchQuery
+      import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
+      val query = MatchQuery("department.id", id)
+      val sorts = Seq(FieldSort("username"))
+      searchRepo.search(query, page, pageSize, sorts)
+    }
 
     override def search(query: Option[String], page: Int, pageSize: Int, sorts: Iterable[SearchRepository.FieldSort])
       : ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[User]] =

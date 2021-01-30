@@ -5,6 +5,7 @@ import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, UserSearchRepo}
 import zio.{ZIO, ZLayer}
 import zio.logging.{Logger, Logging}
+import zio.stream.{Sink, ZStream}
 
 object EventProcessor {
 
@@ -39,11 +40,11 @@ object EventProcessor {
         case EventEnvelope.User(topic, event) =>
           serviceLogger.log(
             s"processing event - topic: ${topic}, entityId: ${event.entityId}, type: ${event.payload.getClass.getSimpleName}") *>
-            indexUser(event, userSearchRepo, departmentSearchRepo)
+            processUser(event, userSearchRepo, departmentSearchRepo)
         case EventEnvelope.Department(topic, event) =>
           serviceLogger.log(
             s"processing event - topic: ${topic}, entityId: ${event.entityId}, type: ${event.payload.getClass.getSimpleName}") *>
-            indexDepartment(event, departmentSearchRepo)
+            processDepartment(event, userSearchRepo, departmentSearchRepo)
         case e: EventEnvelope[_] =>
           serviceLogger.error(
             s"processing event - topic: ${e.topic}, type: ${e.event.getClass.getSimpleName}) - unknown event, skipping") *>
@@ -58,7 +59,7 @@ object EventProcessor {
         LiveEventProcessorService(userSearchRepo, departmentSearchRepo, logger)
     }
 
-  def indexUser(
+  def processUser(
     event: UserPayloadEvent,
     userSearchRepo: UserSearchRepo.Service,
     departmentSearchRepo: DepartmentSearchRepo.Service): ZIO[Any, ExpectedFailure, Boolean] = {
@@ -132,8 +133,9 @@ object EventProcessor {
     }
   }
 
-  def indexDepartment(
+  def processDepartment(
     event: DepartmentPayloadEvent,
+    userSearchRepo: UserSearchRepo.Service,
     departmentSearchRepo: DepartmentSearchRepo.Service): ZIO[Any, ExpectedFailure, Boolean] = {
     if (isDepartmentRemoved(event))
       departmentSearchRepo.delete(event.entityId)
@@ -141,9 +143,41 @@ object EventProcessor {
       departmentSearchRepo
         .find(event.entityId)
         .flatMap {
-          case u @ Some(_) => getUpdatedDepartment(event, u).flatMap(departmentSearchRepo.update)
+          case d @ Some(_) =>
+            for {
+              dep <- getUpdatedDepartment(event, d)
+              res <- departmentSearchRepo.update(dep)
+              _ <- updateUserByDepartment(dep, userSearchRepo)
+            } yield res
           case None => getUpdatedDepartment(event, None).flatMap(departmentSearchRepo.insert)
         }
+  }
+
+  def updateUserByDepartment(
+    department: DepartmentSearchRepo.Department,
+    userSearchRepo: UserSearchRepo.Service): ZIO[Any, ExpectedFailure, Long] = {
+
+    import io.scalaland.chimney.dsl._
+    import UserSearchRepo.User._
+
+    val pageInitial = 0
+    val pageSize = 20
+
+    val userDepartment = department.transformInto[UserSearchRepo.Department]
+
+    ZStream
+      .unfoldM(pageInitial) { page =>
+        userSearchRepo
+          .searchByDepartment(userDepartment.id, page, pageSize)
+          .map { r =>
+            if ((r.page * r.pageSize) < r.count || r.items.nonEmpty) Some((r.items, r.page + 1))
+            else None
+          }
+      }
+      .mapConcat(identity)
+      .map(user => departmentLens.set(user)(Some(userDepartment)))
+      .tap(userSearchRepo.update)
+      .run(Sink.count)
   }
 
   def isDepartmentRemoved(event: DepartmentPayloadEvent): Boolean = {

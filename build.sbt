@@ -3,12 +3,12 @@ resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/con
 scalaVersion in Scope.Global := "2.13.4"
 
 lazy val Versions = new {
-  val kindProjector = "0.11.2"
-  val http4s = "0.21.15"
-  val zio = "1.0.3"
+  val kindProjector = "0.11.3"
+  val http4s = "0.21.16"
+  val zio = "1.0.4"
   val zioInteropCats = "2.2.0.1"
   val zioKafka = "0.13.0"
-  val zioLogging = "0.5.4"
+  val zioLogging = "0.5.6"
   val zioMetrics = "1.0.1"
   val elastic4s = "7.10.2"
   val circe = "0.13.0"
@@ -19,8 +19,8 @@ lazy val Versions = new {
   val logback = "1.2.3"
   val grpc = "1.35.0"
   val chimney = "0.6.1"
-  val pauldijouJwt = "4.3.0"
-  val tapir = "0.17.4"
+  val pauldijouJwt = "5.0.0"
+  val tapir = "0.17.7"
 
   val gatling = "3.5.0"
   val gatlingGrpc = "0.11.1"
