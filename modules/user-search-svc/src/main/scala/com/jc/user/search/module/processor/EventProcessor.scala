@@ -147,13 +147,13 @@ object EventProcessor {
             for {
               dep <- getUpdatedDepartment(event, d)
               res <- departmentSearchRepo.update(dep)
-              _ <- updateUserByDepartment(dep, userSearchRepo)
+              _ <- updateUsersDepartment(dep, userSearchRepo)
             } yield res
           case None => getUpdatedDepartment(event, None).flatMap(departmentSearchRepo.insert)
         }
   }
 
-  def updateUserByDepartment(
+  def updateUsersDepartment(
     department: DepartmentSearchRepo.Department,
     userSearchRepo: UserSearchRepo.Service): ZIO[Any, ExpectedFailure, Long] = {
 
@@ -163,19 +163,19 @@ object EventProcessor {
     val pageInitial = 0
     val pageSize = 20
 
-    val userDepartment = department.transformInto[UserSearchRepo.Department]
+    val userDepartment = Some(department.transformInto[UserSearchRepo.Department])
 
     ZStream
       .unfoldM(pageInitial) { page =>
         userSearchRepo
-          .searchByDepartment(userDepartment.id, page, pageSize)
+          .searchByDepartment(department.id, page, pageSize)
           .map { r =>
             if ((r.page * r.pageSize) < r.count || r.items.nonEmpty) Some((r.items, r.page + 1))
             else None
           }
       }
       .mapConcat(identity)
-      .map(user => departmentLens.set(user)(Some(userDepartment)))
+      .map(user => departmentLens.set(user)(userDepartment))
       .tap(userSearchRepo.update)
       .run(Sink.count)
   }

@@ -1,16 +1,16 @@
-
 resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 scalaVersion in Scope.Global := "2.13.4"
 
 lazy val Versions = new {
   val kindProjector = "0.11.3"
-  val http4s = "0.21.16"
+  val http4s = "0.21.18"
   val zio = "1.0.4"
   val zioInteropCats = "2.2.0.1"
-  val zioKafka = "0.13.0"
+  val zioKafka = "0.14.0"
   val zioLogging = "0.5.6"
   val zioMetrics = "1.0.1"
   val elastic4s = "7.10.2"
+  val jackson = "2.12.1"
   val circe = "0.13.0"
   val scalaTest = "3.2.3"
   val randomDataGenerator = "2.9"
@@ -20,9 +20,9 @@ lazy val Versions = new {
   val grpc = "1.35.0"
   val chimney = "0.6.1"
   val pauldijouJwt = "5.0.0"
-  val tapir = "0.17.7"
+  val tapir = "0.17.9"
 
-  val gatling = "3.5.0"
+  val gatling = "3.5.1"
   val gatlingGrpc = "0.11.1"
 }
 
@@ -38,6 +38,7 @@ lazy val library =
     val elastic4sClientEsjava = "com.sksamuel.elastic4s" %% "elastic4s-client-esjava"     % Versions.elastic4s
     val elastic4sEffectZio = "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"           % Versions.elastic4s
     val elastic4sJsonCirce = "com.sksamuel.elastic4s" %% "elastic4s-json-circe"           % Versions.elastic4s
+    val jacksonModuleScala = "com.fasterxml.jackson.module" %% "jackson-module-scala"     % Versions.jackson
     val http4sCore = "org.http4s" %% "http4s-core"                                        % Versions.http4s
     val http4sDsl = "org.http4s" %% "http4s-dsl"                                          % Versions.http4s
     val http4sBlazeServer = "org.http4s" %% "http4s-blaze-server"                         % Versions.http4s
@@ -140,6 +141,7 @@ lazy val `user-search-svc` =
         library.elastic4sClientEsjava,
         library.elastic4sEffectZio,
         library.elastic4sJsonCirce,
+        library.jacksonModuleScala,
         library.http4sCore,
         library.http4sDsl,
         library.http4sBlazeServer,
