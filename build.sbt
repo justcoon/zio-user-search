@@ -1,23 +1,23 @@
-resolvers in Global += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-scalaVersion in Scope.Global := "2.13.5"
+Global / resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
+Scope.Global / scalaVersion := "2.13.5"
 
 lazy val Versions = new {
   val kindProjector = "0.11.3"
-  val http4s = "0.21.21"
-  val zio = "1.0.5"
+  val http4s = "0.21.22"
+  val zio = "1.0.6"
   val zioInteropCats = "2.4.0.0"
   val zioKafka = "0.14.0"
   val zioLogging = "0.5.8"
-  val zioMetrics = "1.0.5"
+  val zioMetrics = "1.0.6"
   val elastic4s = "7.12.0"
-  val jackson = "2.12.2"
+  val jackson = "2.12.3"
   val circe = "0.13.0"
-  val scalaTest = "3.2.6"
+  val scalaTest = "3.2.7"
   val randomDataGenerator = "2.9"
   val pureconfig = "0.14.1"
-  val refined = "0.9.22"
+  val refined = "0.9.23"
   val logback = "1.2.3"
-  val grpc = "1.36.1"
+  val grpc = "1.37.0"
   val chimney = "0.6.1"
   val pauldijouJwt = "5.0.0"
   val tapir = "0.17.19"
@@ -79,9 +79,9 @@ lazy val `zio-user-search` =
     .aggregate(`user-search-api`, `user-search-svc`, `user-search-bench`)
     .settings(settings)
     .settings(
-      unmanagedSourceDirectories.in(Compile) := Seq.empty,
-      unmanagedSourceDirectories.in(Test)    := Seq.empty,
-      publishArtifact                        := false
+      Compile / unmanagedSourceDirectories := Seq.empty,
+      Test / unmanagedSourceDirectories    := Seq.empty,
+      publishArtifact                      := false
     )
 
 lazy val `user-search-api` =
@@ -89,11 +89,11 @@ lazy val `user-search-api` =
     .settings(settings)
     .settings(
       addCompilerPlugin("org.typelevel" %% "kind-projector" % Versions.kindProjector cross CrossVersion.full),
-      PB.targets in Compile := Seq(
-        scalapb.gen(grpc = true) -> (sourceManaged in Compile).value,
-        scalapb.zio_grpc.ZioCodeGenerator -> (sourceManaged in Compile).value
+      Compile / PB.targets := Seq(
+        scalapb.gen(grpc = true) -> (Compile / sourceManaged).value,
+        scalapb.zio_grpc.ZioCodeGenerator -> (Compile / sourceManaged).value
       ),
-      guardrailTasks in Compile := List(
+      Compile / guardrailTasks := List(
         ScalaServer(
           file(s"${baseDirectory.value}/src/main/openapi/UserSearchOpenApi.yaml"),
           pkg = "com.jc.user.search.api.openapi",
@@ -103,7 +103,7 @@ lazy val `user-search-api` =
         )
       )
     )
-    .settings(unmanagedResourceDirectories in Compile += baseDirectory.value / "src" / "main" / "openapi")
+    .settings(Compile / unmanagedResourceDirectories += baseDirectory.value / "src" / "main" / "openapi")
     .settings(
       libraryDependencies ++= Seq(
         // Scala libraries
@@ -177,6 +177,7 @@ lazy val `user-search-bench` =
       addCompilerPlugin("org.typelevel" %% "kind-projector" % Versions.kindProjector cross CrossVersion.full)
     )
     .settings(
+      dependencyOverrides += library.scalapbRuntimeGrpc, // gatlig grpc issue
       libraryDependencies ++= Seq(
         library.pureconfig,
         library.refinedPureconfig,
@@ -197,12 +198,12 @@ lazy val settings = commonSettings ++ gitSettings
 
 lazy val commonSettings =
   Seq(
-    organization              := "c",
-    scalafmtOnCompile         := true,
-    fork in Test              := true,
-    parallelExecution in Test := true,
+    organization             := "c",
+    scalafmtOnCompile        := true,
+    Test / fork              := true,
+    Test / parallelExecution := true,
     licenses += ("Apache 2.0", url("http://www.apache.org/licenses/LICENSE-2.0")),
-    mappings.in(Compile, packageBin) += baseDirectory.in(ThisBuild).value / "LICENSE" -> "LICENSE",
+    Compile / packageBin / mappings += (ThisBuild / baseDirectory).value / "LICENSE" -> "LICENSE",
     scalacOptions ++= Seq(
       "-deprecation",
       "-encoding",
@@ -250,9 +251,7 @@ lazy val commonSettings =
     //      "1.8",
     //      "-target",
     //      "1.8"
-    //    ),
-    //    unmanagedSourceDirectories.in(Compile) := Seq(scalaSource.in(Compile).value),
-    //    unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value)
+    //    )
   )
 
 lazy val gitSettings =
@@ -262,8 +261,8 @@ lazy val gitSettings =
 
 lazy val dockerSettings =
   Seq(
-    maintainer.in(Docker) := "justcoon",
-//    version.in(Docker) := "latest",
+    Docker / maintainer := "justcoon",
+//   Docker / version := "latest",
     dockerUpdateLatest := true,
     dockerExposedPorts := Vector(8000, 8010, 9080),
     dockerBaseImage    := "openjdk:11-jre"

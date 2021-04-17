@@ -25,23 +25,24 @@ class ESRepositoryInitializer(
       existResp <- elasticClient.execute {
         indexExists(indexName)
       }
-      initResp <- if (!existResp.result.exists) {
-        serviceLogger.debug(s"init - $indexName - initializing ...") *>
-          elasticClient.execute {
-            createIndex(indexName).mapping(properties(fields))
-          }.map(r => r.result.acknowledged).tapError { e =>
-            serviceLogger.error(s"init: $indexName - error: ${e.getMessage}") *>
-              ZIO.fail(e)
-          }
-      } else {
-        serviceLogger.debug(s"init - $indexName - updating ...") *>
-          elasticClient.execute {
-            putMapping(indexName).fields(fields)
-          }.map(r => r.result.acknowledged).tapError { e =>
-            serviceLogger.error(s"init - $indexName - error: ${e.getMessage}") *>
-              ZIO.fail(e)
-          }
-      }
+      initResp <-
+        if (!existResp.result.exists) {
+          serviceLogger.debug(s"init - $indexName - initializing ...") *>
+            elasticClient.execute {
+              createIndex(indexName).mapping(properties(fields))
+            }.map(r => r.result.acknowledged).tapError { e =>
+              serviceLogger.error(s"init: $indexName - error: ${e.getMessage}") *>
+                ZIO.fail(e)
+            }
+        } else {
+          serviceLogger.debug(s"init - $indexName - updating ...") *>
+            elasticClient.execute {
+              putMapping(indexName).fields(fields)
+            }.map(r => r.result.acknowledged).tapError { e =>
+              serviceLogger.error(s"init - $indexName - error: ${e.getMessage}") *>
+                ZIO.fail(e)
+            }
+        }
     } yield initResp
   }
 }

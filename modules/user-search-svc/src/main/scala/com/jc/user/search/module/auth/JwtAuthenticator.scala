@@ -21,9 +21,10 @@ object JwtAuthenticator {
     override def authenticated(rawToken: String): Option[String] =
       for {
         claim <- helper.decodeClaim(rawToken).toOption
-        subject <- if (claim.isValid(clock)) {
-          claim.subject
-        } else None
+        subject <-
+          if (claim.isValid(clock)) {
+            claim.subject
+          } else None
       } yield subject
   }
 

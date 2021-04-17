@@ -178,10 +178,9 @@ class ESSearchRepository[E <: Repository.Entity[_]: Encoder: Decoder: ClassTag](
     pageSize: Int,
     sorts: Iterable[SearchRepository.FieldSort]): ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[E]] = {
     val q = query.map(QueryStringQuery(_)).getOrElse(MatchAllQuery())
-    val ss = sorts.map {
-      case SearchRepository.FieldSort(property, asc) =>
-        val o = if (asc) SortOrder.Asc else SortOrder.Desc
-        FieldSort(property, order = o)
+    val ss = sorts.map { case SearchRepository.FieldSort(property, asc) =>
+      val o = if (asc) SortOrder.Asc else SortOrder.Desc
+      FieldSort(property, order = o)
     }
     serviceLogger.debug(s"search - ${indexName} - query: '${query
       .getOrElse("N/A")}', page: $page, pageSize: $pageSize, sorts: ${sorts.mkString("[", ",", "]")}") *>
