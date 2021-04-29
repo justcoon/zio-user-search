@@ -3,7 +3,7 @@ package com.jc.user.search.module.repo
 import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.requests.mappings.FieldDefinition
 import zio.ZIO
-import zio.logging.Logger
+import zio.logging.{Logger, Logging}
 
 trait RepositoryInitializer {
   def init(): ZIO[Any, Throwable, Boolean]
@@ -45,4 +45,25 @@ class ESRepositoryInitializer(
         }
     } yield initResp
   }
+
+//  import com.jc.logging.aspect.LoggingAspect
+//  import com.jc.aspect.Aspect._
+//
+//  override def init(): ZIO[Any, Throwable, Boolean] = {
+//    for {
+//      existResp <- elasticClient.execute {
+//        indexExists(indexName)
+//      }
+//      initResp <-
+//        if (!existResp.result.exists) {
+//          elasticClient.execute {
+//            createIndex(indexName).mapping(properties(fields))
+//          }.map(r => r.result.acknowledged) @@ LoggingAspect.loggingStartEnd(s"init - $indexName - initializing")
+//        } else {
+//          elasticClient.execute {
+//            putMapping(indexName).fields(fields)
+//          }.map(r => r.result.acknowledged) @@ LoggingAspect.loggingStartEnd(s"init - $indexName - updating")
+//        }
+//    } yield initResp
+//  }
 }

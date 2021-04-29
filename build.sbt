@@ -4,24 +4,25 @@ Scope.Global / scalaVersion := "2.13.5"
 lazy val Versions = new {
   val kindProjector = "0.11.3"
   val http4s = "0.21.22"
-  val zio = "1.0.6"
-  val zioInteropCats = "2.4.0.0"
+  val zio = "1.0.7"
+  val zioInteropCats = "2.4.1.0" // "3.0.2.0"
   val zioKafka = "0.14.0"
   val zioLogging = "0.5.8"
-  val zioMetrics = "1.0.6"
+  val zioMetrics = "1.0.8"
+  val zioMagic = "0.2.6"
   val elastic4s = "7.12.0"
   val jackson = "2.12.3"
   val circe = "0.13.0"
-  val scalaTest = "3.2.7"
   val randomDataGenerator = "2.9"
-  val pureconfig = "0.14.1"
-  val refined = "0.9.23"
+  val pureconfig = "0.15.0"
+  val refined = "0.9.24"
   val logback = "1.2.3"
   val grpc = "1.37.0"
   val chimney = "0.6.1"
   val pauldijouJwt = "5.0.0"
   val tapir = "0.17.19"
 
+  val scalaTest = "3.2.8"
   val gatling = "3.5.1"
   val gatlingGrpc = "0.11.1"
 }
@@ -35,6 +36,7 @@ lazy val library =
     val zioKafka = "dev.zio" %% "zio-kafka"                                               % Versions.zioKafka
     val zioLoggingSlf4j = "dev.zio" %% "zio-logging-slf4j"                                % Versions.zioLogging
     val zioMetricsPrometheus = "dev.zio" %% "zio-metrics-prometheus"                      % Versions.zioMetrics
+    val zioMagic = "io.github.kitlangton" %% "zio-magic"                                  % Versions.zioMagic
     val elastic4sClientEsjava = "com.sksamuel.elastic4s" %% "elastic4s-client-esjava"     % Versions.elastic4s
     val elastic4sEffectZio = "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"           % Versions.elastic4s
     val elastic4sJsonCirce = "com.sksamuel.elastic4s" %% "elastic4s-json-circe"           % Versions.elastic4s
@@ -76,12 +78,43 @@ lazy val `zio-user-search` =
   project
     .in(file("."))
     .enablePlugins(GitVersioning)
-    .aggregate(`user-search-api`, `user-search-svc`, `user-search-bench`)
+    .aggregate(`core`, `user-search-api`, `user-search-svc`, `user-search-bench`)
     .settings(settings)
     .settings(
       Compile / unmanagedSourceDirectories := Seq.empty,
       Test / unmanagedSourceDirectories    := Seq.empty,
       publishArtifact                      := false
+    )
+
+lazy val `core` =
+  (project in file("modules/core"))
+    .settings(settings)
+    .settings(
+      addCompilerPlugin("org.typelevel" %% "kind-projector" % Versions.kindProjector cross CrossVersion.full),
+      Compile / PB.targets := Seq(
+        scalapb.gen(grpc = true) -> (Compile / sourceManaged).value,
+        scalapb.zio_grpc.ZioCodeGenerator -> (Compile / sourceManaged).value
+      )
+    )
+    .settings(
+      libraryDependencies ++= Seq(
+        // Scala libraries
+        library.zio,
+        library.zioStreams,
+        library.zioInteropCats,
+        library.zioLoggingSlf4j,
+        library.circeGeneric,
+        library.circeGenericExtras,
+        library.pauldijouJwtCirce,
+        library.pureconfig,
+        library.refinedPureconfig,
+        library.http4sCore,
+        library.scalapbRuntime,
+        library.scalapbRuntimeGrpc,
+        library.scalatest,
+        // Java libraries
+        library.logback
+      )
     )
 
 lazy val `user-search-api` =
@@ -151,7 +184,6 @@ lazy val `user-search-svc` =
         library.tapirSwaggerUiHttp4s,
         library.circeGeneric,
         library.circeGenericExtras,
-        library.pauldijouJwtCirce,
         library.pureconfig,
         library.refinedPureconfig,
         library.chimney,
@@ -167,7 +199,7 @@ lazy val `user-search-svc` =
       )
     )
     .aggregate(`user-search-api`)
-    .dependsOn(`user-search-api`)
+    .dependsOn(`user-search-api`, `core`)
 
 lazy val `user-search-bench` =
   (project in file("modules/user-search-bench"))
@@ -192,7 +224,7 @@ lazy val `user-search-bench` =
       )
     )
     .aggregate(`user-search-api`)
-    .dependsOn(`user-search-api`)
+    .dependsOn(`user-search-api`, `core`)
 
 lazy val settings = commonSettings ++ gitSettings
 

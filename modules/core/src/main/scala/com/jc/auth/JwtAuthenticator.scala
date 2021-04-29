@@ -1,11 +1,9 @@
-package com.jc.user.search.module.auth
+package com.jc.auth
 
 import java.time.Clock
-
-import com.jc.user.search.model.config.JwtConfig
 import io.circe.{Decoder, Encoder}
 import pdi.jwt._
-import zio.ZLayer
+import zio.{UIO, ZIO, ZLayer}
 
 import scala.util.Try
 
@@ -13,24 +11,27 @@ object JwtAuthenticator {
   val AuthHeader = "Authorization"
 
   trait Service {
-    def authenticated(rawToken: String): Option[String]
+    def authenticated(rawToken: String): UIO[Option[String]]
   }
 
   final case class PdiJwtAuthenticator(helper: PdiJwtHelper, clock: Clock) extends Service {
 
-    override def authenticated(rawToken: String): Option[String] =
-      for {
-        claim <- helper.decodeClaim(rawToken).toOption
-        subject <-
-          if (claim.isValid(clock)) {
-            claim.subject
-          } else None
-      } yield subject
+    override def authenticated(rawToken: String): UIO[Option[String]] = {
+      ZIO.succeed {
+        for {
+          claim <- helper.decodeClaim(rawToken).toOption
+          subject <-
+            if (claim.isValid(clock)) {
+              claim.subject
+            } else None
+        } yield subject
+      }
+    }
   }
 
   def live(config: JwtConfig): ZLayer[Any, Nothing, JwtAuthenticator] = {
     val helper = new PdiJwtHelper(config)
-    ZLayer.fromFunction(_ => PdiJwtAuthenticator(helper, Clock.systemUTC()))
+    ZLayer.succeed(PdiJwtAuthenticator(helper, Clock.systemUTC()))
   }
 }
 

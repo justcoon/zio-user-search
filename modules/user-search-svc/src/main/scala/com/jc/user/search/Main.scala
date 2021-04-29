@@ -3,7 +3,10 @@ package com.jc.user.search
 import com.jc.user.search.api.proto.ZioUserSearchApi.RCUserSearchApiService
 import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, HttpApiConfig, PrometheusConfig}
 import com.jc.user.search.module.api.{HealthCheckApi, UserSearchGrpcApiHandler, UserSearchOpenApiHandler}
-import com.jc.user.search.module.auth.JwtAuthenticator
+import com.jc.auth.JwtAuthenticator
+import com.jc.logging.{LogbackLoggingSystem, LoggingSystem}
+import com.jc.logging.api.{LoggingSystemGrpcApi, LoggingSystemGrpcApiHandler}
+import com.jc.logging.proto.ZioLoggingSystemApi.RCLoggingSystemApiService
 import com.jc.user.search.module.kafka.KafkaConsumer
 import com.jc.user.search.module.processor.EventProcessor
 import com.jc.user.search.module.repo.{
@@ -30,8 +33,7 @@ import zio.logging.Logging
 import zio.metrics.prometheus._
 import zio.metrics.prometheus.exporters.Exporters
 import zio.metrics.prometheus.helpers._
-import scalapb.zio_grpc.{Server => GrpcServer}
-import scalapb.zio_grpc.{ServerLayer => GrpcServerLayer}
+import scalapb.zio_grpc.{Server => GrpcServer, ServerLayer => GrpcServerLayer, ServiceList => GrpcServiceList}
 import eu.timepit.refined.auto._
 import org.http4s.server.Router
 
@@ -39,8 +41,9 @@ object Main extends App {
 
   type AppEnvironment = Clock
     with Blocking with Has[ElasticClient] with JwtAuthenticator with UserSearchRepo with UserSearchRepoInit
-    with DepartmentSearchRepo with DepartmentSearchRepoInit with EventProcessor with KafkaConsumer
-    with UserSearchGrpcApiHandler with GrpcServer with Logging with Registry with Exporters
+    with DepartmentSearchRepo with DepartmentSearchRepoInit with EventProcessor with KafkaConsumer with LoggingSystem
+    with LoggingSystemGrpcApiHandler with UserSearchGrpcApiHandler with GrpcServer with Logging with Registry
+    with Exporters
 
   private val httpRoutes: HttpRoutes[ZIO[AppEnvironment, Throwable, *]] =
     Router[ZIO[AppEnvironment, Throwable, *]](
@@ -58,8 +61,6 @@ object Main extends App {
     } yield prometheusServer
   }
 
-  private val makeLogger: ZLayer[Any, Nothing, Logging] = Slf4jLogger.make((_, message) => message)
-
   private def createElasticClient(config: ElasticsearchConfig): ZLayer[Any, Throwable, Has[ElasticClient]] = {
     ZLayer.fromManaged(Managed.makeEffect {
       val prop = ElasticProperties(config.addresses.mkString(","))
@@ -68,14 +69,17 @@ object Main extends App {
     }(_.close()))
   }
 
-  private def createGrpcServer(config: HttpApiConfig): ZLayer[UserSearchGrpcApiHandler, Throwable, GrpcServer] = {
-    GrpcServerLayer.access[RCUserSearchApiService[Any]](ServerBuilder.forPort(config.port))
+  private def createGrpcServer(
+    config: HttpApiConfig): ZLayer[LoggingSystemGrpcApiHandler with UserSearchGrpcApiHandler, Throwable, GrpcServer] = {
+    GrpcServerLayer.fromServiceList(
+      ServerBuilder.forPort(config.port),
+      GrpcServiceList.access[RCLoggingSystemApiService[Any]].access[RCUserSearchApiService[Any]])
   }
 
   private def createAppLayer(appConfig: AppConfig): ZLayer[Any with Clock with Blocking, Throwable, AppEnvironment] = {
     val elasticLayer: ZLayer[Any, Throwable, Has[ElasticClient]] = createElasticClient(appConfig.elasticsearch)
 
-    val loggerLayer: ZLayer[Any, Nothing, Logging] = makeLogger
+    val loggerLayer: ZLayer[Any, Nothing, Logging] = Slf4jLogger.make((_, message) => message)
 
     val jwtAuthLayer: ZLayer[Any, Nothing, JwtAuthenticator] = JwtAuthenticator.live(appConfig.jwt)
 
@@ -99,10 +103,15 @@ object Main extends App {
       KafkaConsumer.live(appConfig.kafka)
 
     val userSearchGrpcApiHandlerLayer: ZLayer[Any, Throwable, UserSearchGrpcApiHandler] =
-      (userSearchRepoLayer ++ departmentSearchRepoLayer ++ jwtAuthLayer ++ loggerLayer) >>> UserSearchGrpcApiHandler.live
+      (userSearchRepoLayer ++ departmentSearchRepoLayer ++ jwtAuthLayer) >>> UserSearchGrpcApiHandler.live
+
+    val loggingSystemLayer = LogbackLoggingSystem.create()
+
+    val loggingSystemGrpcApiHandler: ZLayer[Any, Throwable, LoggingSystemGrpcApiHandler] =
+      (loggingSystemLayer ++ jwtAuthLayer) >>> LoggingSystemGrpcApi.live
 
     val grpcServerLayer: ZLayer[Any, Throwable, GrpcServer] =
-      userSearchGrpcApiHandlerLayer >>> createGrpcServer(appConfig.grpcApi)
+      (loggingSystemGrpcApiHandler ++ userSearchGrpcApiHandlerLayer) >>> createGrpcServer(appConfig.grpcApi)
 
     val metricsLayer: ZLayer[Any, Nothing, Registry with Exporters] = Registry.live ++ Exporters.live
 
@@ -117,6 +126,8 @@ object Main extends App {
       userSearchRepoInitLayer ++
       userSearchRepoLayer ++
       eventProcessorLayer ++
+      loggingSystemLayer ++
+      loggingSystemGrpcApiHandler ++
       userSearchGrpcApiHandlerLayer ++
       grpcServerLayer ++
       metricsLayer

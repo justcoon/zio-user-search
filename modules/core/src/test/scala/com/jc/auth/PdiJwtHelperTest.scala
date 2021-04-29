@@ -1,14 +1,12 @@
-package com.jc.user.search.module.auth
+package com.jc.auth
 
-import java.time.Clock
-
-import com.jc.user.search.model.config._
+import pdi.jwt.JwtClaim
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers._
 import org.scalatest.wordspec.AnyWordSpecLike
-import pdi.jwt.JwtClaim
 
-import scala.util.Try
+import java.time.Clock
+import scala.util.{Success, Try}
 
 class PdiJwtHelperTest extends AnyWordSpecLike with should.Matchers with BeforeAndAfterAll {
   import eu.timepit.refined.auto._
@@ -25,9 +23,7 @@ class PdiJwtHelperTest extends AnyWordSpecLike with should.Matchers with BeforeA
 
       val authTokenDecoded: Try[JwtClaim] = helper.decodeClaim(token)
 
-      import org.scalatest.TryValues._
-
-      authTokenDecoded.success.value.content shouldBe authToken
+      authTokenDecoded.map(_.content) shouldBe Success(authToken)
     }
 
   }

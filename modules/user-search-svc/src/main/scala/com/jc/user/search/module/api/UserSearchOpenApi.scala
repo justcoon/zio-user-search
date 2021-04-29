@@ -22,11 +22,11 @@ import com.jc.user.search.api.openapi.user.{
   UserResource
 }
 import com.jc.user.search.model.ExpectedFailure
-import com.jc.user.search.module.auth.JwtAuthenticator
+import com.jc.auth.JwtAuthenticator
+import com.jc.auth.api.HttpJwtAuth
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
-import org.http4s.{Header, Headers, HttpRoutes, Status}
+import org.http4s.{Headers, HttpRoutes}
 import org.http4s.server.Router
-import org.http4s.util.CaseInsensitiveString
 import sttp.tapir.swagger.http4s.SwaggerHttp4s
 import zio.ZIO
 
@@ -41,30 +41,22 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
 
   import io.scalaland.chimney.dsl._
 
-  private val AuthHeader = CaseInsensitiveString(JwtAuthenticator.AuthHeader)
-
-  def authenticated(headers: Headers, authenticator: JwtAuthenticator.Service) = {
-    val maybeHeader: Option[Header] = headers.get(AuthHeader)
-    maybeHeader.flatMap { rawToken => authenticator.authenticated(rawToken.value) } match {
-      case Some(subject) => ZIO.succeed(subject)
-      case None => ZIO.fail(Status.Unauthorized)
-    }
-  }
-
   override def getDepartment(respond: GetDepartmentResponse.type)(id: String)(
     extracted: Headers): F[GetDepartmentResponse] = {
     ZIO.services[DepartmentSearchRepo.Service, JwtAuthenticator.Service].flatMap { case (repo, authenticator) =>
-      authenticated(extracted, authenticator).foldM(
-        _ => ZIO.succeed(respond.Unauthorized),
-        _ =>
-          repo
-            .find(id.asDepartmentId)
-            .map {
-              case Some(dep) => respond.Ok(dep.transformInto[Department])
-              case None => respond.NotFound
-            }
-            .mapError[Throwable](e => new Exception(e))
-      )
+      HttpJwtAuth
+        .authenticated(extracted, authenticator)
+        .foldM(
+          _ => ZIO.succeed(respond.Unauthorized),
+          _ =>
+            repo
+              .find(id.asDepartmentId)
+              .map {
+                case Some(dep) => respond.Ok(dep.transformInto[Department])
+                case None => respond.NotFound
+              }
+              .mapError[Throwable](e => new Exception(e))
+        )
     }
   }
 
@@ -107,17 +99,19 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
 
   override def getUser(respond: GetUserResponse.type)(id: String)(extracted: Headers): F[GetUserResponse] = {
     ZIO.services[UserSearchRepo.Service, JwtAuthenticator.Service].flatMap { case (repo, authenticator) =>
-      authenticated(extracted, authenticator).foldM(
-        _ => ZIO.succeed(respond.Unauthorized),
-        _ =>
-          repo
-            .find(id.asUserId)
-            .map {
-              case Some(user) => respond.Ok(user.transformInto[User])
-              case None => respond.NotFound
-            }
-            .mapError[Throwable](e => new Exception(e))
-      )
+      HttpJwtAuth
+        .authenticated(extracted, authenticator)
+        .foldM(
+          _ => ZIO.succeed(respond.Unauthorized),
+          _ =>
+            repo
+              .find(id.asUserId)
+              .map {
+                case Some(user) => respond.Ok(user.transformInto[User])
+                case None => respond.NotFound
+              }
+              .mapError[Throwable](e => new Exception(e))
+        )
     }
   }
 

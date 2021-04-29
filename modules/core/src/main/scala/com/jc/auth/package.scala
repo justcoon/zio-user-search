@@ -1,4 +1,4 @@
-package com.jc.user.search.module
+package com.jc
 
 import zio.Has
 

@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+import "scalapb/scalapb.proto";
+//import "google/protobuf/timestamp.proto";
+
+package com.jc.logging.proto;
+
+option (scalapb.options) = {
+  package_name: "com.jc.logging.proto"
+//  import: "com.jc.user.api.proto._"
+  flat_package: true
+};
+
+enum LogLevel {
+    NONE = 0; // log level not defined
+    TRACE = 1;
+    DEBUG = 2;
+    INFO = 3;
+    WARN = 4;
+    ERROR = 5;
+    FATAL = 6;
+    OFF = 7;
+}
+
+message LoggerConfiguration {
+    string name = 1;
+    LogLevel effectiveLevel = 2;
+    LogLevel configuredLevel = 3;
+}
+
+message SetLoggerConfigurationReq {
+    string name = 1;
+    LogLevel level = 2;
+}
+
+message GetLoggerConfigurationReq {
+    string name = 1;
+}
+
+message LoggerConfigurationRes {
+    LoggerConfiguration configuration = 1;
+    repeated LogLevel levels = 2;
+}
+
+message GetLoggerConfigurationsReq {
+}
+
+message LoggerConfigurationsRes {
+    repeated LoggerConfiguration configurations = 1;
+    repeated LogLevel levels = 2;
+}
+
+service LoggingSystemApiService {
+
+    rpc SetLoggerConfiguration (SetLoggerConfigurationReq) returns (LoggerConfigurationRes) {
+    }
+
+    rpc GetLoggerConfiguration (GetLoggerConfigurationReq) returns (LoggerConfigurationRes) {
+    }
+
+    rpc GetLoggerConfigurations (GetLoggerConfigurationsReq) returns (LoggerConfigurationsRes) {
+    }
+
+}

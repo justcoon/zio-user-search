@@ -1,4 +1,4 @@
-package com.jc.user.search.model.config
+package com.jc.auth
 
 import eu.timepit.refined.types.numeric.PosLong
 import eu.timepit.refined.types.string.NonEmptyString

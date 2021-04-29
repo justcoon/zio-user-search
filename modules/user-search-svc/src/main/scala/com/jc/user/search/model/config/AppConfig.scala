@@ -1,5 +1,6 @@
 package com.jc.user.search.model.config
 
+import com.jc.auth.JwtConfig
 import pureconfig.ConfigSource
 import pureconfig.error.ConfigReaderException
 import pureconfig.generic.semiauto._

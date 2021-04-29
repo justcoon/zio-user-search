@@ -22,34 +22,15 @@ import com.jc.user.search.api.proto.{
   SuggestUsersRes
 }
 import com.jc.user.search.model.ExpectedFailure
-import com.jc.user.search.module.auth.JwtAuthenticator
+import com.jc.auth.JwtAuthenticator
+import com.jc.auth.api.GrpcJwtAuth
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
 import io.grpc.Status
 import scalapb.zio_grpc.RequestContext
 import zio.{Has, IO, ZIO, ZLayer}
-import zio.logging.Logging
-import zio.logging.Logger
 import zio.stream.ZStream
 
 object UserSearchGrpcApiHandler {
-
-  import io.grpc.Metadata
-
-  private val jwtAuthHeader: Metadata.Key[String] =
-    Metadata.Key.of(JwtAuthenticator.AuthHeader, Metadata.ASCII_STRING_MARSHALLER)
-
-  def authenticated(authenticator: JwtAuthenticator.Service): ZIO[Has[RequestContext], Status, String] = {
-    for {
-      ctx <- ZIO.service[scalapb.zio_grpc.RequestContext]
-      maybeHeader <- ctx.metadata.get(jwtAuthHeader)
-      subject <- maybeHeader.flatMap { rawToken => authenticator.authenticated(rawToken) } match {
-        case Some(subject) => ZIO.succeed(subject)
-        case None => ZIO.fail(io.grpc.Status.UNAUTHENTICATED)
-      }
-    } yield {
-      subject
-    }
-  }
 
   def toRepoFieldSort(sort: FieldSort): SearchRepository.FieldSort = {
     SearchRepository.FieldSort(sort.field, sort.order.isAsc)
@@ -58,8 +39,7 @@ object UserSearchGrpcApiHandler {
   final case class LiveUserSearchApiService(
     userSearchRepo: UserSearchRepo.Service,
     departmentSearchRepo: DepartmentSearchRepo.Service,
-    jwtAuthenticator: JwtAuthenticator.Service,
-    logger: Logger[String])
+    jwtAuthenticator: JwtAuthenticator.Service)
       extends RCUserSearchApiService[Any] {
     import io.scalaland.chimney.dsl._
 
@@ -67,7 +47,7 @@ object UserSearchGrpcApiHandler {
       import UserEntity._
 
       val res: ZIO[Has[RequestContext], Status, GetUserRes] = for {
-        _ <- authenticated(jwtAuthenticator)
+        _ <- GrpcJwtAuth.authenticated(jwtAuthenticator)
         res <- userSearchRepo
           .find(request.id.asUserId)
           .mapError[Status](e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)))
@@ -127,7 +107,7 @@ object UserSearchGrpcApiHandler {
       import DepartmentEntity._
 
       val res: ZIO[Has[RequestContext], Status, GetDepartmentRes] = for {
-        _ <- authenticated(jwtAuthenticator)
+        _ <- GrpcJwtAuth.authenticated(jwtAuthenticator)
         res <- departmentSearchRepo
           .find(request.id.asDepartmentId)
           .mapError[Status](e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)))
@@ -188,16 +168,12 @@ object UserSearchGrpcApiHandler {
 
   }
 
-  val live: ZLayer[
-    UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator with Logging,
-    Nothing,
-    UserSearchGrpcApiHandler] =
+  val live: ZLayer[UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator, Nothing, UserSearchGrpcApiHandler] =
     ZLayer.fromServices[
       UserSearchRepo.Service,
       DepartmentSearchRepo.Service,
       JwtAuthenticator.Service,
-      Logger[String],
-      RCUserSearchApiService[Any]] { (userSearchRepo, departmentSearchRepo, jwtAuth, logger) =>
-      LiveUserSearchApiService(userSearchRepo, departmentSearchRepo, jwtAuth, logger)
+      RCUserSearchApiService[Any]] { (userSearchRepo, departmentSearchRepo, jwtAuth) =>
+      LiveUserSearchApiService(userSearchRepo, departmentSearchRepo, jwtAuth)
     }
 }
