@@ -36,6 +36,7 @@ import zio.metrics.prometheus.helpers._
 import scalapb.zio_grpc.{Server => GrpcServer, ServerLayer => GrpcServerLayer, ServiceList => GrpcServiceList}
 import eu.timepit.refined.auto._
 import org.http4s.server.Router
+import zio.magic._
 
 object Main extends App {
 
@@ -76,63 +77,26 @@ object Main extends App {
       GrpcServiceList.access[RCLoggingSystemApiService[Any]].access[RCUserSearchApiService[Any]])
   }
 
-  private def createAppLayer(appConfig: AppConfig): ZLayer[Any with Clock with Blocking, Throwable, AppEnvironment] = {
-    val elasticLayer: ZLayer[Any, Throwable, Has[ElasticClient]] = createElasticClient(appConfig.elasticsearch)
-
-    val loggerLayer: ZLayer[Any, Nothing, Logging] = Slf4jLogger.make((_, message) => message)
-
-    val jwtAuthLayer: ZLayer[Any, Nothing, JwtAuthenticator] = JwtAuthenticator.live(appConfig.jwt)
-
-    val departmentSearchRepoInitLayer: ZLayer[Any, Throwable, DepartmentSearchRepoInit] =
-      (elasticLayer ++ loggerLayer) >>>
-        DepartmentSearchRepoInit.elasticsearch(appConfig.elasticsearch.departmentIndexName)
-
-    val departmentSearchRepoLayer: ZLayer[Any, Throwable, DepartmentSearchRepo] = (elasticLayer ++ loggerLayer) >>>
-      DepartmentSearchRepo.elasticsearch(appConfig.elasticsearch.departmentIndexName)
-
-    val userSearchRepoInitLayer: ZLayer[Any, Throwable, UserSearchRepoInit] = (elasticLayer ++ loggerLayer) >>>
-      UserSearchRepoInit.elasticsearch(appConfig.elasticsearch.userIndexName)
-
-    val userSearchRepoLayer: ZLayer[Any, Throwable, UserSearchRepo] = (elasticLayer ++ loggerLayer) >>>
-      UserSearchRepo.elasticsearch(appConfig.elasticsearch.userIndexName)
-
-    val eventProcessorLayer: ZLayer[Any, Throwable, EventProcessor] =
-      (userSearchRepoLayer ++ departmentSearchRepoLayer ++ loggerLayer) >>> EventProcessor.live
-
-    val kafkaConsumerLayer: ZLayer[Clock with Blocking, Throwable, KafkaConsumer] =
-      KafkaConsumer.live(appConfig.kafka)
-
-    val userSearchGrpcApiHandlerLayer: ZLayer[Any, Throwable, UserSearchGrpcApiHandler] =
-      (userSearchRepoLayer ++ departmentSearchRepoLayer ++ jwtAuthLayer) >>> UserSearchGrpcApiHandler.live
-
-    val loggingSystemLayer = LogbackLoggingSystem.create()
-
-    val loggingSystemGrpcApiHandler: ZLayer[Any, Throwable, LoggingSystemGrpcApiHandler] =
-      (loggingSystemLayer ++ jwtAuthLayer) >>> LoggingSystemGrpcApi.live
-
-    val grpcServerLayer: ZLayer[Any, Throwable, GrpcServer] =
-      (loggingSystemGrpcApiHandler ++ userSearchGrpcApiHandlerLayer) >>> createGrpcServer(appConfig.grpcApi)
-
-    val metricsLayer: ZLayer[Any, Nothing, Registry with Exporters] = Registry.live ++ Exporters.live
-
-    val appLayer: ZLayer[Any with Clock with Blocking, Throwable, AppEnvironment] = ZLayer.requires[Clock] ++
-      ZLayer.requires[Blocking] ++
-      elasticLayer ++
-      loggerLayer ++
-      jwtAuthLayer ++
-      kafkaConsumerLayer ++
-      departmentSearchRepoInitLayer ++
-      departmentSearchRepoLayer ++
-      userSearchRepoInitLayer ++
-      userSearchRepoLayer ++
-      eventProcessorLayer ++
-      loggingSystemLayer ++
-      loggingSystemGrpcApiHandler ++
-      userSearchGrpcApiHandlerLayer ++
-      grpcServerLayer ++
-      metricsLayer
-
-    appLayer
+  private def createAppLayer(appConfig: AppConfig): ZLayer[Any, Throwable, AppEnvironment] = {
+    ZLayer.fromMagic[AppEnvironment](
+      Clock.live,
+      Blocking.live,
+      createElasticClient(appConfig.elasticsearch),
+      Slf4jLogger.make((_, message) => message),
+      JwtAuthenticator.live(appConfig.jwt),
+      KafkaConsumer.live(appConfig.kafka),
+      DepartmentSearchRepoInit.elasticsearch(appConfig.elasticsearch.departmentIndexName),
+      DepartmentSearchRepo.elasticsearch(appConfig.elasticsearch.departmentIndexName),
+      UserSearchRepoInit.elasticsearch(appConfig.elasticsearch.userIndexName),
+      UserSearchRepo.elasticsearch(appConfig.elasticsearch.userIndexName),
+      EventProcessor.live,
+      LogbackLoggingSystem.create(),
+      LoggingSystemGrpcApi.live,
+      UserSearchGrpcApiHandler.live,
+      createGrpcServer(appConfig.grpcApi),
+      Registry.live,
+      Exporters.live
+    )
   }
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] = {

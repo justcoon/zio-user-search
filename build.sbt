@@ -9,7 +9,7 @@ lazy val Versions = new {
   val zioKafka = "0.14.0"
   val zioLogging = "0.5.8"
   val zioMetrics = "1.0.8"
-  val zioMagic = "0.2.6"
+  val zioMagic = "0.3.0"
   val elastic4s = "7.12.0"
   val jackson = "2.12.3"
   val circe = "0.13.0"
@@ -171,6 +171,7 @@ lazy val `user-search-svc` =
         library.zioKafka,
         library.zioLoggingSlf4j,
         library.zioMetricsPrometheus,
+        library.zioMagic,
         library.elastic4sClientEsjava,
         library.elastic4sEffectZio,
         library.elastic4sJsonCirce,
