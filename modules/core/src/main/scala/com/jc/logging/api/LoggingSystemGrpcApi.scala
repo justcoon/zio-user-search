@@ -19,6 +19,12 @@ import zio.{Has, UIO, ZIO, ZLayer}
 
 object LoggingSystemGrpcApi {
 
+  /** using [[LoggingSystem.LogLevelMapping]] for api <-> logging system
+    *  level mapping
+    *
+    * [[LogLevel.NONE]] is not in mapping,
+    * it is specially handled like: log level not defined
+    */
   private val logLevelMapping: LoggingSystem.LogLevelMapping[LogLevel] = LoggingSystem.LogLevelMapping(
     Seq(
       (LoggingSystem.LogLevel.TRACE, LogLevel.TRACE),
