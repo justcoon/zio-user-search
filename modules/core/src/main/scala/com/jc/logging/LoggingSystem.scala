@@ -30,7 +30,7 @@ object LoggingSystem {
     def setLogLevel(name: String, level: Option[LogLevel]): UIO[Boolean]
   }
 
-  sealed trait LogLevel extends Product
+  sealed trait LogLevel extends Product with Serializable
 
   object LogLevel {
     final case object TRACE extends LogLevel

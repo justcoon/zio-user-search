@@ -26,7 +26,7 @@ import org.http4s.server.middleware.{Logger => HttpServerLogger}
 import zio._
 import zio.blocking.Blocking
 import zio.clock.Clock
-import zio.console.putStrLn
+import zio.console.Console
 import zio.interop.catz._
 import zio.logging.slf4j.Slf4jLogger
 import zio.logging.Logging
@@ -100,7 +100,7 @@ object Main extends App {
   }
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] = {
-    val result = for {
+    val result: ZIO[zio.ZEnv, Throwable, Nothing] = for {
       appConfig <- AppConfig.getConfig
 
       runtime: ZIO[AppEnvironment, Throwable, Nothing] = ZIO.runtime[AppEnvironment].flatMap { implicit rts =>
@@ -126,7 +126,11 @@ object Main extends App {
 
     result
       .foldM(
-        failure = err => putStrLn(s"Execution failed with: $err") *> ZIO.succeed(ExitCode.failure),
-        success = _ => ZIO.succeed(ExitCode.success))
+        failure = err => {
+          ZIO.accessM[ZEnv](_.get[Console.Service].putStrLn(s"Execution failed with: $err")).ignore *> ZIO.succeed(
+            ExitCode.failure)
+        },
+        success = _ => ZIO.succeed(ExitCode.success)
+      )
   }
 }
