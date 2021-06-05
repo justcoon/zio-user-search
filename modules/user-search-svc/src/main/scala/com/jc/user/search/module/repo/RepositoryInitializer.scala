@@ -1,7 +1,7 @@
 package com.jc.user.search.module.repo
 
 import com.sksamuel.elastic4s.ElasticClient
-import com.sksamuel.elastic4s.requests.mappings.FieldDefinition
+import com.sksamuel.elastic4s.fields.ElasticField
 import zio.ZIO
 import zio.logging.{Logger, Logging}
 
@@ -11,7 +11,7 @@ trait RepositoryInitializer {
 
 class ESRepositoryInitializer(
   indexName: String,
-  fields: Seq[FieldDefinition],
+  fields: Seq[ElasticField],
   elasticClient: ElasticClient,
   logger: Logger[String])
     extends RepositoryInitializer {
@@ -37,7 +37,7 @@ class ESRepositoryInitializer(
         } else {
           serviceLogger.debug(s"init - $indexName - updating ...") *>
             elasticClient.execute {
-              putMapping(indexName).fields(fields)
+              putMapping(indexName).properties(fields)
             }.map(r => r.result.acknowledged).tapError { e =>
               serviceLogger.error(s"init - $indexName - error: ${e.getMessage}") *>
                 ZIO.fail(e)
