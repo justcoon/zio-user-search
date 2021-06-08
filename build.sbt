@@ -1,5 +1,6 @@
 Global / resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-Scope.Global / scalaVersion := "2.13.6"
+Scope.Global / scalaVersion := "3.0.0"
+Scope.Global / crossScalaVersions ++= Seq("2.13.6", "3.0.0")
 
 lazy val Versions = new {
   val kindProjector = "0.13.0"
@@ -8,7 +9,7 @@ lazy val Versions = new {
   val zioInteropCats = "2.5.1.0" // "3.1.1.0"
   val zioKafka = "0.14.0"
   val zioLogging = "0.5.10"
-  val zioMetrics = "1.0.11"
+  val zioMetrics = "1.0.12"
   val zioMagic = "0.3.2"
   val elastic4s = "7.12.2"
   val jackson = "2.12.3"
@@ -41,19 +42,21 @@ lazy val library =
     val elastic4sEffectZio = "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"           % Versions.elastic4s
     val elastic4sJsonCirce = "com.sksamuel.elastic4s" %% "elastic4s-json-circe"           % Versions.elastic4s
     val jacksonModuleScala = "com.fasterxml.jackson.module" %% "jackson-module-scala"     % Versions.jackson
-    val http4sCore = "org.http4s" %% "http4s-core"                                        % Versions.http4s
-    val http4sDsl = "org.http4s" %% "http4s-dsl"                                          % Versions.http4s
-    val http4sBlazeServer = "org.http4s" %% "http4s-blaze-server"                         % Versions.http4s
-    val http4sBlazeClient = "org.http4s" %% "http4s-blaze-client"                         % Versions.http4s
-    val http4sCirce = "org.http4s" %% "http4s-circe"                                      % Versions.http4s
+    val http4sCore = ("org.http4s" %% "http4s-core"                                       % Versions.http4s).cross(CrossVersion.for3Use2_13)
+    val http4sDsl = ("org.http4s" %% "http4s-dsl"                                         % Versions.http4s).cross(CrossVersion.for3Use2_13)
+    val http4sBlazeServer = ("org.http4s" %% "http4s-blaze-server"                        % Versions.http4s).cross(CrossVersion.for3Use2_13)
+    val http4sBlazeClient = ("org.http4s" %% "http4s-blaze-client"                        % Versions.http4s).cross(CrossVersion.for3Use2_13)
+    val http4sCirce = ("org.http4s" %% "http4s-circe"                                     % Versions.http4s).cross(CrossVersion.for3Use2_13)
     val tapirZioHttp4s = "com.softwaremill.sttp.tapir" %% "tapir-zio-http4s-server"       % Versions.tapir
     val tapirSwaggerUiHttp4s = "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-http4s" % Versions.tapir
-    val circeGeneric = "io.circe" %% "circe-generic"                                      % Versions.circe
-    val circeGenericExtras = "io.circe" %% "circe-generic-extras"                         % Versions.circe
-    val pauldijouJwtCirce = "com.pauldijou" %% "jwt-circe"                                % Versions.pauldijouJwt
-    val pureconfig = "com.github.pureconfig" %% "pureconfig"                              % Versions.pureconfig
-    val refinedPureconfig = "eu.timepit" %% "refined-pureconfig"                          % Versions.refined
+    val circeGeneric = ("io.circe" %% "circe-generic"                                     % Versions.circe).cross(CrossVersion.for3Use2_13)
+    val circeGenericExtras = ("io.circe" %% "circe-generic-extras"                        % Versions.circe).cross(CrossVersion.for3Use2_13)
+    val pauldijouJwtCirce = ("com.pauldijou" %% "jwt-circe"                               % Versions.pauldijouJwt).cross(CrossVersion.for3Use2_13)
+    val pureconfig = ("com.github.pureconfig" %% "pureconfig"                             % Versions.pureconfig).cross(CrossVersion.for3Use2_13)
+    val refinedPureconfig = ("eu.timepit" %% "refined-pureconfig"                         % Versions.refined).cross(CrossVersion.for3Use2_13)
     val chimney = "io.scalaland" %% "chimney"                                             % Versions.chimney
+
+    val zioGrpcCore = ("com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core" % "0.5.0").cross(CrossVersion.for3Use2_13)
 
     val grpcServices = "io.grpc"     % "grpc-services"     % Versions.grpc
     val grpcNetty = "io.grpc"        % "grpc-netty"        % Versions.grpc
@@ -103,6 +106,7 @@ lazy val `core` =
         library.zioStreams,
         library.zioInteropCats,
         library.zioLoggingSlf4j,
+        library.zioGrpcCore,
         library.circeGeneric,
         library.circeGenericExtras,
         library.pauldijouJwtCirce,
