@@ -11,7 +11,7 @@ lazy val Versions = new {
   val zioMetrics = "1.0.12"
   val zioMagic = "0.3.5"
   val elastic4s = "7.12.3"
-  val jackson = "2.12.3"
+  val jackson = "2.12.4"
   val circe = "0.14.1"
   val randomDataGenerator = "2.9"
   val pureconfig = "0.16.0"
@@ -20,7 +20,7 @@ lazy val Versions = new {
   val grpc = "1.39.0"
   val chimney = "0.6.1"
   val pauldijouJwt = "5.0.0"
-  val tapir = "0.17.19"
+  val tapir = "0.17.20"
 
   val scalaTest = "3.2.9"
   val gatling = "3.6.0"
@@ -130,6 +130,7 @@ lazy val `user-search-api` =
         ScalaServer(
           file(s"${baseDirectory.value}/src/main/openapi/UserSearchOpenApi.yaml"),
           pkg = "com.jc.user.search.api.openapi",
+          imports = List("com.jc.user.domain.circe._"),
           framework = "http4s",
           tracing = false,
           customExtraction = true

@@ -8,7 +8,7 @@ package com.jc.user.api.proto;
 
 option (scalapb.options) = {
   package_name: "com.jc.user.search.api.proto"
-//  import: "com.jc.user.api.proto._"
+  import: "com.jc.user.domain.proto._"
   flat_package: true
 };
 
@@ -39,7 +39,7 @@ message PropertySuggestion {
 }
 
 message GetUserReq {
-    string id = 1;
+    string id = 1 [(scalapb.field).type = "com.jc.user.domain.UserEntity.UserId"];
 }
 
 message GetUserRes {
@@ -82,7 +82,7 @@ message SuggestUsersRes {
 }
 
 message GetDepartmentReq {
-    string id = 1;
+    string id = 1 [(scalapb.field).type = "com.jc.user.domain.DepartmentEntity.DepartmentId"];
 }
 
 message GetDepartmentRes {

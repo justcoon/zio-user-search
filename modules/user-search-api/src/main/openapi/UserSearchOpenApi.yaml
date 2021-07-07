@@ -33,6 +33,7 @@ paths:
           required: true
           schema:
             type: string
+          x-scala-type: com.jc.user.domain.DepartmentEntity.DepartmentId
       responses:
         '200':
           description: successful operation
@@ -141,6 +142,7 @@ paths:
           required: true
           schema:
             type: string
+          x-scala-type: com.jc.user.domain.UserEntity.UserId
       responses:
         '200':
           description: successful operation
@@ -273,6 +275,7 @@ components:
         id:
           type: string
           example: d1
+          x-scala-type: com.jc.user.domain.DepartmentEntity.DepartmentId
         name:
           type: string
           example: dep 1
@@ -324,6 +327,7 @@ components:
         id:
           type: string
           example: '10'
+          x-scala-type: com.jc.user.domain.UserEntity.UserId
         username:
           type: string
           example: theUser
@@ -339,6 +343,7 @@ components:
           $ref: '#/components/schemas/Department'
       type: object
       required:
+        - id
         - username
         - email
         - pass

@@ -36,12 +36,9 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
     extends UserHandler[ZIO[R, Throwable, *], Headers] {
   type F[A] = ZIO[R, Throwable, A]
 
-  import UserEntity._
-  import DepartmentEntity._
-
   import io.scalaland.chimney.dsl._
 
-  override def getDepartment(respond: GetDepartmentResponse.type)(id: String)(
+  override def getDepartment(respond: GetDepartmentResponse.type)(id: com.jc.user.domain.DepartmentEntity.DepartmentId)(
     extracted: Headers): F[GetDepartmentResponse] = {
     ZIO.services[DepartmentSearchRepo.Service, JwtAuthenticator.Service].flatMap { case (repo, authenticator) =>
       HttpJwtAuth
@@ -50,7 +47,7 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
           _ => ZIO.succeed(respond.Unauthorized),
           _ =>
             repo
-              .find(id.asDepartmentId)
+              .find(id)
               .map {
                 case Some(dep) => respond.Ok(dep.transformInto[Department])
                 case None => respond.NotFound
@@ -97,7 +94,8 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
       )
   }
 
-  override def getUser(respond: GetUserResponse.type)(id: String)(extracted: Headers): F[GetUserResponse] = {
+  override def getUser(respond: GetUserResponse.type)(id: com.jc.user.domain.UserEntity.UserId)(
+    extracted: Headers): F[GetUserResponse] = {
     ZIO.services[UserSearchRepo.Service, JwtAuthenticator.Service].flatMap { case (repo, authenticator) =>
       HttpJwtAuth
         .authenticated(extracted, authenticator)
@@ -105,7 +103,7 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
           _ => ZIO.succeed(respond.Unauthorized),
           _ =>
             repo
-              .find(id.asUserId)
+              .find(id)
               .map {
                 case Some(user) => respond.Ok(user.transformInto[User])
                 case None => respond.NotFound
