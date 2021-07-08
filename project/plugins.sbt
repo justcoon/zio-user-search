@@ -10,7 +10,7 @@ addSbtPlugin("au.com.onegeek" % "sbt-dotenv" % "2.1.147")
 //addSbtPlugin("org.duhemm"                % "sbt-errors-summary" % "0.6.3")
 addSbtPlugin("com.twilio"            % "sbt-guardrail" % "0.64.3")
 addSbtPlugin("com.typesafe.sbt"      % "sbt-git"       % "1.0.0")
-addSbtPlugin("com.thesamet"          % "sbt-protoc"    % "1.0.0")
+addSbtPlugin("com.thesamet"          % "sbt-protoc"    % "1.0.4")
 addSbtPlugin("io.gatling" % "gatling-sbt" % "3.2.1")
 
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.4"
