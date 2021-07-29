@@ -22,7 +22,6 @@ object LoggingSystemGrpcApi {
   /** using [[LoggingSystem.LogLevelMapping]] for api <-> logging system
     *  level mapping
     *
-    * [[LogLevel.NONE]] is not in mapping,
     * it is specially handled like: log level not defined
     */
   private val logLevelMapping: LoggingSystem.LogLevelMapping[LogLevel] = LoggingSystem.LogLevelMapping(
@@ -44,21 +43,21 @@ object LoggingSystemGrpcApi {
 
     def getSupportedLogLevels: UIO[Seq[LogLevel]] =
       loggingSystem.getSupportedLogLevels.map { levels =>
-        LogLevel.NONE +: levels.map(logLevelMapping.toLogger).toSeq
+        levels.map(logLevelMapping.toLogger).toSeq
       }
 
     def toApiLoggerConfiguration(configuration: LoggingSystem.LoggerConfiguration): LoggerConfiguration =
       LoggerConfiguration(
         configuration.name,
         logLevelMapping.toLogger(configuration.effectiveLevel),
-        configuration.configuredLevel.flatMap(logLevelMapping.toLogger.get).getOrElse(LogLevel.NONE)
+        configuration.configuredLevel.flatMap(logLevelMapping.toLogger.get)
       )
 
     override def setLoggerConfiguration(
       request: SetLoggerConfigurationReq): ZIO[Any with Has[RequestContext], Status, LoggerConfigurationRes] = {
       for {
         _ <- GrpcJwtAuth.authenticated(authenticator)
-        res <- loggingSystem.setLogLevel(request.name, logLevelMapping.fromLogger.get(request.level))
+        res <- loggingSystem.setLogLevel(request.name, request.level.flatMap(logLevelMapping.fromLogger.get))
         levels <- getSupportedLogLevels
         configuration <-
           if (res) {

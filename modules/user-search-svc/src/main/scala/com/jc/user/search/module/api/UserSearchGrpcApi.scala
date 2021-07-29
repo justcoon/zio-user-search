@@ -44,12 +44,10 @@ object UserSearchGrpcApiHandler {
     import io.scalaland.chimney.dsl._
 
     override def getUser(request: GetUserReq): ZIO[Has[RequestContext], Status, GetUserRes] = {
-      import UserEntity._
-
       val res: ZIO[Has[RequestContext], Status, GetUserRes] = for {
         _ <- GrpcJwtAuth.authenticated(jwtAuthenticator)
         res <- userSearchRepo
-          .find(request.id.asUserId)
+          .find(request.id)
           .mapError[Status](e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)))
       } yield GetUserRes(res.map(_.transformInto[proto.User]))
 
@@ -104,12 +102,10 @@ object UserSearchGrpcApiHandler {
     }
 
     override def getDepartment(request: GetDepartmentReq): ZIO[Has[RequestContext], Status, GetDepartmentRes] = {
-      import DepartmentEntity._
-
       val res: ZIO[Has[RequestContext], Status, GetDepartmentRes] = for {
         _ <- GrpcJwtAuth.authenticated(jwtAuthenticator)
         res <- departmentSearchRepo
-          .find(request.id.asDepartmentId)
+          .find(request.id)
           .mapError[Status](e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)))
       } yield GetDepartmentRes(res.map(_.transformInto[proto.Department]))
 
