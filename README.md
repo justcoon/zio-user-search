@@ -1,11 +1,9 @@
 # zio user search
 
+search/serving service for users 
+service is consuming user domain events kafka topic and indexing them to elasticsearch
 
-* https://github.com/kkreuning/guardrail-http4s-example
-* https://github.com/scalapb/zio-grpc
-* https://medium.com/@wiemzin/zio-with-http4s-and-doobie-952fba51d089
-
-
+see also [akka-typed-user](https://github.com/justcoon/akka-typed-user)
 
 # required
 
