@@ -93,6 +93,7 @@ lazy val `core` =
   (project in file("modules/core"))
     .settings(settings)
     .settings(
+//      inConfig(Compile)(scalaBinaryVersion := "2.13"),
       addCompilerPlugin("org.typelevel" %% "kind-projector" % Versions.kindProjector cross CrossVersion.full),
       Compile / PB.targets := Seq(
         scalapb.gen(grpc = true) -> (Compile / sourceManaged).value,
@@ -125,6 +126,7 @@ lazy val `user-search-api` =
   (project in file("modules/user-search-api"))
     .settings(settings)
     .settings(
+//      inConfig(Compile)(scalaBinaryVersion := "2.13"),
       addCompilerPlugin("org.typelevel" %% "kind-projector" % Versions.kindProjector cross CrossVersion.full),
       Compile / PB.targets := Seq(
         scalapb.gen(grpc = true) -> (Compile / sourceManaged).value,
