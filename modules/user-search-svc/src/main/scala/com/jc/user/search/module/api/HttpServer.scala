@@ -4,7 +4,6 @@ import com.jc.user.search.Main.AppEnvironment
 import com.jc.user.search.api.openapi.user.UserResource
 import com.jc.user.search.model.config.HttpApiConfig
 import eu.timepit.refined.auto._
-import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.server.middleware.{Logger => HttpServerLogger}
 import org.http4s.{HttpApp, HttpRoutes}
 import org.http4s.implicits._

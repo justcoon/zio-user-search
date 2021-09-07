@@ -1,6 +1,5 @@
 package com.jc.user.search.module.api
 
-import com.jc.user.domain.{DepartmentEntity, UserEntity}
 import com.jc.user.search.api.openapi.definitions.{
   Department,
   DepartmentSearchResponse,
