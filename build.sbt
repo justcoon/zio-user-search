@@ -25,6 +25,7 @@ lazy val Versions = new {
   val scalaTest = "3.2.9"
   val gatling = "3.6.1"
   val gatlingGrpc = "0.11.1"
+  val swaggerParser = "2.0.27"
 }
 
 lazy val library =
@@ -71,7 +72,8 @@ lazy val library =
     val randomDataGenerator = "com.danielasfregola" %% "random-data-generator" % Versions.randomDataGenerator % "test"
 
     // Java libraries
-    val logback = "ch.qos.logback" % "logback-classic" % Versions.logback
+    val logback = "ch.qos.logback"             % "logback-classic" % Versions.logback
+    val swaggerParser = "io.swagger.parser.v3" % "swagger-parser"  % Versions.swaggerParser
   }
 
 lazy val `zio-user-search` =
@@ -94,8 +96,18 @@ lazy val `core` =
       Compile / PB.targets := Seq(
         scalapb.gen(grpc = true) -> (Compile / sourceManaged).value,
         scalapb.zio_grpc.ZioCodeGenerator -> (Compile / sourceManaged).value
+      ),
+      Compile / guardrailTasks := List(
+        ScalaServer(
+          file(s"${baseDirectory.value}/src/main/openapi/LoggingSystemOpenApi.yaml"),
+          pkg = "com.jc.logging.openapi",
+          framework = "http4s",
+          tracing = false,
+          customExtraction = true
+        )
       )
     )
+    .settings(Compile / unmanagedResourceDirectories += baseDirectory.value / "src" / "main" / "openapi")
     .settings(
       libraryDependencies ++= Seq(
         // Scala libraries
@@ -109,11 +121,16 @@ lazy val `core` =
         library.pureconfig,
         library.refinedPureconfig,
         library.http4sCore,
+        library.http4sDsl,
+        library.http4sBlazeServer,
+        library.http4sBlazeClient,
+        library.http4sCirce,
         library.scalapbRuntime,
         library.scalapbRuntimeGrpc,
         library.scalatest,
         // Java libraries
-        library.logback
+        library.logback,
+        library.swaggerParser
       )
     )
 
