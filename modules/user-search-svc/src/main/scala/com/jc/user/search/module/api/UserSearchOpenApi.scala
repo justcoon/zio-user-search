@@ -1,6 +1,6 @@
 package com.jc.user.search.module.api
 
-import com.jc.user.domain.{DepartmentEntity, UserEntity}
+import com.jc.api.openapi.OpenApiMerger
 import com.jc.user.search.api.openapi.definitions.{
   Department,
   DepartmentSearchResponse,
@@ -24,6 +24,8 @@ import com.jc.user.search.api.openapi.user.{
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.auth.JwtAuthenticator
 import com.jc.auth.api.HttpJwtAuth
+import com.jc.logging.LoggingSystem
+import com.jc.logging.api.LoggingSystemOpenApiHandler
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
 import org.http4s.{Headers, HttpRoutes}
 import org.http4s.server.Router
@@ -163,19 +165,30 @@ object UserSearchOpenApiHandler {
         SearchRepository.FieldSort(sort, true)
     }
 
-  def httpRoutes[E <: UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator]
+  def userSearchApiRoutes[E <: UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator]
+    : HttpRoutes[ZIO[E, Throwable, *]] = {
+    import zio.interop.catz._
+
+    new UserResource[ZIO[E, Throwable, *], Headers](customExtract = _ => req => req.headers)
+      .routes(new UserSearchOpenApiHandler[E]())
+  }
+
+  def httpRoutes[E <: UserSearchRepo with DepartmentSearchRepo with LoggingSystem with JwtAuthenticator]
     : HttpRoutes[ZIO[E, Throwable, *]] = {
     import zio.interop.catz._
     import sttp.tapir.server.http4s.ztapir._
-    val yaml = Source.fromResource("UserSearchOpenApi.yaml").mkString
+    val y1 = Source.fromResource("UserSearchOpenApi.yaml").mkString
+    val y2 = Source.fromResource("LoggingSystemOpenApi.yaml").mkString
+    val my = OpenApiMerger.mergeYamls(y1, y2 :: Nil)
+    val yaml = my.getOrElse("")
 
     val docRoutes: HttpRoutes[ZIO[E, Throwable, *]] = new SwaggerHttp4s(yaml).routes
 
-    val userSearchApiRoutes: HttpRoutes[ZIO[E, Throwable, *]] =
-      new UserResource[ZIO[E, Throwable, *], Headers](customExtract = _ => req => req.headers)
-        .routes(new UserSearchOpenApiHandler[E]())
+    val usApiRoutes: HttpRoutes[ZIO[E, Throwable, *]] = userSearchApiRoutes
 
-    Router("/" -> userSearchApiRoutes, "/" -> docRoutes)
+    val lsApiRoutes: HttpRoutes[ZIO[E, Throwable, *]] = LoggingSystemOpenApiHandler.loggingSystemApiRoutes
+
+    Router("/" -> usApiRoutes, "/" -> lsApiRoutes, "/" -> docRoutes)
   }
 
 }

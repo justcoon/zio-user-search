@@ -21,7 +21,6 @@ import io.grpc._
 import io.prometheus.client.exporter.{HTTPServer => PrometheusHttpServer}
 import org.http4s.{HttpApp, HttpRoutes}
 import org.http4s.implicits._
-import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.server.middleware.{Logger => HttpServerLogger}
 import zio._
 import zio.blocking.Blocking
@@ -35,6 +34,7 @@ import zio.metrics.prometheus.exporters.Exporters
 import zio.metrics.prometheus.helpers._
 import scalapb.zio_grpc.{Server => GrpcServer, ServerLayer => GrpcServerLayer, ServiceList => GrpcServiceList}
 import eu.timepit.refined.auto._
+import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.server.Router
 import zio.magic._
 

@@ -10,6 +10,10 @@ import scala.util.Try
 object JwtAuthenticator {
   val AuthHeader = "Authorization"
 
+  val BearerTokenPrefix = "Bearer "
+
+  def sanitizeBearerAuthToken(header: String): String = header.replaceFirst(BearerTokenPrefix, "")
+
   trait Service {
     def authenticated(rawToken: String): UIO[Option[String]]
   }

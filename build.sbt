@@ -2,29 +2,30 @@ Global / resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/cont
 Scope.Global / scalaVersion := "2.13.6"
 
 lazy val Versions = new {
-  val kindProjector = "0.13.0"
-  val http4s = "0.21.25"
-  val zio = "1.0.10"
+  val kindProjector = "0.13.2"
+  val http4s = "0.22.4"
+  val zio = "1.0.11"
   val zioInteropCats = "2.5.1.0" // "3.1.1.0"
-  val zioKafka = "0.15.0"
-  val zioLogging = "0.5.11"
+  val zioKafka = "0.16.0"
+  val zioLogging = "0.5.12"
   val zioMetrics = "1.0.12"
-  val zioMagic = "0.3.6"
-  val elastic4s = "7.13.0"
-  val jackson = "2.12.4"
+  val zioMagic = "0.3.8"
+  val elastic4s = "7.14.1"
+  val jackson = "2.12.5"
   val circe = "0.14.1"
   val randomDataGenerator = "2.9"
   val pureconfig = "0.16.0"
   val refined = "0.9.27"
-  val logback = "1.2.5"
-  val grpc = "1.39.0"
+  val logback = "1.2.6"
+  val grpc = "1.40.1"
   val chimney = "0.6.1"
   val pauldijouJwt = "5.0.0"
-  val tapir = "0.17.20"
+  val tapir = "0.18.3"
 
   val scalaTest = "3.2.9"
   val gatling = "3.6.1"
   val gatlingGrpc = "0.11.1"
+  val swaggerParser = "2.0.27"
 }
 
 lazy val library =
@@ -71,7 +72,8 @@ lazy val library =
     val randomDataGenerator = "com.danielasfregola" %% "random-data-generator" % Versions.randomDataGenerator % "test"
 
     // Java libraries
-    val logback = "ch.qos.logback" % "logback-classic" % Versions.logback
+    val logback = "ch.qos.logback"             % "logback-classic" % Versions.logback
+    val swaggerParser = "io.swagger.parser.v3" % "swagger-parser"  % Versions.swaggerParser
   }
 
 lazy val `zio-user-search` =
@@ -94,8 +96,18 @@ lazy val `core` =
       Compile / PB.targets := Seq(
         scalapb.gen(grpc = true) -> (Compile / sourceManaged).value,
         scalapb.zio_grpc.ZioCodeGenerator -> (Compile / sourceManaged).value
+      ),
+      Compile / guardrailTasks := List(
+        ScalaServer(
+          file(s"${baseDirectory.value}/src/main/openapi/LoggingSystemOpenApi.yaml"),
+          pkg = "com.jc.logging.openapi",
+          framework = "http4s",
+          tracing = false,
+          customExtraction = true
+        )
       )
     )
+    .settings(Compile / unmanagedResourceDirectories += baseDirectory.value / "src" / "main" / "openapi")
     .settings(
       libraryDependencies ++= Seq(
         // Scala libraries
@@ -109,11 +121,16 @@ lazy val `core` =
         library.pureconfig,
         library.refinedPureconfig,
         library.http4sCore,
+        library.http4sDsl,
+        library.http4sBlazeServer,
+        library.http4sBlazeClient,
+        library.http4sCirce,
         library.scalapbRuntime,
         library.scalapbRuntimeGrpc,
         library.scalatest,
         // Java libraries
-        library.logback
+        library.logback,
+        library.swaggerParser
       )
     )
 
