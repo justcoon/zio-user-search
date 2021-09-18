@@ -1,8 +1,8 @@
 package com.jc.user.search.api.graphql
 
-import caliban.schema.Annotations.GQLDescription
-import caliban.schema.GenericSchema
 import com.jc.user.search.api.graphql.model.{Address, Department, FieldSort, SearchRequest, User, UserSearchResponse}
+import caliban.schema.Annotations.GQLDescription
+import caliban.schema.{ArgBuilder, GenericSchema}
 import caliban.GraphQL
 import caliban.GraphQL.graphQL
 import caliban.RootResolver
@@ -14,7 +14,8 @@ import zio.URIO
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
-
+import shapeless.tag
+import shapeless.tag.@@
 import scala.language.postfixOps
 
 object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.UserSearchGraphqlApiService] {
@@ -24,6 +25,14 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.Us
     searchUsers: SearchRequest => URIO[UserSearchGraphqlApiService.UserSearchGraphqlApiService, UserSearchResponse]
   )
 
+  implicit def tagSchema[A, T](implicit s: UserSearchGraphqlApi.Typeclass[A]): UserSearchGraphqlApi.Typeclass[A @@ T] =
+    s.asInstanceOf[UserSearchGraphqlApi.Typeclass[A @@ T]]
+  implicit def tagArgBuilder[A, T](implicit s: ArgBuilder[A]): ArgBuilder[A @@ T] = s.asInstanceOf[ArgBuilder[A @@ T]]
+
+  implicit val departmentIdSchema: UserSearchGraphqlApi.Typeclass[com.jc.user.domain.DepartmentEntity.DepartmentId] =
+    tagSchema[String, com.jc.user.domain.DepartmentEntity.DepartmentIdTag]
+  implicit val userIdSchema: UserSearchGraphqlApi.Typeclass[com.jc.user.domain.UserEntity.UserId] =
+    tagSchema[String, com.jc.user.domain.UserEntity.UserIdTag]
   implicit val addressSchema = gen[Address]
   implicit val departmentSchema = gen[Department]
   implicit val userSchema = gen[User]
