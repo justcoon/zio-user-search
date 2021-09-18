@@ -27,12 +27,21 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.Us
 
   implicit def tagSchema[A, T](implicit s: UserSearchGraphqlApi.Typeclass[A]): UserSearchGraphqlApi.Typeclass[A @@ T] =
     s.asInstanceOf[UserSearchGraphqlApi.Typeclass[A @@ T]]
+
   implicit def tagArgBuilder[A, T](implicit s: ArgBuilder[A]): ArgBuilder[A @@ T] = s.asInstanceOf[ArgBuilder[A @@ T]]
+
+  implicit val departmentIdArgBuilder: ArgBuilder[com.jc.user.domain.DepartmentEntity.DepartmentId] =
+    tagArgBuilder[String, com.jc.user.domain.DepartmentEntity.DepartmentIdTag]
+
+  implicit val userIdArgBuilder: ArgBuilder[com.jc.user.domain.UserEntity.UserId] =
+    tagArgBuilder[String, com.jc.user.domain.UserEntity.UserIdTag]
 
   implicit val departmentIdSchema: UserSearchGraphqlApi.Typeclass[com.jc.user.domain.DepartmentEntity.DepartmentId] =
     tagSchema[String, com.jc.user.domain.DepartmentEntity.DepartmentIdTag]
+
   implicit val userIdSchema: UserSearchGraphqlApi.Typeclass[com.jc.user.domain.UserEntity.UserId] =
     tagSchema[String, com.jc.user.domain.UserEntity.UserIdTag]
+
   implicit val addressSchema = gen[Address]
   implicit val departmentSchema = gen[Department]
   implicit val userSchema = gen[User]
