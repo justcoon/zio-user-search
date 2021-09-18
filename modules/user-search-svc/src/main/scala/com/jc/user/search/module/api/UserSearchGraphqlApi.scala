@@ -6,7 +6,7 @@ import com.jc.user.search.module.repo.{SearchRepository, UserSearchRepo}
 import zio.{IO, UIO, ZIO, ZLayer}
 import zhttp.http._
 import zhttp.service.Server
-import caliban.{CalibanError, ZHttpAdapter}
+import caliban.{CalibanError, GraphQLInterpreter, ZHttpAdapter}
 import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiService
 import zio.blocking.Blocking
 import zio.clock.Clock
@@ -42,19 +42,16 @@ object UserSearchGraphqlApiHandler {
   private val graphiql =
     Http.succeed(Response.http(content = HttpData.fromStream(ZStream.fromResource("graphiql.html"))))
 
-  def graphqlRoutes(): ZIO[
-    Any,
-    CalibanError.ValidationError,
-    Http[
-      Console with Clock with UserSearchGraphqlApiService,
-      HttpError,
-      Request,
-      Response[Console with Clock with UserSearchGraphqlApiService with Blocking, Throwable]]] = {
-    UserSearchGraphqlApi.api.interpreter.map { interpreter =>
-      Http.route {
-        case _ -> Root / "api" / "graphql" => ZHttpAdapter.makeHttpService(interpreter)
-        case _ -> Root / "graphiql" => graphiql
-      }
+  def graphqlRoutes(
+    interpreter: GraphQLInterpreter[Console with Clock with UserSearchGraphqlApiService, CalibanError]): Http[
+    Console with Clock with UserSearchGraphqlApiService,
+    HttpError,
+    Request,
+    Response[Console with Clock with UserSearchGraphqlApiService with Blocking, Throwable]] = {
+
+    Http.route {
+      case _ -> Root / "api" / "graphql" => ZHttpAdapter.makeHttpService(interpreter)
+      case _ -> Root / "graphiql" => graphiql
     }
   }
 }
