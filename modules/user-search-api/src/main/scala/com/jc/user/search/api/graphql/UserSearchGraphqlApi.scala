@@ -2,20 +2,19 @@ package com.jc.user.search.api.graphql
 
 import caliban.schema.Annotations.GQLDescription
 import caliban.schema.GenericSchema
-import com.jc.user.search.api.graphql.model.{SearchRequest, UserSearchResponse}
-
+import com.jc.user.search.api.graphql.model.{Address, Department, FieldSort, SearchRequest, User, UserSearchResponse}
 import caliban.GraphQL
 import caliban.GraphQL.graphQL
 import caliban.RootResolver
-import caliban.schema.Annotations.{ GQLDeprecated, GQLDescription }
+import caliban.schema.Annotations.{GQLDeprecated, GQLDescription}
 import caliban.schema.GenericSchema
 import caliban.wrappers.ApolloTracing.apolloTracing
 import caliban.wrappers.Wrappers._
-
 import zio.URIO
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
+
 import scala.language.postfixOps
 
 object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.UserSearchGraphqlApiService] {
@@ -25,9 +24,12 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.Us
     searchUsers: SearchRequest => URIO[UserSearchGraphqlApiService.UserSearchGraphqlApiService, UserSearchResponse]
   )
 
-  implicit val searchRequestSchema           = gen[SearchRequest]
-  implicit val userSearchResponseSchema           = gen[UserSearchResponse]
-
+  implicit val addressSchema = gen[Address]
+  implicit val departmentSchema = gen[Department]
+  implicit val userSchema = gen[User]
+  implicit val fieldSortSchema = gen[FieldSort]
+  implicit val searchRequestSchema = gen[SearchRequest]
+  implicit val userSearchResponseSchema = gen[UserSearchResponse]
 
 //  val api: GraphQL[Console with Clock with UserSearchGraphqlApiService.UserSearchGraphqlApiService] =
 //    graphQL(

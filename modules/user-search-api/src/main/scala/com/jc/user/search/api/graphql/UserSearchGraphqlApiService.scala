@@ -5,6 +5,7 @@ import zio.{Has, UIO}
 
 object UserSearchGraphqlApiService {
   type UserSearchGraphqlApiService = Has[Service]
+
   trait Service {
     def searchUsers(request: SearchRequest): UIO[UserSearchResponse]
   }
