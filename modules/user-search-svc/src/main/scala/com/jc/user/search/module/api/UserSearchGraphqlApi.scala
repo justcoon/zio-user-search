@@ -1,11 +1,10 @@
 package com.jc.user.search.module.api
 
-import com.jc.user.search.api.graphql.{UserSearchGraphqlApi, UserSearchGraphqlApiService}
+import com.jc.user.search.api.graphql.UserSearchGraphqlApiService
 import com.jc.user.search.api.graphql.model.{FieldSort, SearchRequest, User, UserSearchResponse}
 import com.jc.user.search.module.repo.{SearchRepository, UserSearchRepo}
-import zio.{IO, UIO, ZIO, ZLayer}
+import zio.{UIO, ZLayer}
 import zhttp.http._
-import zhttp.service.Server
 import caliban.{CalibanError, GraphQLInterpreter, ZHttpAdapter}
 import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiService
 import zio.blocking.Blocking
@@ -24,7 +23,7 @@ object UserSearchGraphqlApiHandler {
     import io.scalaland.chimney.dsl._
 
     override def searchUsers(request: SearchRequest): UIO[UserSearchResponse] = {
-      val ss = request.sorts.map(toRepoFieldSort)
+      val ss = request.sorts.getOrElse(Seq.empty).map(toRepoFieldSort)
       userSearchRepo
         .search(request.query, request.page, request.pageSize, ss)
         .fold(
