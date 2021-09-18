@@ -1,13 +1,19 @@
 package com.jc.user.search.api.graphql
 
-import com.jc.user.search.api.graphql.model.{Address, Department, FieldSort, SearchRequest, User, UserSearchResponse}
+import com.jc.user.search.api.graphql.model.{
+  Address,
+  Department,
+  DepartmentSearchResponse,
+  FieldSort,
+  SearchRequest,
+  User,
+  UserSearchResponse
+}
 import caliban.schema.Annotations.GQLDescription
 import caliban.schema.{ArgBuilder, GenericSchema}
 import caliban.GraphQL
 import caliban.GraphQL.graphQL
 import caliban.RootResolver
-import caliban.schema.Annotations.{GQLDeprecated, GQLDescription}
-import caliban.schema.GenericSchema
 import caliban.wrappers.ApolloTracing.apolloTracing
 import caliban.wrappers.Wrappers._
 import zio.URIO
@@ -16,13 +22,18 @@ import zio.console.Console
 import zio.duration._
 import shapeless.tag
 import shapeless.tag.@@
+
 import scala.language.postfixOps
 
 object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.UserSearchGraphqlApiService] {
 
   case class Queries(
     @GQLDescription("Search users")
-    searchUsers: SearchRequest => URIO[UserSearchGraphqlApiService.UserSearchGraphqlApiService, UserSearchResponse]
+    searchUsers: SearchRequest => URIO[UserSearchGraphqlApiService.UserSearchGraphqlApiService, UserSearchResponse],
+    @GQLDescription("Search departments")
+    searchDepartments: SearchRequest => URIO[
+      UserSearchGraphqlApiService.UserSearchGraphqlApiService,
+      DepartmentSearchResponse]
   )
 
   implicit def tagSchema[A, T](implicit s: UserSearchGraphqlApi.Typeclass[A]): UserSearchGraphqlApi.Typeclass[A @@ T] =
@@ -48,11 +59,14 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.Us
   implicit val fieldSortSchema = gen[FieldSort]
   implicit val searchRequestSchema = gen[SearchRequest]
   implicit val userSearchResponseSchema = gen[UserSearchResponse]
+  implicit val departmentSearchResponseSchema = gen[DepartmentSearchResponse]
 
   val api: GraphQL[Console with Clock with UserSearchGraphqlApiService.UserSearchGraphqlApiService] =
     graphQL(
       RootResolver(
-        Queries(args => UserSearchGraphqlApiService.searchUsers(args))
+        Queries(
+          args => UserSearchGraphqlApiService.searchUsers(args),
+          args => UserSearchGraphqlApiService.searchDepartments(args))
       )
     ) @@
       maxFields(200) @@ // query analyzer that limit query fields
