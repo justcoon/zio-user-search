@@ -1,3 +1,5 @@
 package com.jc.user.search.api.graphql.model
 
-case class Department(id: com.jc.user.domain.DepartmentEntity.DepartmentId, name: String, description: String)
+// FIXME tagged types
+//final case class Department(id: com.jc.user.domain.DepartmentEntity.DepartmentId, name: String, description: String)
+final case class Department(id: String, name: String, description: String)

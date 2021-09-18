@@ -2,11 +2,17 @@ package com.jc.user.search
 
 import com.jc.user.search.api.proto.ZioUserSearchApi.RCUserSearchApiService
 import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, HttpApiConfig, PrometheusConfig}
-import com.jc.user.search.module.api.{HealthCheckApi, UserSearchGrpcApiHandler, UserSearchOpenApiHandler}
+import com.jc.user.search.module.api.{
+  HealthCheckApi,
+  UserSearchGraphqlApiHandler,
+  UserSearchGrpcApiHandler,
+  UserSearchOpenApiHandler
+}
 import com.jc.auth.JwtAuthenticator
 import com.jc.logging.{LogbackLoggingSystem, LoggingSystem}
 import com.jc.logging.api.{LoggingSystemGrpcApi, LoggingSystemGrpcApiHandler}
 import com.jc.logging.proto.ZioLoggingSystemApi.RCLoggingSystemApiService
+import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiService
 import com.jc.user.search.module.kafka.KafkaConsumer
 import com.jc.user.search.module.processor.EventProcessor
 import com.jc.user.search.module.repo.{
@@ -36,6 +42,7 @@ import scalapb.zio_grpc.{Server => GrpcServer, ServerLayer => GrpcServerLayer, S
 import eu.timepit.refined.auto._
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.server.Router
+import zhttp.service.{Server => ZhttpServer}
 import zio.magic._
 
 object Main extends App {
@@ -43,8 +50,8 @@ object Main extends App {
   type AppEnvironment = Clock
     with Blocking with Has[ElasticClient] with JwtAuthenticator with UserSearchRepo with UserSearchRepoInit
     with DepartmentSearchRepo with DepartmentSearchRepoInit with EventProcessor with KafkaConsumer with LoggingSystem
-    with LoggingSystemGrpcApiHandler with UserSearchGrpcApiHandler with GrpcServer with Logging with Registry
-    with Exporters
+    with LoggingSystemGrpcApiHandler with UserSearchGrpcApiHandler with UserSearchGraphqlApiService with GrpcServer
+    with Logging with Registry with Exporters
 
   private val httpRoutes: HttpRoutes[ZIO[AppEnvironment, Throwable, *]] =
     Router[ZIO[AppEnvironment, Throwable, *]](
@@ -93,6 +100,7 @@ object Main extends App {
       LogbackLoggingSystem.create(),
       LoggingSystemGrpcApi.live,
       UserSearchGrpcApiHandler.live,
+      UserSearchGraphqlApiHandler.live,
       createGrpcServer(appConfig.grpcApi),
       Registry.live,
       Exporters.live
@@ -112,6 +120,7 @@ object Main extends App {
           .compile[ZIO[AppEnvironment, Throwable, *], ZIO[AppEnvironment, Throwable, *], cats.effect.ExitCode]
           .drain
           .forever
+//        ZhttpServer.start(appConfig.graphqlApi.port, UserSearchGraphqlApiHandler.graphqlRoutes()).forever  *>
         UserSearchRepoInit.init *>
           DepartmentSearchRepoInit.init *>
           metrics(appConfig.prometheus) *>

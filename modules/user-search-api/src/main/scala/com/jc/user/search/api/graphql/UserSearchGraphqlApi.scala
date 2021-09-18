@@ -49,18 +49,16 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.Us
   implicit val searchRequestSchema = gen[SearchRequest]
   implicit val userSearchResponseSchema = gen[UserSearchResponse]
 
-//  val api: GraphQL[Console with Clock with UserSearchGraphqlApiService.UserSearchGraphqlApiService] =
-//    graphQL(
-//      RootResolver(
-//        Queries(
-//          args => ExampleService.getCharacters(args.origin)
-//        )
-//      )
-//    ) @@
-//      maxFields(200) @@               // query analyzer that limit query fields
-//      maxDepth(30) @@                 // query analyzer that limit query depth
-//      timeout(3 seconds) @@           // wrapper that fails slow queries
-//      printSlowQueries(500 millis) @@ // wrapper that logs slow queries
-//      printErrors @@                  // wrapper that logs errors
-//      apolloTracing                   // wrapper for https://github.com/apollographql/apollo-tracing
+  val api: GraphQL[Console with Clock with UserSearchGraphqlApiService.UserSearchGraphqlApiService] =
+    graphQL(
+      RootResolver(
+        Queries(args => UserSearchGraphqlApiService.searchUsers(args))
+      )
+    ) @@
+      maxFields(200) @@ // query analyzer that limit query fields
+      maxDepth(30) @@ // query analyzer that limit query depth
+      timeout(3 seconds) @@ // wrapper that fails slow queries
+      printSlowQueries(500 millis) @@ // wrapper that logs slow queries
+      printErrors @@ // wrapper that logs errors
+      apolloTracing // wrapper for https://github.com/apollographql/apollo-tracing
 }
