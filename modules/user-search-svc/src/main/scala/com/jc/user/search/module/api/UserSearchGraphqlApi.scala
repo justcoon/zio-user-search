@@ -10,9 +10,10 @@ import com.jc.user.search.api.graphql.model.{
   UserSearchResponse
 }
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
-import zio.{UIO, ZLayer}
+import zio.{Has, UIO, ZIO, ZLayer}
 import zhttp.http._
 import caliban.{CalibanError, GraphQLInterpreter, ZHttpAdapter}
+import com.jc.auth.JwtAuthenticator
 import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiService
 import zio.blocking.Blocking
 import zio.clock.Clock
@@ -77,4 +78,23 @@ object UserSearchGraphqlApiHandler {
       case _ -> Root / "graphiql" => graphiql
     }
   }
+
+  def auth[R, B](app: Http[R, HttpError, Request, Response[R, HttpError]])
+    : Http[R with JwtAuthenticator, Object, Request, Response[R, HttpError]] =
+    Http
+      .fromEffectFunction[Request] { (request: Request) =>
+        val authFail = Http.fail(CalibanError.ExecutionError("Unauthorized"))
+        ZIO
+          .service[JwtAuthenticator.Service]
+          .flatMap { authenticator =>
+            for {
+              rawToken <- ZIO.getOrFailWith(authFail)(request.headers
+                .find(_.name == JwtAuthenticator.AuthHeader))
+              maybeSubject <- authenticator.authenticated(
+                JwtAuthenticator.sanitizeBearerAuthToken(rawToken.value.toString))
+              _ <- ZIO.getOrFailWith(authFail)(maybeSubject)
+            } yield app
+          }
+      }
+      .flatten
 }

@@ -133,13 +133,12 @@ object Main extends App {
               .start(appConfig.graphqlApi.port, UserSearchGraphqlApiHandler.graphqlRoutes(graphqlInterpreter))
               .forever
 
-          val r = UserSearchRepoInit.init *>
+          UserSearchRepoInit.init *>
             DepartmentSearchRepoInit.init *>
             metrics(appConfig.prometheus) *>
             KafkaConsumer.consume(appConfig.kafka) &>
             zserver &>
             server
-          r
       }
 
       appLayer = createAppLayer(appConfig)
