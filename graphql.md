@@ -1,4 +1,5 @@
 
+search users example
 
 ```qraphql
 query searchUsers() {
@@ -18,6 +19,7 @@ query searchUsers() {
 }
 ```
 
+get user example
 
 ```qraphql
 query getUser() {
