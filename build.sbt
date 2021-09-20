@@ -166,6 +166,7 @@ lazy val `user-search-api` =
         library.zio,
         library.zioStreams,
         library.zioInteropCats,
+        library.zioLoggingSlf4j,
         library.http4sCore,
         library.http4sDsl,
         library.http4sBlazeServer,
