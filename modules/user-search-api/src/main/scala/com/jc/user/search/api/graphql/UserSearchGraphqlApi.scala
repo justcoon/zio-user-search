@@ -71,11 +71,9 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.Us
       ): GraphQLRequest => ZIO[R1, Nothing, GraphQLResponse[CalibanError]] =
         request =>
           process(request).tap(response =>
-            ZIO.when(response.errors.nonEmpty)(
-              ZIO.foreach(response.errors) { e =>
-                Logging.error(e.getMessage())
-              }
-            ))
+            ZIO.foreach(response.errors) { e =>
+              Logging.throwable("Error", e)
+            })
     }
 
   def logSlowQueries(duration: Duration): OverallWrapper[Logging with Clock] =

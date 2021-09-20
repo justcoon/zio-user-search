@@ -1,7 +1,11 @@
 
-```
+
+```qraphql
 query searchUsers() {
-  searchUsers(query:"UK", page: 0, pageSize: 10) {
+  searchUsers(query:"UK", page: 0, pageSize: 10, sorts:[{
+    field: "email"
+    asc:true
+  }]) {
     count
     items {
       id
@@ -12,5 +16,4 @@ query searchUsers() {
     }
   }
 }
-
 ```
