@@ -21,11 +21,13 @@ lazy val Versions = new {
   val chimney = "0.6.1"
   val pauldijouJwt = "5.0.0"
   val tapir = "0.18.3"
+  val caliban = "1.1.1"
 
   val scalaTest = "3.2.9"
   val gatling = "3.6.1"
   val gatlingGrpc = "0.11.1"
   val swaggerParser = "2.0.27"
+
 }
 
 lazy val library =
@@ -63,6 +65,9 @@ lazy val library =
     val scalapbRuntime =
       "com.thesamet.scalapb" %% "scalapb-runtime"                             % scalapb.compiler.Version.scalapbVersion % "protobuf"
     val scalapbRuntimeGrpc = "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion
+
+    val calibanHttp4s = "com.github.ghostdogpr" %% "caliban-http4s" % Versions.caliban
+    val calibanZioHttp = "com.github.ghostdogpr" %% "caliban-zio-http" % Versions.caliban
 
     val gatlingCharts = "io.gatling.highcharts" % "gatling-charts-highcharts" % Versions.gatling
     val gatlingTest = "io.gatling"              % "gatling-test-framework"    % Versions.gatling
@@ -161,6 +166,7 @@ lazy val `user-search-api` =
         library.zio,
         library.zioStreams,
         library.zioInteropCats,
+        library.zioLoggingSlf4j,
         library.http4sCore,
         library.http4sDsl,
         library.http4sBlazeServer,
@@ -168,6 +174,7 @@ lazy val `user-search-api` =
         library.http4sCirce,
         library.circeGeneric,
         library.circeGenericExtras,
+        library.calibanZioHttp,
         library.scalapbRuntime,
         library.scalapbRuntimeGrpc
       )
