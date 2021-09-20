@@ -17,3 +17,22 @@ query searchUsers() {
   }
 }
 ```
+
+
+```qraphql
+query getUser() {
+  getUser(id: "123") {
+    
+      id
+      email
+      address {
+        country
+      }
+      department {
+        name
+      }
+  } 
+  
+}
+
+```

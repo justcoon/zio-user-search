@@ -5,6 +5,8 @@ import com.jc.user.search.api.graphql.model.{
   Department,
   DepartmentSearchResponse,
   FieldSort,
+  GetDepartment,
+  GetUser,
   SearchRequest,
   User,
   UserSearchResponse
@@ -27,8 +29,12 @@ import scala.language.postfixOps
 object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.UserSearchGraphqlApiService] {
 
   case class Queries(
+    @GQLDescription("Get user")
+    getUser: GetUser => RIO[UserSearchGraphqlApiService.UserSearchGraphqlApiService, Option[User]],
     @GQLDescription("Search users")
     searchUsers: SearchRequest => RIO[UserSearchGraphqlApiService.UserSearchGraphqlApiService, UserSearchResponse],
+    @GQLDescription("Get department")
+    getDepartment: GetDepartment => RIO[UserSearchGraphqlApiService.UserSearchGraphqlApiService, Option[Department]],
     @GQLDescription("Search departments")
     searchDepartments: SearchRequest => RIO[
       UserSearchGraphqlApiService.UserSearchGraphqlApiService,
@@ -42,7 +48,9 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.Us
 
   implicit val addressSchema = gen[Address]
   implicit val departmentSchema = gen[Department]
+  implicit val getDepartmentSchema = gen[GetDepartment]
   implicit val userSchema = gen[User]
+  implicit val getUserSchema = gen[GetUser]
   implicit val fieldSortSchema = gen[FieldSort]
   implicit val searchRequestSchema = gen[SearchRequest]
   implicit val userSearchResponseSchema = gen[UserSearchResponse]
@@ -52,8 +60,11 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.Us
     graphQL(
       RootResolver(
         Queries(
+          args => UserSearchGraphqlApiService.getUser(args),
           args => UserSearchGraphqlApiService.searchUsers(args),
-          args => UserSearchGraphqlApiService.searchDepartments(args))
+          args => UserSearchGraphqlApiService.getDepartment(args),
+          args => UserSearchGraphqlApiService.searchDepartments(args)
+        )
       )
     ) @@
       maxFields(200) @@ // query analyzer that limit query fields

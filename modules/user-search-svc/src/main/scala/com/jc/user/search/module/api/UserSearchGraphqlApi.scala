@@ -5,6 +5,8 @@ import com.jc.user.search.api.graphql.model.{
   Department,
   DepartmentSearchResponse,
   FieldSort,
+  GetDepartment,
+  GetUser,
   SearchRequest,
   User,
   UserSearchResponse
@@ -37,12 +39,26 @@ object UserSearchGraphqlApiHandler {
       extends UserSearchGraphqlApiService.Service {
     import io.scalaland.chimney.dsl._
 
+    override def getUser(request: GetUser): IO[Throwable, Option[User]] = {
+      userSearchRepo
+        .find(request.id)
+        .mapError(toCalibanError)
+        .map(_.map(_.transformInto[User]))
+    }
+
     override def searchUsers(request: SearchRequest): IO[Throwable, UserSearchResponse] = {
       val ss = request.sorts.getOrElse(Seq.empty).map(toRepoFieldSort)
       userSearchRepo
         .search(request.query, request.page, request.pageSize, ss)
         .mapError(toCalibanError)
         .map(r => UserSearchResponse(r.items.map(_.transformInto[User]), r.page, r.pageSize, r.count))
+    }
+
+    override def getDepartment(request: GetDepartment): IO[Throwable, Option[Department]] = {
+      departmentSearchRepo
+        .find(request.id)
+        .mapError(toCalibanError)
+        .map(_.map(_.transformInto[Department]))
     }
 
     override def searchDepartments(request: SearchRequest): IO[Throwable, DepartmentSearchResponse] = {
