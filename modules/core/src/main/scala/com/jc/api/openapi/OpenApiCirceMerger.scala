@@ -16,7 +16,35 @@ object OpenApiCirceMerger {
   }
 
   def merge(main: Json, second: Json): Json = {
-    second.deepMerge(main)
+
+    def stringConcatMerge(m: Json, s: Json, sep: String): Json = {
+      (m.asString, s.asString) match {
+        case (Some(m), Some(s)) => Json.fromString(s"${m}${sep}${s}")
+        case _ => m
+      }
+    }
+
+    def customMerge(m: Json, s: Json, path: List[String]): Json = {
+      path match {
+        case "description" :: "info" :: Nil => stringConcatMerge(m, s, "\n")
+        case _ => deepMerge(m, s, path)
+      }
+    }
+
+    def deepMerge(m: Json, s: Json, path: List[String] = Nil): Json =
+      (m.asObject, s.asObject) match {
+        case (Some(mhs), Some(shs)) =>
+          Json.fromJsonObject(
+            shs.toIterable.foldLeft(mhs) { case (acc, (key, value)) =>
+              mhs(key).fold(acc.add(key, value)) { r =>
+                acc.add(key, customMerge(value, r, key :: path))
+              }
+            }
+          )
+        case _ => m
+      }
+
+    deepMerge(main, second)
   }
 
   def mergeYamls(main: String, others: Iterable[String]): Either[String, String] = {
