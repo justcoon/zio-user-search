@@ -3,13 +3,13 @@ Scope.Global / scalaVersion := "2.13.6"
 
 lazy val Versions = new {
   val kindProjector = "0.13.2"
-  val http4s = "0.22.4"
-  val zio = "1.0.11"
+  val http4s = "0.22.5"
+  val zio = "1.0.12"
   val zioInteropCats = "2.5.1.0" // "3.1.1.0"
   val zioKafka = "0.16.0"
   val zioLogging = "0.5.12"
   val zioMetrics = "1.0.12"
-  val zioMagic = "0.3.8"
+  val zioMagic = "0.3.9"
   val elastic4s = "7.14.1"
   val jackson = "2.12.5"
   val circe = "0.14.1"
@@ -17,7 +17,7 @@ lazy val Versions = new {
   val pureconfig = "0.16.0"
   val refined = "0.9.27"
   val logback = "1.2.6"
-  val grpc = "1.40.1"
+  val grpc = "1.41.0"
   val chimney = "0.6.1"
   val pauldijouJwt = "5.0.0"
   val tapir = "0.18.3"
@@ -53,6 +53,7 @@ lazy val library =
     val tapirSwaggerUiHttp4s = "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-http4s" % Versions.tapir
     val circeGeneric = "io.circe" %% "circe-generic"                                      % Versions.circe
     val circeGenericExtras = "io.circe" %% "circe-generic-extras"                         % Versions.circe
+    val circeYaml = "io.circe" %% "circe-yaml"                                      % Versions.circe
     val pauldijouJwtCirce = "com.pauldijou" %% "jwt-circe"                                % Versions.pauldijouJwt
     val pureconfig = "com.github.pureconfig" %% "pureconfig"                              % Versions.pureconfig
     val refinedPureconfig = "eu.timepit" %% "refined-pureconfig"                          % Versions.refined
@@ -122,6 +123,7 @@ lazy val `core` =
         library.zioLoggingSlf4j,
         library.circeGeneric,
         library.circeGenericExtras,
+        library.circeYaml,
         library.pauldijouJwtCirce,
         library.pureconfig,
         library.refinedPureconfig,

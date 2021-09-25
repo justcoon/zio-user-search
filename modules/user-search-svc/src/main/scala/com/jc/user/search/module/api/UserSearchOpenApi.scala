@@ -1,6 +1,6 @@
 package com.jc.user.search.module.api
 
-import com.jc.api.openapi.OpenApiMerger
+import com.jc.api.openapi.{OpenApiCirceMerger, OpenApiMerger}
 import com.jc.user.search.api.openapi.definitions.{
   Department,
   DepartmentSearchResponse,
@@ -180,6 +180,7 @@ object UserSearchOpenApiHandler {
     val y1 = Source.fromResource("UserSearchOpenApi.yaml").mkString
     val y2 = Source.fromResource("LoggingSystemOpenApi.yaml").mkString
     val my = OpenApiMerger.mergeYamls(y1, y2 :: Nil)
+//    val my = OpenApiCirceMerger.mergeYamls(y1, y2)
     val yaml = my.getOrElse("")
 
     val docRoutes: HttpRoutes[ZIO[E, Throwable, *]] = new SwaggerHttp4s(yaml).routes
