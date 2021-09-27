@@ -12,7 +12,7 @@ import com.jc.user.search.api.graphql.model.{
   UserSearchResponse
 }
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
-import zio.{IO, ZIO, ZLayer}
+import zio.{Has, IO, URIO, ZIO, ZLayer}
 import zhttp.http._
 import caliban.{CalibanError, GraphQLInterpreter, ZHttpAdapter}
 import com.jc.auth.JwtAuthenticator
@@ -84,34 +84,38 @@ object UserSearchGraphqlApiHandler {
     Http.succeed(Response.http(content = HttpData.fromStream(ZStream.fromResource("graphiql.html"))))
 
   def graphqlRoutes(
-    interpreter: GraphQLInterpreter[Clock with Logging with UserSearchGraphqlApiService, CalibanError]): Http[
-    Clock with Logging with UserSearchGraphqlApiService,
-    HttpError,
+    interpreter: GraphQLInterpreter[
+      Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator,
+      CalibanError]): Http[
+    Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator with JwtAuthenticator,
+    Throwable,
     Request,
-    Response[Clock with Logging with UserSearchGraphqlApiService with Blocking, Throwable]] = {
+    Response[Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator with Blocking, Throwable]] = {
 
     Http.route {
-      case _ -> Root / "api" / "graphql" => ZHttpAdapter.makeHttpService(interpreter)
+      case _ -> Root / "api" / "graphql" => auth(ZHttpAdapter.makeHttpService(interpreter))
       case _ -> Root / "graphiql" => graphiql
     }
   }
 
-  private val unauthorized = Http.fail(CalibanError.ExecutionError("Unauthorized"))
+  private val unauthorized = CalibanError.ExecutionError("Unauthorized")
 
   def auth[R, B](app: Http[R, HttpError, Request, Response[R, HttpError]])
-    : Http[R with JwtAuthenticator, Object, Request, Response[R, HttpError]] =
+    : Http[R with JwtAuthenticator, Throwable, Request, Response[R, HttpError]] =
     Http
       .fromEffectFunction[Request] { (request: Request) =>
         ZIO
           .service[JwtAuthenticator.Service]
           .flatMap { authenticator =>
-            for {
+            val res = for {
               rawToken <- ZIO.getOrFailWith(unauthorized)(request.headers
                 .find(_.name == JwtAuthenticator.AuthHeader))
               maybeSubject <- authenticator.authenticated(
                 JwtAuthenticator.sanitizeBearerAuthToken(rawToken.value.toString))
-              _ <- ZIO.getOrFailWith(unauthorized)(maybeSubject)
-            } yield app
+              subject <- ZIO.getOrFailWith(unauthorized)(maybeSubject)
+            } yield subject
+
+            res.fold(e => Http.fail(e), _ => app)
           }
       }
       .flatten

@@ -23,7 +23,7 @@ lazy val Versions = new {
   val tapir = "0.18.3"
   val caliban = "1.1.1"
 
-  val scalaTest = "3.2.9"
+  val scalaTest = "3.2.10"
   val gatling = "3.6.1"
   val gatlingGrpc = "0.11.1"
   val swaggerParser = "2.0.27"
