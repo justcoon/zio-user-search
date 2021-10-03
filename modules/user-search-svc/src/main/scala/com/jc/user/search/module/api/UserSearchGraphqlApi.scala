@@ -94,16 +94,12 @@ object UserSearchGraphqlApiHandler {
   private val graphiql =
     Http.succeed(Response.http(content = HttpData.fromStream(ZStream.fromResource("graphiql.html"))))
 
-  def graphqlRoutes(
-    interpreter: GraphQLInterpreter[
-      Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator,
-      CalibanError]): Http[
-    Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator,
-    Throwable,
+  def graphqlRoutes[R <: Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator](
+    interpreter: GraphQLInterpreter[R, CalibanError]): Http[
+    R with UserSearchGraphqlApiRequestContext,
+    HttpError,
     Request,
-    Response[
-      Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator with Blocking,
-      Throwable]] = {
+    Response[R with UserSearchGraphqlApiRequestContext with Blocking, Throwable]] = {
 
     Http.route {
       case _ -> Root / "api" / "graphql" => httpService(interpreter) //ZHttpAdapter.makeHttpService(interpreter)
@@ -113,44 +109,33 @@ object UserSearchGraphqlApiHandler {
 
   private val unauthorized = CalibanError.ExecutionError("Unauthorized")
 
-  def httpService(
-    interpreter: GraphQLInterpreter[
-      Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator,
-      CalibanError]): Http[
-    Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator,
-    Throwable,
-    Request,
-    Response[
-      Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator,
-      HttpError]] =
+  def httpService[R <: Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator](
+    interpreter: GraphQLInterpreter[R, CalibanError]) =
     Http
       .fromFunction[Request] { (request: Request) =>
         val context = ZIO.succeed(HttpRequestContext(request.headers)).toLayer
 
-        ZHttpAdapter.makeHttpService(
-          interpreter.provideSomeLayer[
-            Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator](
-            context))
+        ZHttpAdapter.makeHttpService(interpreter.provideSomeLayer[R with UserSearchGraphqlApiRequestContext](context))
       }
       .flatten
 
-//  def auth[R, B](app: Http[R, HttpError, Request, Response[R, HttpError]])
-//    : Http[R with JwtAuthenticator, Throwable, Request, Response[R, HttpError]] =
-//    Http
-//      .fromEffectFunction[Request] { (request: Request) =>
-//        ZIO
-//          .service[JwtAuthenticator.Service]
-//          .flatMap { authenticator =>
-//            val res = for {
-//              rawToken <- ZIO.getOrFailWith(unauthorized)(request.headers
-//                .find(_.name == JwtAuthenticator.AuthHeader))
-//              maybeSubject <- authenticator.authenticated(
-//                JwtAuthenticator.sanitizeBearerAuthToken(rawToken.value.toString))
-//              subject <- ZIO.getOrFailWith(unauthorized)(maybeSubject)
-//            } yield subject
-//
-//            res.fold(e => Http.fail(e), _ => app)
-//          }
-//      }
-//      .flatten
+  def auth[R, B](app: Http[R, HttpError, Request, Response[R, HttpError]])
+    : Http[R with JwtAuthenticator, Throwable, Request, Response[R, HttpError]] =
+    Http
+      .fromEffectFunction[Request] { (request: Request) =>
+        ZIO
+          .service[JwtAuthenticator.Service]
+          .flatMap { authenticator =>
+            val res = for {
+              rawToken <- ZIO.getOrFailWith(unauthorized)(request.headers
+                .find(_.name == JwtAuthenticator.AuthHeader))
+              maybeSubject <- authenticator.authenticated(
+                JwtAuthenticator.sanitizeBearerAuthToken(rawToken.value.toString))
+              subject <- ZIO.getOrFailWith(unauthorized)(maybeSubject)
+            } yield subject
+
+            res.fold(e => Http.fail(e), _ => app)
+          }
+      }
+      .flatten
 }
