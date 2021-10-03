@@ -16,7 +16,10 @@ import zio.{Has, IO, URIO, ZIO, ZLayer}
 import zhttp.http._
 import caliban.{CalibanError, GraphQLInterpreter, ZHttpAdapter}
 import com.jc.auth.JwtAuthenticator
-import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiService
+import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
+  UserSearchGraphqlApiRequestContext,
+  UserSearchGraphqlApiService
+}
 import com.jc.user.search.model.ExpectedFailure
 import zio.blocking.Blocking
 import zio.clock.Clock
@@ -31,6 +34,14 @@ object UserSearchGraphqlApiHandler {
 
   def toCalibanError(e: ExpectedFailure): CalibanError = {
     CalibanError.ExecutionError(ExpectedFailure.getMessage(e))
+  }
+
+  final case class HttpRequestContext(headers: List[Header]) extends UserSearchGraphqlApiService.RequestContext {
+
+    override def get(name: String): Option[String] = {
+      headers.find(_.name == name).map(_.value.toString)
+    }
+    override val names: Set[String] = headers.map(_.name.toString).toSet
   }
 
   final case class LiveUserSearchGraphqlApiService(
@@ -85,44 +96,61 @@ object UserSearchGraphqlApiHandler {
 
   def graphqlRoutes(
     interpreter: GraphQLInterpreter[
-      Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator,
+      Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator,
       CalibanError]): Http[
-    Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator with JwtAuthenticator,
+    Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator,
     Throwable,
     Request,
-    Response[Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator with Blocking, Throwable]] = {
+    Response[
+      Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator with Blocking,
+      Throwable]] = {
 
     Http.route {
-      case _ -> Root / "api" / "graphql" => auth(ZHttpAdapter.makeHttpService(interpreter))
+      case _ -> Root / "api" / "graphql" => httpService(interpreter) //ZHttpAdapter.makeHttpService(interpreter)
       case _ -> Root / "graphiql" => graphiql
     }
   }
 
   private val unauthorized = CalibanError.ExecutionError("Unauthorized")
 
-  def headers(): Http[Any, Nothing, Request, ZLayer[Any, Nothing, Has[List[Header]]]] =
+  def httpService(
+    interpreter: GraphQLInterpreter[
+      Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator,
+      CalibanError]): Http[
+    Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator,
+    Throwable,
+    Request,
+    Response[
+      Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator,
+      HttpError]] =
     Http
       .fromFunction[Request] { (request: Request) =>
-        ZLayer.fromEffect(ZIO.succeed(request.headers))
-      }
+        val context = ZIO.succeed(HttpRequestContext(request.headers)).toLayer
 
-  def auth[R, B](app: Http[R, HttpError, Request, Response[R, HttpError]])
-    : Http[R with JwtAuthenticator, Throwable, Request, Response[R, HttpError]] =
-    Http
-      .fromEffectFunction[Request] { (request: Request) =>
-        ZIO
-          .service[JwtAuthenticator.Service]
-          .flatMap { authenticator =>
-            val res = for {
-              rawToken <- ZIO.getOrFailWith(unauthorized)(request.headers
-                .find(_.name == JwtAuthenticator.AuthHeader))
-              maybeSubject <- authenticator.authenticated(
-                JwtAuthenticator.sanitizeBearerAuthToken(rawToken.value.toString))
-              subject <- ZIO.getOrFailWith(unauthorized)(maybeSubject)
-            } yield subject
-
-            res.fold(e => Http.fail(e), _ => app)
-          }
+        ZHttpAdapter.makeHttpService(
+          interpreter.provideSomeLayer[
+            Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext with JwtAuthenticator](
+            context))
       }
       .flatten
+
+//  def auth[R, B](app: Http[R, HttpError, Request, Response[R, HttpError]])
+//    : Http[R with JwtAuthenticator, Throwable, Request, Response[R, HttpError]] =
+//    Http
+//      .fromEffectFunction[Request] { (request: Request) =>
+//        ZIO
+//          .service[JwtAuthenticator.Service]
+//          .flatMap { authenticator =>
+//            val res = for {
+//              rawToken <- ZIO.getOrFailWith(unauthorized)(request.headers
+//                .find(_.name == JwtAuthenticator.AuthHeader))
+//              maybeSubject <- authenticator.authenticated(
+//                JwtAuthenticator.sanitizeBearerAuthToken(rawToken.value.toString))
+//              subject <- ZIO.getOrFailWith(unauthorized)(maybeSubject)
+//            } yield subject
+//
+//            res.fold(e => Http.fail(e), _ => app)
+//          }
+//      }
+//      .flatten
 }

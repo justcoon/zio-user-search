@@ -13,46 +13,46 @@ import izumi.reflect.Tag
 import zio.{Has, IO, RIO, ZIO}
 
 object UserSearchGraphqlApiService {
-//  type UserSearchGraphqlApiService = Has[Service]
+  type UserSearchGraphqlApiService = Has[Service]
 
+  type UserSearchGraphqlApiRequestContext = Has[RequestContext]
 
   trait RequestContext {
-    def get(header: String): Option[String]
-    def headers: Set[String]
+    def get(name: String): Option[String]
+    def names: Set[String]
   }
 
-
-
-  trait Service[Context] {
-
-    def getUser(request: GetUser): RIO[Has[Context], Option[User]]
-    def searchUsers(request: SearchRequest): RIO[Has[Context], UserSearchResponse]
-    def getDepartment(request: GetDepartment): RIO[Has[Context], Option[Department]]
-    def searchDepartments(request: SearchRequest): RIO[Has[Context], DepartmentSearchResponse]
+  trait Service {
+    def getUser(request: GetUser): RIO[UserSearchGraphqlApiRequestContext, Option[User]]
+    def searchUsers(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, UserSearchResponse]
+    def getDepartment(request: GetDepartment): RIO[UserSearchGraphqlApiRequestContext, Option[Department]]
+    def searchDepartments(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, DepartmentSearchResponse]
   }
 
-  def getUser2[C: Tag](origin: GetUser): RIO[Has[Service[C]] with Has[C], Option[User]] = {
-    RIO.fromFunctionM[Has[UserSearchGraphqlApiService.Service[C]] with Has[C], Option[User]] { env =>
-      env.get[UserSearchGraphqlApiService.Service[C]].getUser(origin).provide(env)
+  def getUser2(
+    origin: GetUser): RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[User]] = {
+    RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[User]] { env =>
+      env.get[UserSearchGraphqlApiService.Service].getUser(origin).provide(env)
     }
   }
 
-  def searchUsers2[C: Tag](
-    origin: SearchRequest): RIO[Has[UserSearchGraphqlApiService.Service[C]] with Has[C], UserSearchResponse] =
-    RIO.fromFunctionM[Has[UserSearchGraphqlApiService.Service[C]] with Has[C], UserSearchResponse] { env =>
-      env.get[UserSearchGraphqlApiService.Service[C]].searchUsers(origin).provide(env)
+  def searchUsers2(origin: SearchRequest)
+    : RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, UserSearchResponse] =
+    RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, UserSearchResponse] { env =>
+      env.get[UserSearchGraphqlApiService.Service].searchUsers(origin).provide(env)
     }
 
-  def getDepartment2[C: Tag](
-    origin: GetDepartment): RIO[Has[UserSearchGraphqlApiService.Service[C]] with Has[C], Option[Department]] =
-    RIO.fromFunctionM[Has[UserSearchGraphqlApiService.Service[C]] with Has[C], Option[Department]] { env =>
-      env.get[UserSearchGraphqlApiService.Service[C]].getDepartment(origin).provide(env)
+  def getDepartment2(origin: GetDepartment)
+    : RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[Department]] =
+    RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[Department]] { env =>
+      env.get[UserSearchGraphqlApiService.Service].getDepartment(origin).provide(env)
     }
 
-  def searchDepartments2[C: Tag](
-    origin: SearchRequest): RIO[Has[UserSearchGraphqlApiService.Service[C]] with Has[C], DepartmentSearchResponse] =
-    RIO.fromFunctionM[Has[UserSearchGraphqlApiService.Service[C]] with Has[C], DepartmentSearchResponse] { env =>
-      env.get[UserSearchGraphqlApiService.Service[C]].searchDepartments(origin).provide(env)
+  def searchDepartments2(origin: SearchRequest)
+    : RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, DepartmentSearchResponse] =
+    RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, DepartmentSearchResponse] {
+      env =>
+        env.get[UserSearchGraphqlApiService.Service].searchDepartments(origin).provide(env)
     }
 
 //  def getUser(origin: GetUser): RIO[UserSearchGraphqlApiService, Option[User]] =
