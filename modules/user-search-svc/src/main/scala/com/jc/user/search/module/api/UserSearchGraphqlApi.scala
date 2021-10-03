@@ -100,6 +100,12 @@ object UserSearchGraphqlApiHandler {
 
   private val unauthorized = CalibanError.ExecutionError("Unauthorized")
 
+  def headers(): Http[Any, Nothing, Request, ZLayer[Any, Nothing, Has[List[Header]]]] =
+    Http
+      .fromFunction[Request] { (request: Request) =>
+        ZLayer.fromEffect(ZIO.succeed(request.headers))
+      }
+
   def auth[R, B](app: Http[R, HttpError, Request, Response[R, HttpError]])
     : Http[R with JwtAuthenticator, Throwable, Request, Response[R, HttpError]] =
     Http
