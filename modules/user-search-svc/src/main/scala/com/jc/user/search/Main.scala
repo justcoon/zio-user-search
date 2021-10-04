@@ -130,7 +130,9 @@ object Main extends App {
 
           val zserver: ZIO[AppEnvironment, Throwable, Nothing] =
             ZHttpServer
-              .start(appConfig.graphqlApi.port, UserSearchGraphqlApiHandler.graphqlRoutes(graphqlInterpreter))
+              .start(
+                appConfig.graphqlApi.port,
+                UserSearchGraphqlApiHandler.graphqlRoutes[AppEnvironment](graphqlInterpreter))
               .forever
 
           UserSearchRepoInit.init *>

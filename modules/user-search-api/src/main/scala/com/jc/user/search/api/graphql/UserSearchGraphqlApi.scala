@@ -22,8 +22,7 @@ import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
   UserSearchGraphqlApiRequestContext,
   UserSearchGraphqlApiService
 }
-import izumi.reflect.Tag
-import zio.{Has, RIO, ZIO}
+import zio.{RIO, ZIO}
 import zio.clock.Clock
 import zio.duration._
 import shapeless.tag.@@
@@ -65,14 +64,14 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
   implicit val userSearchResponseSchema = gen[UserSearchResponse]
   implicit val departmentSearchResponseSchema = gen[DepartmentSearchResponse]
 
-  val api: GraphQL[Clock with Logging with UserSearchGraphqlApiService  with UserSearchGraphqlApiRequestContext] =
+  val api: GraphQL[Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] =
     graphQL(
       RootResolver(
         Queries(
-          args => UserSearchGraphqlApiService.getUser2(args),
-          args => UserSearchGraphqlApiService.searchUsers2(args),
-          args => UserSearchGraphqlApiService.getDepartment2(args),
-          args => UserSearchGraphqlApiService.searchDepartments2(args)
+          args => UserSearchGraphqlApiService.getUser(args),
+          args => UserSearchGraphqlApiService.searchUsers(args),
+          args => UserSearchGraphqlApiService.getDepartment(args),
+          args => UserSearchGraphqlApiService.searchDepartments(args)
         )
       )
     ) @@
