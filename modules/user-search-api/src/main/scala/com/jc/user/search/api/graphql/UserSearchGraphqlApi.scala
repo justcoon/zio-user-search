@@ -18,6 +18,10 @@ import caliban.GraphQL.graphQL
 import caliban.wrappers.ApolloTracing.apolloTracing
 import caliban.wrappers.Wrapper.OverallWrapper
 import caliban.wrappers.Wrappers._
+import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
+  UserSearchGraphqlApiRequestContext,
+  UserSearchGraphqlApiService
+}
 import zio.{RIO, ZIO}
 import zio.clock.Clock
 import zio.duration._
@@ -26,18 +30,22 @@ import zio.logging.Logging
 
 import scala.language.postfixOps
 
-object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.UserSearchGraphqlApiService] {
+object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] {
 
   case class Queries(
     @GQLDescription("Get user")
-    getUser: GetUser => RIO[UserSearchGraphqlApiService.UserSearchGraphqlApiService, Option[User]],
+    getUser: GetUser => RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[User]],
     @GQLDescription("Search users")
-    searchUsers: SearchRequest => RIO[UserSearchGraphqlApiService.UserSearchGraphqlApiService, UserSearchResponse],
+    searchUsers: SearchRequest => RIO[
+      UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
+      UserSearchResponse],
     @GQLDescription("Get department")
-    getDepartment: GetDepartment => RIO[UserSearchGraphqlApiService.UserSearchGraphqlApiService, Option[Department]],
+    getDepartment: GetDepartment => RIO[
+      UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
+      Option[Department]],
     @GQLDescription("Search departments")
     searchDepartments: SearchRequest => RIO[
-      UserSearchGraphqlApiService.UserSearchGraphqlApiService,
+      UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
       DepartmentSearchResponse]
   )
 
@@ -56,7 +64,7 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService.Us
   implicit val userSearchResponseSchema = gen[UserSearchResponse]
   implicit val departmentSearchResponseSchema = gen[DepartmentSearchResponse]
 
-  val api: GraphQL[Clock with Logging with UserSearchGraphqlApiService.UserSearchGraphqlApiService] =
+  val api: GraphQL[Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] =
     graphQL(
       RootResolver(
         Queries(

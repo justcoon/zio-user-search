@@ -6,12 +6,12 @@ lazy val Versions = new {
   val http4s = "0.22.5"
   val zio = "1.0.12"
   val zioInteropCats = "2.5.1.0" // "3.1.1.0"
-  val zioKafka = "0.16.0"
+  val zioKafka = "0.17.0"
   val zioLogging = "0.5.12"
   val zioMetrics = "1.0.12"
   val zioMagic = "0.3.9"
-  val elastic4s = "7.14.1"
-  val jackson = "2.12.5"
+  val elastic4s = "7.15.0"
+  val jackson = "2.13.0"
   val circe = "0.14.1"
   val randomDataGenerator = "2.9"
   val pureconfig = "0.16.0"
@@ -23,10 +23,10 @@ lazy val Versions = new {
   val tapir = "0.18.3"
   val caliban = "1.1.1"
 
-  val scalaTest = "3.2.9"
+  val scalaTest = "3.2.10"
   val gatling = "3.6.1"
   val gatlingGrpc = "0.11.1"
-  val swaggerParser = "2.0.27"
+  val swaggerParser = "2.0.28"
 
 }
 

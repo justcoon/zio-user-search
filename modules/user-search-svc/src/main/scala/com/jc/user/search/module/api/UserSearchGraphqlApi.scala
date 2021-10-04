@@ -12,11 +12,14 @@ import com.jc.user.search.api.graphql.model.{
   UserSearchResponse
 }
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
-import zio.{IO, ZIO, ZLayer}
+import zio.{RIO, ZIO, ZLayer}
 import zhttp.http._
 import caliban.{CalibanError, GraphQLInterpreter, ZHttpAdapter}
 import com.jc.auth.JwtAuthenticator
-import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiService
+import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
+  UserSearchGraphqlApiRequestContext,
+  UserSearchGraphqlApiService
+}
 import com.jc.user.search.model.ExpectedFailure
 import zio.blocking.Blocking
 import zio.clock.Clock
@@ -33,20 +36,44 @@ object UserSearchGraphqlApiHandler {
     CalibanError.ExecutionError(ExpectedFailure.getMessage(e))
   }
 
+  final case class HttpRequestContext(headers: List[Header]) extends UserSearchGraphqlApiService.RequestContext {
+
+    override def get(name: String): Option[String] = {
+      headers.find(_.name == name).map(_.value.toString)
+    }
+
+    override val names: Set[String] = headers.map(_.name.toString).toSet
+  }
+
   final case class LiveUserSearchGraphqlApiService(
     userSearchRepo: UserSearchRepo.Service,
-    departmentSearchRepo: DepartmentSearchRepo.Service)
+    departmentSearchRepo: DepartmentSearchRepo.Service,
+    jwtAuthenticator: JwtAuthenticator.Service)
       extends UserSearchGraphqlApiService.Service {
     import io.scalaland.chimney.dsl._
 
-    override def getUser(request: GetUser): IO[Throwable, Option[User]] = {
-      userSearchRepo
-        .find(request.id)
-        .mapError(toCalibanError)
-        .map(_.map(_.transformInto[User]))
+    private val unauthorized = CalibanError.ExecutionError("Unauthorized")
+
+    def authenticated(): ZIO[UserSearchGraphqlApiRequestContext, CalibanError, String] = {
+      ZIO.serviceWith { context =>
+        for {
+          rawToken <- ZIO.getOrFailWith(unauthorized)(context.get(JwtAuthenticator.AuthHeader))
+          maybeSubject <- jwtAuthenticator.authenticated(JwtAuthenticator.sanitizeBearerAuthToken(rawToken))
+          subject <- ZIO.getOrFailWith(unauthorized)(maybeSubject)
+        } yield subject
+      }
     }
 
-    override def searchUsers(request: SearchRequest): IO[Throwable, UserSearchResponse] = {
+    override def getUser(request: GetUser): RIO[UserSearchGraphqlApiRequestContext, Option[User]] = {
+      authenticated().flatMap { _ =>
+        userSearchRepo
+          .find(request.id)
+          .mapError(toCalibanError)
+          .map(_.map(_.transformInto[User]))
+      }
+    }
+
+    override def searchUsers(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, UserSearchResponse] = {
       val ss = request.sorts.getOrElse(Seq.empty).map(toRepoFieldSort)
       userSearchRepo
         .search(request.query, request.page, request.pageSize, ss)
@@ -54,14 +81,17 @@ object UserSearchGraphqlApiHandler {
         .map(r => UserSearchResponse(r.items.map(_.transformInto[User]), r.page, r.pageSize, r.count))
     }
 
-    override def getDepartment(request: GetDepartment): IO[Throwable, Option[Department]] = {
-      departmentSearchRepo
-        .find(request.id)
-        .mapError(toCalibanError)
-        .map(_.map(_.transformInto[Department]))
+    override def getDepartment(request: GetDepartment): RIO[UserSearchGraphqlApiRequestContext, Option[Department]] = {
+      authenticated().flatMap { _ =>
+        departmentSearchRepo
+          .find(request.id)
+          .mapError(toCalibanError)
+          .map(_.map(_.transformInto[Department]))
+      }
     }
 
-    override def searchDepartments(request: SearchRequest): IO[Throwable, DepartmentSearchResponse] = {
+    override def searchDepartments(
+      request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, DepartmentSearchResponse] = {
       val ss = request.sorts.getOrElse(Seq.empty).map(toRepoFieldSort)
       departmentSearchRepo
         .search(request.query, request.page, request.pageSize, ss)
@@ -72,47 +102,39 @@ object UserSearchGraphqlApiHandler {
   }
 
   val live: ZLayer[
-    UserSearchRepo with DepartmentSearchRepo,
+    UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator,
     Nothing,
     UserSearchGraphqlApiService.UserSearchGraphqlApiService] =
-    ZLayer.fromServices[UserSearchRepo.Service, DepartmentSearchRepo.Service, UserSearchGraphqlApiService.Service] {
-      (userSearchRepo, departmentSearchRepo) =>
-        LiveUserSearchGraphqlApiService(userSearchRepo, departmentSearchRepo)
+    ZLayer.fromServices[
+      UserSearchRepo.Service,
+      DepartmentSearchRepo.Service,
+      JwtAuthenticator.Service,
+      UserSearchGraphqlApiService.Service] { (userSearchRepo, departmentSearchRepo, jwtAuthenticator) =>
+      LiveUserSearchGraphqlApiService(userSearchRepo, departmentSearchRepo, jwtAuthenticator)
     }
 
-  private val graphiql =
-    Http.succeed(Response.http(content = HttpData.fromStream(ZStream.fromResource("graphiql.html"))))
+  private val graphiql: HttpApp[Blocking, HttpError] = {
+    val c = HttpData.fromStream(ZStream.fromResource("graphiql.html").mapError(_ => HttpError.InternalServerError()))
+    Http.succeed(Response.http(content = c))
+  }
 
-  def graphqlRoutes(
-    interpreter: GraphQLInterpreter[Clock with Logging with UserSearchGraphqlApiService, CalibanError]): Http[
-    Clock with Logging with UserSearchGraphqlApiService,
-    HttpError,
-    Request,
-    Response[Clock with Logging with UserSearchGraphqlApiService with Blocking, Throwable]] = {
-
+  def graphqlRoutes[R <: Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator with Blocking](
+    interpreter: GraphQLInterpreter[R with UserSearchGraphqlApiRequestContext, CalibanError]): HttpApp[R, HttpError] = {
     Http.route {
-      case _ -> Root / "api" / "graphql" => ZHttpAdapter.makeHttpService(interpreter)
+      case _ -> Root / "api" / "graphql" => httpService[R](interpreter) //ZHttpAdapter.makeHttpService(interpreter)
       case _ -> Root / "graphiql" => graphiql
     }
   }
 
-  private val unauthorized = Http.fail(CalibanError.ExecutionError("Unauthorized"))
-
-  def auth[R, B](app: Http[R, HttpError, Request, Response[R, HttpError]])
-    : Http[R with JwtAuthenticator, Object, Request, Response[R, HttpError]] =
+  def httpService[R <: Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator](
+    interpreter: GraphQLInterpreter[R with UserSearchGraphqlApiRequestContext, CalibanError]): HttpApp[R, HttpError] =
     Http
-      .fromEffectFunction[Request] { (request: Request) =>
-        ZIO
-          .service[JwtAuthenticator.Service]
-          .flatMap { authenticator =>
-            for {
-              rawToken <- ZIO.getOrFailWith(unauthorized)(request.headers
-                .find(_.name == JwtAuthenticator.AuthHeader))
-              maybeSubject <- authenticator.authenticated(
-                JwtAuthenticator.sanitizeBearerAuthToken(rawToken.value.toString))
-              _ <- ZIO.getOrFailWith(unauthorized)(maybeSubject)
-            } yield app
-          }
+      .fromFunction[Request] { (request: Request) =>
+        val context: ZLayer[R, Nothing, UserSearchGraphqlApiRequestContext] =
+          ZIO.succeed(HttpRequestContext(request.headers)).toLayer
+
+        ZHttpAdapter.makeHttpService(interpreter.provideSomeLayer[R](context))
       }
       .flatten
+
 }

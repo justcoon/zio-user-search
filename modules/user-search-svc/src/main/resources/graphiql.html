@@ -19,6 +19,11 @@
         #graphiql {
             height: 100vh;
         }
+        #auth-form {
+            position: absolute;
+            top: 15px;
+            right: 100px;
+        }
     </style>
 
     <!--
@@ -43,6 +48,12 @@
 
 </head>
 <body>
+<div id="auth-form" style="display:flex; flex-direction: row; font-weight: bold;">
+    <div>
+        <label for="authorization">Authorization:</label>
+        <input type="text" class="x" id="authorization" value="authorization" />
+    </div>
+</div>
 <div id="graphiql">Loading...</div>
 <script>
 
@@ -119,6 +130,7 @@
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
+                'Authorization': `${document.getElementById('authorization').value}`,
             },
             body: JSON.stringify(graphQLParams),
             credentials: 'include',
@@ -150,6 +162,8 @@
         }),
         document.getElementById('graphiql')
     );
+    document.getElementById('authorization').value = localStorage.getItem('Authorization');
+    document.getElementById('authorization').oninput = function(evt) { localStorage.setItem('Authorization', evt.target.value) };
 </script>
 </body>
 </html>
