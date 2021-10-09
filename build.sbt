@@ -3,7 +3,7 @@ Scope.Global / scalaVersion := "2.13.6"
 
 lazy val Versions = new {
   val kindProjector = "0.13.2"
-  val http4s = "0.22.5"
+  val http4s = "0.22.6"
   val zio = "1.0.12"
   val zioInteropCats = "2.5.1.0" // "3.1.1.0"
   val zioKafka = "0.17.0"
@@ -26,7 +26,6 @@ lazy val Versions = new {
   val scalaTest = "3.2.10"
   val gatling = "3.6.1"
   val gatlingGrpc = "0.11.1"
-  val swaggerParser = "2.0.28"
 
 }
 
@@ -79,7 +78,6 @@ lazy val library =
 
     // Java libraries
     val logback = "ch.qos.logback"             % "logback-classic" % Versions.logback
-    val swaggerParser = "io.swagger.parser.v3" % "swagger-parser"  % Versions.swaggerParser
   }
 
 lazy val `zio-user-search` =
@@ -136,8 +134,7 @@ lazy val `core` =
         library.scalapbRuntimeGrpc,
         library.scalatest,
         // Java libraries
-        library.logback,
-        library.swaggerParser
+        library.logback
       )
     )
 

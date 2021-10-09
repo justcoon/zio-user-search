@@ -179,7 +179,7 @@ object UserSearchOpenApiHandler {
     import sttp.tapir.server.http4s.ztapir._
     val y1 = Source.fromResource("UserSearchOpenApi.yaml").mkString
     val y2 = Source.fromResource("LoggingSystemOpenApi.yaml").mkString
-    val my = OpenApiCirceMerger.mergeYamls(y1, y2)
+    val my = OpenApiCirceMerger().mergeYamls(y1, y2)
     val yaml = my.getOrElse("")
 
     val docRoutes: HttpRoutes[ZIO[E, Throwable, *]] = new SwaggerHttp4s(yaml).routes

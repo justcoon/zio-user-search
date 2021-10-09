@@ -14,7 +14,7 @@ class OpenApiCirceMergerTest extends AnyWordSpecLike with should.Matchers with B
   "OpenApiCirceMerger" must {
 
     "mergeYamls" in {
-      val m = OpenApiCirceMerger.mergeYamls(y1, y2 :: Nil)
+      val m = OpenApiCirceMerger().mergeYamls(y1, y2)
 
       m.isRight shouldBe true
 
