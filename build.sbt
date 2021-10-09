@@ -321,6 +321,6 @@ lazy val dockerSettings =
     Docker / maintainer := "justcoon",
 //   Docker / version := "latest",
     dockerUpdateLatest := true,
-    dockerExposedPorts := Vector(8000, 8010, 9080),
+    dockerExposedPorts := Vector(8000, 8005, 8010, 9080),
     dockerBaseImage    := "openjdk:11-jre"
   )
