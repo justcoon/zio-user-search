@@ -1,14 +1,13 @@
 package com.jc.auth
 
 import pdi.jwt.JwtClaim
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers._
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import java.time.Clock
 import scala.util.{Success, Try}
 
-class PdiJwtHelperTest extends AnyWordSpecLike with should.Matchers with BeforeAndAfterAll {
+class PdiJwtHelperTest extends AnyWordSpecLike with should.Matchers {
   import eu.timepit.refined.auto._
 
   implicit val clock: Clock = Clock.systemUTC

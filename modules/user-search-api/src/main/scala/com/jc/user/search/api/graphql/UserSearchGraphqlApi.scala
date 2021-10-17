@@ -7,7 +7,11 @@ import com.jc.user.search.api.graphql.model.{
   FieldSort,
   GetDepartment,
   GetUser,
+  PropertySuggestion,
   SearchRequest,
+  SuggestRequest,
+  SuggestResponse,
+  TermSuggestion,
   User,
   UserSearchResponse
 }
@@ -39,6 +43,10 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
     searchUsers: SearchRequest => RIO[
       UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
       UserSearchResponse],
+    @GQLDescription("Suggest users")
+    suggestUsers: SuggestRequest => RIO[
+      UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
+      SuggestResponse],
     @GQLDescription("Get department")
     getDepartment: GetDepartment => RIO[
       UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
@@ -46,7 +54,11 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
     @GQLDescription("Search departments")
     searchDepartments: SearchRequest => RIO[
       UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
-      DepartmentSearchResponse]
+      DepartmentSearchResponse],
+    @GQLDescription("Suggest departments")
+    suggestDepartments: SuggestRequest => RIO[
+      UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
+      SuggestResponse]
   )
 
   implicit def tagSchema[A, T](implicit s: UserSearchGraphqlApi.Typeclass[A]): UserSearchGraphqlApi.Typeclass[A @@ T] =
@@ -63,6 +75,10 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
   implicit val searchRequestSchema = gen[SearchRequest]
   implicit val userSearchResponseSchema = gen[UserSearchResponse]
   implicit val departmentSearchResponseSchema = gen[DepartmentSearchResponse]
+  implicit val suggestRequestSchema = gen[SuggestRequest]
+  implicit val suggestResponseSchema = gen[SuggestResponse]
+  implicit val termSuggestionSchema = gen[TermSuggestion]
+  implicit val propertySuggestionSchema = gen[PropertySuggestion]
 
   val api: GraphQL[Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] =
     graphQL(
@@ -70,8 +86,10 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
         Queries(
           args => UserSearchGraphqlApiService.getUser(args),
           args => UserSearchGraphqlApiService.searchUsers(args),
+          args => UserSearchGraphqlApiService.suggestUsers(args),
           args => UserSearchGraphqlApiService.getDepartment(args),
-          args => UserSearchGraphqlApiService.searchDepartments(args)
+          args => UserSearchGraphqlApiService.searchDepartments(args),
+          args => UserSearchGraphqlApiService.suggestDepartments(args)
         )
       )
     ) @@

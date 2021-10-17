@@ -1,5 +1,6 @@
 package com.jc.user.search.api
 
+import com.jc.auth.JwtAuthenticator
 import com.typesafe.config.ConfigFactory
 import io.gatling.core.Predef.{stringToExpression => _, _}
 import pureconfig.ConfigSource
@@ -16,25 +17,23 @@ final class UserSearchOpenApiSimulation extends Simulation {
 
   val httpConf: HttpProtocolBuilder = http.baseUrl(s"http://${apiConfig.address.value}:${apiConfig.port.value}")
 
-  val jwtAuthHeader = "Authorization"
-
   val jwtToken =
     "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJ6aW8tdXNlci1zZWFyY2giLCJzdWIiOiJ0ZXN0IiwiZXhwIjoyMjE1Mjg1MDU5LCJpYXQiOjE2MTA0ODUwNTl9.MONRFj9rSf23AV7rCCPfkyqHWVhHkI42R93CK5QHpxMSsb9oc_65YpWsmDfdX2IzzKVqdSP59rL_3_CRK_C4dg"
 
   val getDepartmentSuccessfulCall: HttpRequestBuilder = http("getDepartment").get { s =>
     val id = s.attributes.getOrElse("id", "d1")
     s"/v1/department/${id}"
-  }.header(jwtAuthHeader, jwtToken)
+  }.header(JwtAuthenticator.AuthHeader, jwtToken)
 
   val searchUsersSuccessfulCall: HttpRequestBuilder = http("searchUsers").get { s =>
     val id = s.attributes.getOrElse("id", "")
     s"/v1/user/search?query=${id}&page=0&pageSize=10"
-  }.header(jwtAuthHeader, jwtToken)
+  }.header(JwtAuthenticator.AuthHeader, jwtToken)
 
   val suggestUsersSuccessfulCall: HttpRequestBuilder = http("suggestUsers").get { s =>
     val id = s.attributes.getOrElse("id", "")
     s"/v1/user/suggest?query=${id}"
-  }.header(jwtAuthHeader, jwtToken)
+  }.header(JwtAuthenticator.AuthHeader, jwtToken)
 
   val s = scenario("UserSearchOpenApi")
     .repeat(100) {

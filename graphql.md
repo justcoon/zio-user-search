@@ -3,7 +3,7 @@ search users example
 
 ```qraphql
 query searchUsers() {
-  searchUsers(query:"UK", page: 0, pageSize: 10, sorts:[{
+  searchUsers(query: "UK", page: 0, pageSize: 10, sorts:[{
     field: "email"
     asc:true
   }]) {
@@ -19,12 +19,26 @@ query searchUsers() {
 }
 ```
 
+suggest users example
+
+```qraphql
+query suggestUsers() {
+  suggestUsers(query: "bl") {
+    suggestions {
+      property
+      suggestions {
+        text
+      }
+    }
+  }
+}
+```
+
 get user example
 
 ```qraphql
 query getUser() {
   getUser(id: "123") {
-    
       id
       email
       address {
@@ -33,8 +47,6 @@ query getUser() {
       department {
         name
       }
-  } 
-  
+  }  
 }
-
 ```

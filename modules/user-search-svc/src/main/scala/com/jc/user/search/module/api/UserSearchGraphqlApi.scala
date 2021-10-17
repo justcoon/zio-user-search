@@ -7,7 +7,10 @@ import com.jc.user.search.api.graphql.model.{
   FieldSort,
   GetDepartment,
   GetUser,
+  PropertySuggestion,
   SearchRequest,
+  SuggestRequest,
+  SuggestResponse,
   User,
   UserSearchResponse
 }
@@ -74,12 +77,22 @@ object UserSearchGraphqlApiHandler {
     }
 
     override def searchUsers(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, UserSearchResponse] = {
-      val ss = request.sorts.getOrElse(Seq.empty).map(toRepoFieldSort)
-      userSearchRepo
-        .search(request.query, request.page, request.pageSize, ss)
-        .mapError(toCalibanError)
-        .map(r => UserSearchResponse(r.items.map(_.transformInto[User]), r.page, r.pageSize, r.count))
+      authenticated().flatMap { _ =>
+        val ss = request.sorts.getOrElse(Seq.empty).map(toRepoFieldSort)
+        userSearchRepo
+          .search(request.query, request.page, request.pageSize, ss)
+          .mapError(toCalibanError)
+          .map(r => UserSearchResponse(r.items.map(_.transformInto[User]), r.page, r.pageSize, r.count))
+      }
     }
+
+    override def suggestUsers(request: SuggestRequest): RIO[UserSearchGraphqlApiRequestContext, SuggestResponse] =
+      authenticated().flatMap { _ =>
+        userSearchRepo
+          .suggest(request.query)
+          .mapError(toCalibanError)
+          .map(r => SuggestResponse(r.items.map(_.transformInto[PropertySuggestion])))
+      }
 
     override def getDepartment(request: GetDepartment): RIO[UserSearchGraphqlApiRequestContext, Option[Department]] = {
       authenticated().flatMap { _ =>
@@ -92,12 +105,22 @@ object UserSearchGraphqlApiHandler {
 
     override def searchDepartments(
       request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, DepartmentSearchResponse] = {
-      val ss = request.sorts.getOrElse(Seq.empty).map(toRepoFieldSort)
-      departmentSearchRepo
-        .search(request.query, request.page, request.pageSize, ss)
-        .mapError(toCalibanError)
-        .map(r => DepartmentSearchResponse(r.items.map(_.transformInto[Department]), r.page, r.pageSize, r.count))
+      authenticated().flatMap { _ =>
+        val ss = request.sorts.getOrElse(Seq.empty).map(toRepoFieldSort)
+        departmentSearchRepo
+          .search(request.query, request.page, request.pageSize, ss)
+          .mapError(toCalibanError)
+          .map(r => DepartmentSearchResponse(r.items.map(_.transformInto[Department]), r.page, r.pageSize, r.count))
+      }
     }
+
+    override def suggestDepartments(request: SuggestRequest): RIO[UserSearchGraphqlApiRequestContext, SuggestResponse] =
+      authenticated().flatMap { _ =>
+        departmentSearchRepo
+          .suggest(request.query)
+          .mapError(toCalibanError)
+          .map(r => SuggestResponse(r.items.map(_.transformInto[PropertySuggestion])))
+      }
 
   }
 
@@ -121,7 +144,7 @@ object UserSearchGraphqlApiHandler {
   def graphqlRoutes[R <: Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator with Blocking](
     interpreter: GraphQLInterpreter[R with UserSearchGraphqlApiRequestContext, CalibanError]): HttpApp[R, HttpError] = {
     Http.route {
-      case _ -> Root / "api" / "graphql" => httpService[R](interpreter) //ZHttpAdapter.makeHttpService(interpreter)
+      case _ -> Root / "api" / "graphql" => httpService[R](interpreter)
       case _ -> Root / "graphiql" => graphiql
     }
   }
@@ -132,7 +155,6 @@ object UserSearchGraphqlApiHandler {
       .fromFunction[Request] { (request: Request) =>
         val context: ZLayer[R, Nothing, UserSearchGraphqlApiRequestContext] =
           ZIO.succeed(HttpRequestContext(request.headers)).toLayer
-
         ZHttpAdapter.makeHttpService(interpreter.provideSomeLayer[R](context))
       }
       .flatten

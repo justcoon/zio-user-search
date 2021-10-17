@@ -1,5 +1,6 @@
 package com.jc.user.search.api
 
+import com.jc.auth.JwtAuthenticator
 import com.typesafe.config.ConfigFactory
 import io.circe._
 import io.circe.syntax._
@@ -18,8 +19,6 @@ final class UserSearchGraphqlSimulation extends Simulation {
   val apiConfig = ConfigSource.fromConfig(config.getConfig("graphql-api")).loadOrThrow[HttpApiConfig]
 
   val httpConf: HttpProtocolBuilder = http.baseUrl(s"http://${apiConfig.address.value}:${apiConfig.port.value}")
-
-  val jwtAuthHeader = "Authorization"
 
   val jwtToken =
     "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJ6aW8tdXNlci1zZWFyY2giLCJzdWIiOiJ0ZXN0IiwiZXhwIjoyMjE1Mjg1MDU5LCJpYXQiOjE2MTA0ODUwNTl9.MONRFj9rSf23AV7rCCPfkyqHWVhHkI42R93CK5QHpxMSsb9oc_65YpWsmDfdX2IzzKVqdSP59rL_3_CRK_C4dg"
@@ -88,21 +87,40 @@ final class UserSearchGraphqlSimulation extends Simulation {
     GraphqlRequest(q, Map("query" -> id)).asJson.noSpaces
   }
 
+  val suggestUser: Expression[String] = s => {
+    val id = s.attributes.getOrElse("id", "d1").toString
+    val q = """
+              |query suggestUsers($query: String!) {
+              |  suggestUsers(query: $query) {
+              |    suggestions {
+              |      property
+              |      suggestions {
+              |        text
+              |      }
+              |    }
+              |  }
+              |}
+              |""".stripMargin
+    GraphqlRequest(q, Map("query" -> id)).asJson.noSpaces
+  }
+
   val getDepartmentSuccessfulCall: HttpRequestBuilder = http("getDepartment")
     .post("/api/graphql")
     .body(StringBody(getDepartmentExpression))
-    .header(jwtAuthHeader, jwtToken)
+    .header(JwtAuthenticator.AuthHeader, jwtToken)
     .header("Content-Type", "application/json")
 
   val searchUsersSuccessfulCall: HttpRequestBuilder = http("searchUsers")
     .post("/api/graphql")
     .body(StringBody(searchUser))
-    .header(jwtAuthHeader, jwtToken)
+    .header(JwtAuthenticator.AuthHeader, jwtToken)
     .header("Content-Type", "application/json")
 
-//  val suggestUsersSuccessfulCall: HttpRequestBuilder = http("suggestUsers").post("/api/graphql")
-//    .body(StringBody(suggestUser)).header(jwtAuthHeader, jwtToken)
-//    .header("Content-Type", "application/json")
+  val suggestUsersSuccessfulCall: HttpRequestBuilder = http("suggestUsers")
+    .post("/api/graphql")
+    .body(StringBody(suggestUser))
+    .header(JwtAuthenticator.AuthHeader, jwtToken)
+    .header("Content-Type", "application/json")
 
   val s = scenario("UserSearchGraphqlApi")
     .repeat(100) {
@@ -111,8 +129,8 @@ final class UserSearchGraphqlSimulation extends Simulation {
         .exec(searchUsersSuccessfulCall)
         .feed(countryFeeder)
         .exec(searchUsersSuccessfulCall)
-//        .feed(suggestFeeder)
-//        .exec(suggestUsersSuccessfulCall)
+        .feed(suggestFeeder)
+        .exec(suggestUsersSuccessfulCall)
     }
 
   setUp(

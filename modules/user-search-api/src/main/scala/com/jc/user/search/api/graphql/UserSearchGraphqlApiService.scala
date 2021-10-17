@@ -6,6 +6,8 @@ import com.jc.user.search.api.graphql.model.{
   GetDepartment,
   GetUser,
   SearchRequest,
+  SuggestRequest,
+  SuggestResponse,
   User,
   UserSearchResponse
 }
@@ -24,8 +26,10 @@ object UserSearchGraphqlApiService {
   trait Service {
     def getUser(request: GetUser): RIO[UserSearchGraphqlApiRequestContext, Option[User]]
     def searchUsers(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, UserSearchResponse]
+    def suggestUsers(request: SuggestRequest): RIO[UserSearchGraphqlApiRequestContext, SuggestResponse]
     def getDepartment(request: GetDepartment): RIO[UserSearchGraphqlApiRequestContext, Option[Department]]
     def searchDepartments(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, DepartmentSearchResponse]
+    def suggestDepartments(request: SuggestRequest): RIO[UserSearchGraphqlApiRequestContext, SuggestResponse]
   }
 
   def getUser(
@@ -41,6 +45,12 @@ object UserSearchGraphqlApiService {
       env.get[UserSearchGraphqlApiService.Service].searchUsers(origin).provide(env)
     }
 
+  def suggestUsers(
+    origin: SuggestRequest): RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, SuggestResponse] =
+    RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, SuggestResponse] { env =>
+      env.get[UserSearchGraphqlApiService.Service].suggestUsers(origin).provide(env)
+    }
+
   def getDepartment(origin: GetDepartment)
     : RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[Department]] =
     RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[Department]] { env =>
@@ -52,5 +62,11 @@ object UserSearchGraphqlApiService {
     RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, DepartmentSearchResponse] {
       env =>
         env.get[UserSearchGraphqlApiService.Service].searchDepartments(origin).provide(env)
+    }
+
+  def suggestDepartments(
+    origin: SuggestRequest): RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, SuggestResponse] =
+    RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, SuggestResponse] { env =>
+      env.get[UserSearchGraphqlApiService.Service].suggestDepartments(origin).provide(env)
     }
 }

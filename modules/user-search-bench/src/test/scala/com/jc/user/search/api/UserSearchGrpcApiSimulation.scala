@@ -2,6 +2,7 @@ package com.jc.user.search.api
 
 import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.pb._
+import com.jc.auth.JwtAuthenticator
 import com.typesafe.config.ConfigFactory
 import eu.timepit.refined.auto._
 import io.gatling.core.Predef.{stringToExpression => _, _}
@@ -19,7 +20,8 @@ final class UserSearchGrpcApiSimulation extends Simulation {
 
   val grpcConf = grpc(managedChannelBuilder(name = apiConfig.address, port = apiConfig.port).usePlaintext())
 
-  val jwtAuthHeader: Metadata.Key[String] = Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER)
+  val jwtAuthHeader: Metadata.Key[String] =
+    Metadata.Key.of(JwtAuthenticator.AuthHeader, Metadata.ASCII_STRING_MARSHALLER)
 
   val jwtToken =
     "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJ6aW8tdXNlci1zZWFyY2giLCJzdWIiOiJ0ZXN0IiwiZXhwIjoyMjE1MDc4MTYwLCJpYXQiOjE2MTAyNzgxNjB9.CCTmZT-Iy-0bq2WnoEbr6E5hhP-VYI_YlaUUolH5y00kvBA5AYgR2BQyLSCO6QhG1i2Yv0_2Xv4w8PWoqfvcZg"

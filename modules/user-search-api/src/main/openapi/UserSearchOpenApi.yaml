@@ -95,7 +95,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DepartmentSuggestResponse'
+                $ref: '#/components/schemas/SuggestResponse'
         '400':
           description: failed operation
           content:
@@ -206,7 +206,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserSuggestResponse'
+                $ref: '#/components/schemas/SuggestResponse'
         '400':
           description: failed operation
           content:
@@ -316,16 +316,6 @@ components:
         - page
         - pageSize
         - count
-    DepartmentSuggestResponse:
-      description: Department suggest response
-      properties:
-        suggestions:
-          type: array
-          items:
-            $ref: '#/components/schemas/PropertySuggestion'
-      type: object
-      required:
-        - suggestions
     User:
       properties:
         id:
@@ -376,8 +366,8 @@ components:
         - page
         - pageSize
         - count
-    UserSuggestResponse:
-      description: User suggest response
+    SuggestResponse:
+      description: Suggest response
       properties:
         suggestions:
           type: array

@@ -1,12 +1,11 @@
 package com.jc.api.openapi
 
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers._
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.io.Source
 
-class OpenApiCirceMergerTest extends AnyWordSpecLike with should.Matchers with BeforeAndAfterAll {
+class OpenApiCirceMergerTest extends AnyWordSpecLike with should.Matchers {
 
   val y1 = Source.fromResource("UserSearchOpenApi.yaml").mkString
   val y2 = Source.fromResource("LoggingSystemOpenApi.yaml").mkString

@@ -4,12 +4,11 @@ import com.jc.api.openapi.OpenApiCirceMerger
 import com.jc.user.search.api.openapi.definitions.{
   Department,
   DepartmentSearchResponse,
-  DepartmentSuggestResponse,
   PropertySuggestion,
+  SuggestResponse,
   TermSuggestion,
   User,
-  UserSearchResponse,
-  UserSuggestResponse
+  UserSearchResponse
 }
 import com.jc.user.search.api.openapi.user.{
   GetDepartmentResponse,
@@ -91,7 +90,7 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
                 .withFieldComputed(_.suggestions, v => v.suggestions.map(_.transformInto[TermSuggestion]).toVector)
                 .transform)
             .toVector
-          respond.Ok(DepartmentSuggestResponse(items))
+          respond.Ok(SuggestResponse(items))
         }
       )
   }
@@ -147,7 +146,7 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
                 .withFieldComputed(_.suggestions, v => v.suggestions.map(_.transformInto[TermSuggestion]).toVector)
                 .transform)
             .toVector
-          respond.Ok(UserSuggestResponse(items))
+          respond.Ok(SuggestResponse(items))
         }
       )
   }
