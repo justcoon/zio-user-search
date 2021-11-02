@@ -28,8 +28,10 @@ import com.jc.logging.api.LoggingSystemOpenApiHandler
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
 import org.http4s.{Headers, HttpRoutes}
 import org.http4s.server.Router
-import sttp.tapir.swagger.http4s.SwaggerHttp4s
+import sttp.tapir.swagger.SwaggerUI
 import zio.ZIO
+import zio.blocking.Blocking
+import zio.clock.Clock
 
 import scala.io.Source
 
@@ -164,15 +166,15 @@ object UserSearchOpenApiHandler {
         SearchRepository.FieldSort(sort, true)
     }
 
-  def userSearchApiRoutes[E <: UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator]
+  def userSearchApiRoutes[E <: UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator with Clock with Blocking]
     : HttpRoutes[ZIO[E, Throwable, *]] = {
     import zio.interop.catz._
-
     new UserResource[ZIO[E, Throwable, *], Headers](customExtract = _ => req => req.headers)
       .routes(new UserSearchOpenApiHandler[E]())
   }
 
-  def httpRoutes[E <: UserSearchRepo with DepartmentSearchRepo with LoggingSystem with JwtAuthenticator]
+  def httpRoutes[
+    E <: UserSearchRepo with DepartmentSearchRepo with LoggingSystem with JwtAuthenticator with Clock with Blocking]
     : HttpRoutes[ZIO[E, Throwable, *]] = {
     import zio.interop.catz._
     import sttp.tapir.server.http4s.ztapir._
@@ -181,7 +183,7 @@ object UserSearchOpenApiHandler {
     val my = OpenApiCirceMerger().mergeYamls(y1, y2)
     val yaml = my.getOrElse("")
 
-    val docRoutes: HttpRoutes[ZIO[E, Throwable, *]] = new SwaggerHttp4s(yaml).routes
+    val docRoutes = ZHttp4sServerInterpreter().from(SwaggerUI[ZIO[E, Throwable, *]](yaml)).toRoutes
 
     val usApiRoutes: HttpRoutes[ZIO[E, Throwable, *]] = userSearchApiRoutes
 

@@ -36,6 +36,10 @@ object UserSearchGrpcApiHandler {
     SearchRepository.FieldSort(sort.field, sort.order.isAsc)
   }
 
+  def toStatus(e: ExpectedFailure): Status = {
+    Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e))
+  }
+
   final case class LiveUserSearchApiService(
     userSearchRepo: UserSearchRepo.Service,
     departmentSearchRepo: DepartmentSearchRepo.Service,
@@ -48,7 +52,7 @@ object UserSearchGrpcApiHandler {
         _ <- GrpcJwtAuth.authenticated(jwtAuthenticator)
         res <- userSearchRepo
           .find(request.id)
-          .mapError[Status](e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)))
+          .mapError(toStatus)
       } yield GetUserRes(res.map(_.transformInto[proto.User]))
 
       res
@@ -72,7 +76,7 @@ object UserSearchGrpcApiHandler {
         }
         .mapConcat(identity)
         .map(_.transformInto[proto.User])
-        .mapError { e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)) }
+        .mapError(toStatus)
     }
 
     override def searchUsers(request: SearchUsersReq): IO[Status, SearchUsersRes] = {
@@ -106,7 +110,7 @@ object UserSearchGrpcApiHandler {
         _ <- GrpcJwtAuth.authenticated(jwtAuthenticator)
         res <- departmentSearchRepo
           .find(request.id)
-          .mapError[Status](e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)))
+          .mapError(toStatus)
       } yield GetDepartmentRes(res.map(_.transformInto[proto.Department]))
 
       res
@@ -147,7 +151,7 @@ object UserSearchGrpcApiHandler {
         }
         .mapConcat(identity)
         .map(_.transformInto[proto.Department])
-        .mapError { e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)) }
+        .mapError(toStatus)
     }
 
     override def suggestDepartments(request: SuggestDepartmentsReq): IO[Status, SuggestDepartmentsRes] = {

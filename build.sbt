@@ -1,16 +1,16 @@
 Global / resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-Scope.Global / scalaVersion := "2.13.6"
+Scope.Global / scalaVersion := "2.13.7"
 
 lazy val Versions = new {
   val kindProjector = "0.13.2"
-  val http4s = "0.22.7"
+  val http4s = "0.23.6"
   val zio = "1.0.12"
-  val zioInteropCats = "2.5.1.0" // "3.1.1.0"
-  val zioKafka = "0.17.0"
-  val zioLogging = "0.5.12"
-  val zioMetrics = "1.0.12"
+  val zioInteropCats =  "3.1.1.0" // "2.5.1.0"
+  val zioKafka = "0.17.1"
+  val zioLogging = "0.5.13"
+  val zioMetrics = "1.0.13"
   val zioMagic = "0.3.9"
-  val elastic4s = "7.15.0"
+  val elastic4s = "7.15.1"
   val jackson = "2.13.0"
   val circe = "0.14.1"
   val randomDataGenerator = "2.9"
@@ -20,7 +20,7 @@ lazy val Versions = new {
   val grpc = "1.41.0"
   val chimney = "0.6.1"
   val pauldijouJwt = "5.0.0"
-  val tapir = "0.18.3"
+  val tapir = "0.19.0-M13"
   val caliban = "1.2.1"
 
   val scalaTest = "3.2.10"
@@ -49,10 +49,10 @@ lazy val library =
     val http4sBlazeClient = "org.http4s" %% "http4s-blaze-client"                         % Versions.http4s
     val http4sCirce = "org.http4s" %% "http4s-circe"                                      % Versions.http4s
     val tapirZioHttp4s = "com.softwaremill.sttp.tapir" %% "tapir-zio-http4s-server"       % Versions.tapir
-    val tapirSwaggerUiHttp4s = "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-http4s" % Versions.tapir
+    val tapirSwaggerUi = "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui"              % Versions.tapir
     val circeGeneric = "io.circe" %% "circe-generic"                                      % Versions.circe
     val circeGenericExtras = "io.circe" %% "circe-generic-extras"                         % Versions.circe
-    val circeYaml = "io.circe" %% "circe-yaml"                                      % Versions.circe
+    val circeYaml = "io.circe" %% "circe-yaml"                                            % Versions.circe
     val pauldijouJwtCirce = "com.pauldijou" %% "jwt-circe"                                % Versions.pauldijouJwt
     val pureconfig = "com.github.pureconfig" %% "pureconfig"                              % Versions.pureconfig
     val refinedPureconfig = "eu.timepit" %% "refined-pureconfig"                          % Versions.refined
@@ -206,7 +206,7 @@ lazy val `user-search-svc` =
         library.http4sBlazeClient,
         library.http4sCirce,
         library.tapirZioHttp4s,
-        library.tapirSwaggerUiHttp4s,
+        library.tapirSwaggerUi,
         library.circeGeneric,
         library.circeGenericExtras,
         library.pureconfig,
