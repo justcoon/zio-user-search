@@ -117,10 +117,8 @@ object Main extends App {
 
       runtime: ZIO[AppEnvironment, Throwable, Nothing] = ZIO.runtime[AppEnvironment].flatMap {
         implicit rts: Runtime[AppEnvironment] =>
-          val ec = rts.platform.executor.asEC
-
           val server: ZIO[AppEnvironment, Throwable, Nothing] =
-            BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]](ec)
+            BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]]
               .bindHttp(appConfig.restApi.port, appConfig.restApi.address)
               .withHttpApp(httpApp)
               .serve

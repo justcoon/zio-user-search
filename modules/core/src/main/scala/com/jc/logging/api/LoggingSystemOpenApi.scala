@@ -17,6 +17,8 @@ import com.jc.logging.openapi.logging.{
   SetLoggerConfigurationResponse
 }
 import org.http4s.{Headers, HttpRoutes}
+import zio.blocking.Blocking
+import zio.clock.Clock
 import zio.{UIO, ZIO}
 
 final class LoggingSystemOpenApiHandler[R <: LoggingSystem with JwtAuthenticator]
@@ -107,7 +109,8 @@ object LoggingSystemOpenApiHandler {
       levels.map(LoggingSystemOpenApiHandler.logLevelMapping.toLogger).toSeq
     }
 
-  def loggingSystemApiRoutes[E <: LoggingSystem with JwtAuthenticator]: HttpRoutes[ZIO[E, Throwable, *]] = {
+  def loggingSystemApiRoutes[E <: LoggingSystem with JwtAuthenticator with Clock with Blocking]
+    : HttpRoutes[ZIO[E, Throwable, *]] = {
     import zio.interop.catz._
     new LoggingResource[ZIO[E, Throwable, *], Headers](customExtract = _ => req => req.headers)
       .routes(new LoggingSystemOpenApiHandler[E]())
