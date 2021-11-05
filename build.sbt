@@ -17,11 +17,11 @@ lazy val Versions = new {
   val pureconfig = "0.17.0"
   val refined = "0.9.27"
   val logback = "1.2.6"
-  val grpc = "1.41.0"
+  val grpc = "1.42.0"
   val chimney = "0.6.1"
   val pauldijouJwt = "5.0.0"
   val tapir = "0.19.0-M13"
-  val caliban = "1.2.1"
+  val caliban = "1.2.2"
 
   val scalaTest = "3.2.10"
   val gatling = "3.6.1"
@@ -173,6 +173,7 @@ lazy val `user-search-api` =
         library.http4sCirce,
         library.circeGeneric,
         library.circeGenericExtras,
+        library.calibanHttp4s,
         library.calibanZioHttp,
         library.scalapbRuntime,
         library.scalapbRuntimeGrpc

@@ -48,14 +48,12 @@ object UserSearchGrpcApiHandler {
     import io.scalaland.chimney.dsl._
 
     override def getUser(request: GetUserReq): ZIO[Has[RequestContext], Status, GetUserRes] = {
-      val res: ZIO[Has[RequestContext], Status, GetUserRes] = for {
+      for {
         _ <- GrpcJwtAuth.authenticated(jwtAuthenticator)
         res <- userSearchRepo
           .find(request.id)
           .mapError(toStatus)
       } yield GetUserRes(res.map(_.transformInto[proto.User]))
-
-      res
     }
 
     override def searchUserStream(request: SearchUserStreamReq): ZStream[Any, Status, User] = {
@@ -106,14 +104,12 @@ object UserSearchGrpcApiHandler {
     }
 
     override def getDepartment(request: GetDepartmentReq): ZIO[Has[RequestContext], Status, GetDepartmentRes] = {
-      val res: ZIO[Has[RequestContext], Status, GetDepartmentRes] = for {
+      for {
         _ <- GrpcJwtAuth.authenticated(jwtAuthenticator)
         res <- departmentSearchRepo
           .find(request.id)
           .mapError(toStatus)
       } yield GetDepartmentRes(res.map(_.transformInto[proto.Department]))
-
-      res
     }
 
     override def searchDepartments(request: SearchDepartmentsReq): IO[Status, SearchDepartmentsRes] = {

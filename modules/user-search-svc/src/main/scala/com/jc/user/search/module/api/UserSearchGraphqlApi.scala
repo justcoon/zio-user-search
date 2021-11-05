@@ -17,13 +17,16 @@ import com.jc.user.search.api.graphql.model.{
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
 import zio.{RIO, ZIO, ZLayer}
 import zhttp.http._
-import caliban.{CalibanError, GraphQLInterpreter, ZHttpAdapter}
+import caliban.{CalibanError, GraphQLInterpreter, Http4sAdapter, ZHttpAdapter}
+import cats.data.Kleisli
 import com.jc.auth.JwtAuthenticator
 import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
   UserSearchGraphqlApiRequestContext,
   UserSearchGraphqlApiService
 }
 import com.jc.user.search.model.ExpectedFailure
+import org.http4s
+import org.http4s.dsl.Http4sDsl
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.logging.Logging
@@ -158,5 +161,19 @@ object UserSearchGraphqlApiHandler {
         ZHttpAdapter.makeHttpService(interpreter.provideSomeLayer[R](context))
       }
       .flatten
+
+  def graphqlRoutes2[R <: Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator with Blocking](
+    interpreter: GraphQLInterpreter[R with UserSearchGraphqlApiRequestContext, CalibanError])
+    : http4s.HttpRoutes[ZIO[R, Throwable, *]] = {
+    import zio.interop.catz._
+    http4s.server
+      .Router[ZIO[R, Throwable, *]](
+        "/api/graphql" -> Http4sAdapter.provideSomeLayerFromRequest[R, UserSearchGraphqlApiRequestContext](
+          Http4sAdapter.makeHttpService(interpreter),
+          req => ZIO.succeed(HttpRequestContext(Nil)).toLayer // FIXME context
+        ),
+        "/graphiql" -> Kleisli.liftF(http4s.StaticFile.fromResource("/graphiql.html", None))
+      )
+  }
 
 }

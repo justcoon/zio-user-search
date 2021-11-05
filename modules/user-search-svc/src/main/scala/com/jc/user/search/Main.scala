@@ -62,6 +62,14 @@ object Main extends App {
   private val httpApp: HttpApp[ZIO[AppEnvironment, Throwable, *]] =
     HttpServerLogger.httpApp[ZIO[AppEnvironment, Throwable, *]](true, true)(httpRoutes.orNotFound)
 
+//  private def httpRoutes2: HttpRoutes[ZIO[AppEnvironment, Throwable, *]] =
+//    Router[ZIO[AppEnvironment, Throwable, *]](
+//      "/" -> UserSearchOpenApiHandler.httpRoutes[AppEnvironment],
+//      "/" -> HealthCheckApi.httpRoutes)
+//
+//  private def httpApp2: HttpApp[ZIO[AppEnvironment, Throwable, *]] =
+//    HttpServerLogger.httpApp[ZIO[AppEnvironment, Throwable, *]](true, 2true)(httpRoutes.orNotFound)
+
   private def metrics(config: PrometheusConfig): ZIO[AppEnvironment, Throwable, PrometheusHttpServer] = {
     for {
       registry <- getCurrentRegistry()
