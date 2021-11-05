@@ -67,7 +67,6 @@ lazy val library =
     val scalapbRuntimeGrpc = "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion
 
     val calibanHttp4s = "com.github.ghostdogpr" %% "caliban-http4s" % Versions.caliban
-    val calibanZioHttp = "com.github.ghostdogpr" %% "caliban-zio-http" % Versions.caliban
 
     val gatlingCharts = "io.gatling.highcharts" % "gatling-charts-highcharts" % Versions.gatling
     val gatlingTest = "io.gatling"              % "gatling-test-framework"    % Versions.gatling
@@ -174,7 +173,6 @@ lazy val `user-search-api` =
         library.circeGeneric,
         library.circeGenericExtras,
         library.calibanHttp4s,
-        library.calibanZioHttp,
         library.scalapbRuntime,
         library.scalapbRuntimeGrpc
       )
@@ -322,6 +320,6 @@ lazy val dockerSettings =
     Docker / maintainer := "justcoon",
 //   Docker / version := "latest",
     dockerUpdateLatest := true,
-    dockerExposedPorts := Vector(8000, 8005, 8010, 9080),
+    dockerExposedPorts := Vector(8000, 8010, 9080),
     dockerBaseImage    := "openjdk:11-jre"
   )

@@ -16,8 +16,7 @@ import com.jc.user.search.api.graphql.model.{
 }
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
 import zio.{RIO, ZIO, ZLayer}
-import zhttp.http._
-import caliban.{CalibanError, GraphQLInterpreter, Http4sAdapter, ZHttpAdapter}
+import caliban.{CalibanError, GraphQLInterpreter, Http4sAdapter}
 import cats.data.Kleisli
 import com.jc.auth.JwtAuthenticator
 import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
@@ -30,7 +29,6 @@ import org.typelevel.ci.CIString
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.logging.Logging
-import zio.stream.ZStream
 
 object UserSearchGraphqlApiHandler {
 
@@ -44,14 +42,6 @@ object UserSearchGraphqlApiHandler {
     CalibanError.ExecutionError(ExpectedFailure.getMessage(e))
   }
 
-//  final case class HttpRequestContext(headers: List[Header]) extends UserSearchGraphqlApiService.RequestContext {
-//
-//    override def get(name: String): Option[String] = {
-//      headers.find(_.name == name).map(_.value.toString)
-//    }
-//
-//    override val names: Set[String] = headers.map(_.name.toString).toSet
-//  }
   final case class HttpRequestContext(headers: http4s.Headers) extends UserSearchGraphqlApiService.RequestContext {
 
     override def get(name: String): Option[String] = {
@@ -150,30 +140,7 @@ object UserSearchGraphqlApiHandler {
       LiveUserSearchGraphqlApiService(userSearchRepo, departmentSearchRepo, jwtAuthenticator)
     }
 
-//  private val graphiql: HttpApp[Blocking, HttpError] = {
-//    val c = HttpData.fromStream(ZStream.fromResource("graphiql.html").mapError(_ => HttpError.InternalServerError()))
-//    Http.succeed(Response.http(content = c))
-//  }
-//
-//  def graphqlRoutes[R <: Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator with Blocking](
-//    interpreter: GraphQLInterpreter[R with UserSearchGraphqlApiRequestContext, CalibanError]): HttpApp[R, HttpError] = {
-//    Http.route {
-//      case _ -> Root / "api" / "graphql" => httpService[R](interpreter)
-//      case _ -> Root / "graphiql" => graphiql
-//    }
-//  }
-//
-//  def httpService[R <: UserSearchGraphqlApiHandler.ApiEnv](
-//    interpreter: GraphQLInterpreter[R with UserSearchGraphqlApiRequestContext, CalibanError]): HttpApp[R, HttpError] =
-//    Http
-//      .fromFunction[Request] { (request: Request) =>
-//        val context: ZLayer[R, Nothing, UserSearchGraphqlApiRequestContext] =
-//          ZIO.succeed(HttpRequestContext(request.headers)).toLayer
-//        ZHttpAdapter.makeHttpService(interpreter.provideSomeLayer[R](context))
-//      }
-//      .flatten
-
-  def graphqlRoutes2[R <: UserSearchGraphqlApiHandler.ApiEnv](
+  def graphqlRoutes[R <: UserSearchGraphqlApiHandler.ApiEnv](
     interpreter: GraphQLInterpreter[R with UserSearchGraphqlApiRequestContext, CalibanError])
     : http4s.HttpRoutes[ZIO[R, Throwable, *]] = {
     import zio.interop.catz._
