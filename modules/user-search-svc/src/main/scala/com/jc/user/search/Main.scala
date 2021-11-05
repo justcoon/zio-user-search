@@ -1,5 +1,6 @@
 package com.jc.user.search
 
+import caliban.{CalibanError, GraphQLInterpreter}
 import com.jc.user.search.api.proto.ZioUserSearchApi.RCUserSearchApiService
 import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, HttpApiConfig, PrometheusConfig}
 import com.jc.user.search.module.api.{
@@ -13,7 +14,10 @@ import com.jc.logging.{LogbackLoggingSystem, LoggingSystem}
 import com.jc.logging.api.{LoggingSystemGrpcApi, LoggingSystemGrpcApiHandler}
 import com.jc.logging.proto.ZioLoggingSystemApi.RCLoggingSystemApiService
 import com.jc.user.search.api.graphql.UserSearchGraphqlApi
-import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiService
+import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
+  UserSearchGraphqlApiRequestContext,
+  UserSearchGraphqlApiService
+}
 import com.jc.user.search.module.kafka.KafkaConsumer
 import com.jc.user.search.module.processor.EventProcessor
 import com.jc.user.search.module.repo.{
@@ -62,13 +66,21 @@ object Main extends App {
   private val httpApp: HttpApp[ZIO[AppEnvironment, Throwable, *]] =
     HttpServerLogger.httpApp[ZIO[AppEnvironment, Throwable, *]](true, true)(httpRoutes.orNotFound)
 
-//  private def httpRoutes2: HttpRoutes[ZIO[AppEnvironment, Throwable, *]] =
-//    Router[ZIO[AppEnvironment, Throwable, *]](
-//      "/" -> UserSearchOpenApiHandler.httpRoutes[AppEnvironment],
-//      "/" -> HealthCheckApi.httpRoutes)
-//
-//  private def httpApp2: HttpApp[ZIO[AppEnvironment, Throwable, *]] =
-//    HttpServerLogger.httpApp[ZIO[AppEnvironment, Throwable, *]](true, 2true)(httpRoutes.orNotFound)
+  private def httpRoutes2(
+    interpreter: GraphQLInterpreter[
+      Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
+      CalibanError]): HttpRoutes[ZIO[AppEnvironment, Throwable, *]] =
+    Router[ZIO[AppEnvironment, Throwable, *]](
+      "/" -> UserSearchOpenApiHandler.httpRoutes[AppEnvironment],
+      "/" -> UserSearchGraphqlApiHandler.graphqlRoutes2[AppEnvironment](interpreter),
+      "/" -> HealthCheckApi.httpRoutes
+    )
+
+  private def httpApp2(
+    interpreter: GraphQLInterpreter[
+      Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
+      CalibanError]): HttpApp[ZIO[AppEnvironment, Throwable, *]] =
+    HttpServerLogger.httpApp[ZIO[AppEnvironment, Throwable, *]](true, true)(httpRoutes2(interpreter).orNotFound)
 
   private def metrics(config: PrometheusConfig): ZIO[AppEnvironment, Throwable, PrometheusHttpServer] = {
     for {
@@ -128,24 +140,24 @@ object Main extends App {
           val server: ZIO[AppEnvironment, Throwable, Nothing] =
             BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]]
               .bindHttp(appConfig.restApi.port, appConfig.restApi.address)
-              .withHttpApp(httpApp)
+              .withHttpApp(httpApp2(graphqlInterpreter))
               .serve
               .compile[ZIO[AppEnvironment, Throwable, *], ZIO[AppEnvironment, Throwable, *], cats.effect.ExitCode]
               .drain
               .forever
 
-          val zserver: ZIO[AppEnvironment, Throwable, Nothing] =
-            ZHttpServer
-              .start(
-                appConfig.graphqlApi.port,
-                UserSearchGraphqlApiHandler.graphqlRoutes[AppEnvironment](graphqlInterpreter))
-              .forever
+//          val zserver: ZIO[AppEnvironment, Throwable, Nothing] =
+//            ZHttpServer
+//              .start(
+//                appConfig.graphqlApi.port,
+//                UserSearchGraphqlApiHandler.graphqlRoutes[AppEnvironment](graphqlInterpreter))
+//              .forever
 
           UserSearchRepoInit.init *>
             DepartmentSearchRepoInit.init *>
             metrics(appConfig.prometheus) *>
             KafkaConsumer.consume(appConfig.kafka) &>
-            zserver &>
+//            zserver &>
             server
       }
 

@@ -16,7 +16,7 @@ final class UserSearchGraphqlSimulation extends Simulation {
   import Feeders._
 
   val config = ConfigFactory.load
-  val apiConfig = ConfigSource.fromConfig(config.getConfig("graphql-api")).loadOrThrow[HttpApiConfig]
+  val apiConfig = ConfigSource.fromConfig(config.getConfig("rest-api")).loadOrThrow[HttpApiConfig]
 
   val httpConf: HttpProtocolBuilder = http.baseUrl(s"http://${apiConfig.address.value}:${apiConfig.port.value}")
 

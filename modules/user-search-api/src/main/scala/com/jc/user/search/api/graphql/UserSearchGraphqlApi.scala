@@ -17,7 +17,7 @@ import com.jc.user.search.api.graphql.model.{
 }
 import caliban.schema.Annotations.GQLDescription
 import caliban.schema.{ArgBuilder, GenericSchema}
-import caliban.{CalibanError, GraphQL, GraphQLRequest, GraphQLResponse, RootResolver}
+import caliban.{CalibanError, GraphQL, GraphQLInterpreter, GraphQLRequest, GraphQLResponse, RootResolver}
 import caliban.GraphQL.graphQL
 import caliban.wrappers.ApolloTracing.apolloTracing
 import caliban.wrappers.Wrapper.OverallWrapper
@@ -26,7 +26,7 @@ import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
   UserSearchGraphqlApiRequestContext,
   UserSearchGraphqlApiService
 }
-import zio.{RIO, ZIO}
+import zio.{Has, RIO, ZIO, ZLayer}
 import zio.clock.Clock
 import zio.duration._
 import shapeless.tag.@@
