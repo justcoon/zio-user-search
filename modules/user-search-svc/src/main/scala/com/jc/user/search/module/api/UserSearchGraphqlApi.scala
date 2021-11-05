@@ -16,20 +16,23 @@ import com.jc.user.search.api.graphql.model.{
 }
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
 import zio.{RIO, ZIO, ZLayer}
-import zhttp.http._
-import caliban.{CalibanError, GraphQLInterpreter, ZHttpAdapter}
+import caliban.{CalibanError, GraphQLInterpreter, Http4sAdapter}
+import cats.data.Kleisli
 import com.jc.auth.JwtAuthenticator
 import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
   UserSearchGraphqlApiRequestContext,
   UserSearchGraphqlApiService
 }
 import com.jc.user.search.model.ExpectedFailure
+import org.http4s
+import org.typelevel.ci.CIString
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.logging.Logging
-import zio.stream.ZStream
 
 object UserSearchGraphqlApiHandler {
+
+  type ApiEnv = Blocking with Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator
 
   def toRepoFieldSort(sort: FieldSort): SearchRepository.FieldSort = {
     SearchRepository.FieldSort(sort.field, sort.asc)
@@ -39,13 +42,14 @@ object UserSearchGraphqlApiHandler {
     CalibanError.ExecutionError(ExpectedFailure.getMessage(e))
   }
 
-  final case class HttpRequestContext(headers: List[Header]) extends UserSearchGraphqlApiService.RequestContext {
+  final case class HttpRequestContext(headers: http4s.Headers) extends UserSearchGraphqlApiService.RequestContext {
 
     override def get(name: String): Option[String] = {
-      headers.find(_.name == name).map(_.value.toString)
+      val n = CIString(name)
+      headers.get(n).map(_.head.value)
     }
 
-    override val names: Set[String] = headers.map(_.name.toString).toSet
+    override val names: Set[String] = headers.headers.map(_.name.toString).toSet
   }
 
   final case class LiveUserSearchGraphqlApiService(
@@ -136,27 +140,18 @@ object UserSearchGraphqlApiHandler {
       LiveUserSearchGraphqlApiService(userSearchRepo, departmentSearchRepo, jwtAuthenticator)
     }
 
-  private val graphiql: HttpApp[Blocking, HttpError] = {
-    val c = HttpData.fromStream(ZStream.fromResource("graphiql.html").mapError(_ => HttpError.InternalServerError()))
-    Http.succeed(Response.http(content = c))
+  def graphqlRoutes[R <: UserSearchGraphqlApiHandler.ApiEnv](
+    interpreter: GraphQLInterpreter[R with UserSearchGraphqlApiRequestContext, CalibanError])
+    : http4s.HttpRoutes[ZIO[R, Throwable, *]] = {
+    import zio.interop.catz._
+    http4s.server
+      .Router[ZIO[R, Throwable, *]](
+        "/api/graphql" -> Http4sAdapter.provideSomeLayerFromRequest[R, UserSearchGraphqlApiRequestContext](
+          Http4sAdapter.makeHttpService(interpreter),
+          req => ZIO.succeed(HttpRequestContext(req.headers)).toLayer
+        ),
+        "/graphiql" -> Kleisli.liftF(http4s.StaticFile.fromResource("/graphiql.html", None))
+      )
   }
-
-  def graphqlRoutes[R <: Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator with Blocking](
-    interpreter: GraphQLInterpreter[R with UserSearchGraphqlApiRequestContext, CalibanError]): HttpApp[R, HttpError] = {
-    Http.route {
-      case _ -> Root / "api" / "graphql" => httpService[R](interpreter)
-      case _ -> Root / "graphiql" => graphiql
-    }
-  }
-
-  def httpService[R <: Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator](
-    interpreter: GraphQLInterpreter[R with UserSearchGraphqlApiRequestContext, CalibanError]): HttpApp[R, HttpError] =
-    Http
-      .fromFunction[Request] { (request: Request) =>
-        val context: ZLayer[R, Nothing, UserSearchGraphqlApiRequestContext] =
-          ZIO.succeed(HttpRequestContext(request.headers)).toLayer
-        ZHttpAdapter.makeHttpService(interpreter.provideSomeLayer[R](context))
-      }
-      .flatten
 
 }

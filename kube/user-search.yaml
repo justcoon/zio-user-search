@@ -45,9 +45,6 @@ spec:
             - name: http
               containerPort: 8000
               protocol: TCP
-            - name: graphql
-              containerPort: 8005
-              protocol: TCP
             - name: grpc
               containerPort: 8010
               protocol: TCP
@@ -80,11 +77,6 @@ spec:
       port: 8000
       targetPort: http
       nodePort: 30558
-    - name: graphql
-      protocol: TCP
-      port: 8005
-      targetPort: graphql
-      nodePort: 30560
     - name: grpc
       protocol: TCP
       port: 8010
