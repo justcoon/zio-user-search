@@ -34,6 +34,7 @@ import zio.metrics.prometheus._
 import zio.metrics.prometheus.exporters.Exporters
 import zio.metrics.prometheus.helpers._
 import scalapb.zio_grpc.{Server => GrpcServer}
+import org.http4s.server.{Server => HttpServer}
 import eu.timepit.refined.auto._
 import zio.magic._
 
@@ -43,7 +44,7 @@ object Main extends App {
     with Console with Blocking with Has[ElasticClient] with JwtAuthenticator with UserSearchRepo with UserSearchRepoInit
     with DepartmentSearchRepo with DepartmentSearchRepoInit with EventProcessor with KafkaConsumer with LoggingSystem
     with LoggingSystemGrpcApiHandler with UserSearchGrpcApiHandler with UserSearchGraphqlApiService
-    with UserSearchGraphqlApiInterpreter with GrpcServer with Logging with Registry with Exporters
+    with UserSearchGraphqlApiInterpreter with GrpcServer with Has[HttpServer] with Logging with Registry with Exporters
 
   private def metrics(config: PrometheusConfig): ZIO[AppEnvironment, Throwable, PrometheusHttpServer] = {
     for {
@@ -54,11 +55,11 @@ object Main extends App {
   }
 
   private def createElasticClient(config: ElasticsearchConfig): ZLayer[Any, Throwable, Has[ElasticClient]] = {
-    ZLayer.fromManaged(Managed.makeEffect {
+    ZManaged.makeEffect {
       val prop = ElasticProperties(config.addresses.mkString(","))
       val jc = JavaClient(prop)
       ElasticClient(jc)
-    }(_.close()))
+    }(_.close()).toLayer
   }
 
   private def createAppLayer(appConfig: AppConfig): ZLayer[Any, Throwable, AppEnvironment] = {
@@ -81,6 +82,7 @@ object Main extends App {
       UserSearchGraphqlApiHandler.live,
       UserSearchGraphqlApi.apiInterpreter,
       GrpcApiServer.create(appConfig.grpcApi),
+      HttpApiServer.create(appConfig.restApi),
       Registry.live,
       Exporters.live
     )
@@ -96,7 +98,7 @@ object Main extends App {
             DepartmentSearchRepoInit.init *>
             metrics(appConfig.prometheus) *>
             KafkaConsumer.consume(appConfig.kafka) &>
-            HttpApiServer.serve(appConfig.restApi)
+            ZIO.never
       }
 
       appLayer = createAppLayer(appConfig)

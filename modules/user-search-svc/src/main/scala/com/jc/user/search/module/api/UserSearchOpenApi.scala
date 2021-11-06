@@ -29,15 +29,15 @@ import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, U
 import org.http4s.{Headers, HttpRoutes}
 import org.http4s.server.Router
 import sttp.tapir.swagger.SwaggerUI
-import zio.ZIO
+import zio.{RIO, ZIO}
 import zio.blocking.Blocking
 import zio.clock.Clock
 
 import scala.io.Source
 
 final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator]
-    extends UserHandler[ZIO[R, Throwable, *], Headers] {
-  type F[A] = ZIO[R, Throwable, A]
+    extends UserHandler[RIO[R, *], Headers] {
+  type F[A] = RIO[R, A]
 
   import io.scalaland.chimney.dsl._
 
@@ -156,6 +156,9 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
 
 object UserSearchOpenApiHandler {
 
+  type ApiEnv = UserSearchRepo
+    with DepartmentSearchRepo with LoggingSystem with JwtAuthenticator with Clock with Blocking
+
   // TODO improve parsing
   // sort - field:order, examples: username:asc, email:desc
   def toFieldSort(sort: String): SearchRepository.FieldSort =
@@ -166,16 +169,13 @@ object UserSearchOpenApiHandler {
         SearchRepository.FieldSort(sort, true)
     }
 
-  def userSearchApiRoutes[E <: UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator with Clock with Blocking]
-    : HttpRoutes[ZIO[E, Throwable, *]] = {
+  private def userSearchApiRoutes[R <: ApiEnv]: HttpRoutes[RIO[R, *]] = {
     import zio.interop.catz._
-    new UserResource[ZIO[E, Throwable, *], Headers](customExtract = _ => req => req.headers)
-      .routes(new UserSearchOpenApiHandler[E]())
+    new UserResource[RIO[R, *], Headers](customExtract = _ => req => req.headers)
+      .routes(new UserSearchOpenApiHandler[R]())
   }
 
-  def httpRoutes[
-    E <: UserSearchRepo with DepartmentSearchRepo with LoggingSystem with JwtAuthenticator with Clock with Blocking]
-    : HttpRoutes[ZIO[E, Throwable, *]] = {
+  def httpRoutes[R <: ApiEnv]: HttpRoutes[RIO[R, *]] = {
     import zio.interop.catz._
     import sttp.tapir.server.http4s.ztapir._
     val y1 = Source.fromResource("UserSearchOpenApi.yaml").mkString
@@ -183,11 +183,11 @@ object UserSearchOpenApiHandler {
     val my = OpenApiCirceMerger().mergeYamls(y1, y2)
     val yaml = my.getOrElse("")
 
-    val docRoutes = ZHttp4sServerInterpreter().from(SwaggerUI[ZIO[E, Throwable, *]](yaml)).toRoutes
+    val docRoutes = ZHttp4sServerInterpreter().from(SwaggerUI[RIO[R, *]](yaml)).toRoutes
 
-    val usApiRoutes: HttpRoutes[ZIO[E, Throwable, *]] = userSearchApiRoutes
+    val usApiRoutes: HttpRoutes[RIO[R, *]] = userSearchApiRoutes
 
-    val lsApiRoutes: HttpRoutes[ZIO[E, Throwable, *]] = LoggingSystemOpenApiHandler.loggingSystemApiRoutes
+    val lsApiRoutes: HttpRoutes[RIO[R, *]] = LoggingSystemOpenApiHandler.loggingSystemApiRoutes
 
     Router("/" -> usApiRoutes, "/" -> lsApiRoutes, "/" -> docRoutes)
   }

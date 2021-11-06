@@ -1,7 +1,6 @@
 package com.jc.user.search.module.api
 
-import com.jc.user.domain.proto.{Department, User}
-import com.jc.user.domain.{proto, DepartmentEntity, UserEntity}
+import com.jc.user.domain.proto
 import com.jc.user.search.api.proto.ZioUserSearchApi.RCUserSearchApiService
 import com.jc.user.search.api.proto.{
   FieldSort,
@@ -56,7 +55,7 @@ object UserSearchGrpcApiHandler {
       } yield GetUserRes(res.map(_.transformInto[proto.User]))
     }
 
-    override def searchUserStream(request: SearchUserStreamReq): ZStream[Any, Status, User] = {
+    override def searchUserStream(request: SearchUserStreamReq): ZStream[Any, Status, proto.User] = {
       val ss = request.sorts.map(toRepoFieldSort)
       val q = if (request.query.isBlank) None else Some(request.query)
 
@@ -129,7 +128,7 @@ object UserSearchGrpcApiHandler {
         )
     }
 
-    override def searchDepartmentStream(request: SearchDepartmentStreamReq): ZStream[Any, Status, Department] = {
+    override def searchDepartmentStream(request: SearchDepartmentStreamReq): ZStream[Any, Status, proto.Department] = {
       val ss = request.sorts.map(toRepoFieldSort)
       val q = if (request.query.isBlank) None else Some(request.query)
 

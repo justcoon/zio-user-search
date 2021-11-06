@@ -140,12 +140,12 @@ object UserSearchGraphqlApiHandler {
       LiveUserSearchGraphqlApiService(userSearchRepo, departmentSearchRepo, jwtAuthenticator)
     }
 
-  def graphqlRoutes[R <: UserSearchGraphqlApiHandler.ApiEnv](
+  def graphqlRoutes[R <: ApiEnv](
     interpreter: GraphQLInterpreter[R with UserSearchGraphqlApiRequestContext, CalibanError])
-    : http4s.HttpRoutes[ZIO[R, Throwable, *]] = {
+    : http4s.HttpRoutes[RIO[R, *]] = {
     import zio.interop.catz._
     http4s.server
-      .Router[ZIO[R, Throwable, *]](
+      .Router[RIO[R, *]](
         "/api/graphql" -> Http4sAdapter.provideSomeLayerFromRequest[R, UserSearchGraphqlApiRequestContext](
           Http4sAdapter.makeHttpService(interpreter),
           req => ZIO.succeed(HttpRequestContext(req.headers)).toLayer
