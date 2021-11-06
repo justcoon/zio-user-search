@@ -1,23 +1,18 @@
 package com.jc.user.search
 
-import caliban.{CalibanError, GraphQLInterpreter}
-import com.jc.user.search.api.proto.ZioUserSearchApi.RCUserSearchApiService
-import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, HttpApiConfig, PrometheusConfig}
+import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, PrometheusConfig}
 import com.jc.user.search.module.api.{
-  HealthCheckApi,
+  GrpcApiServer,
+  HttpApiServer,
   UserSearchGraphqlApiHandler,
-  UserSearchGrpcApiHandler,
-  UserSearchOpenApiHandler
+  UserSearchGrpcApiHandler
 }
 import com.jc.auth.JwtAuthenticator
 import com.jc.logging.{LogbackLoggingSystem, LoggingSystem}
 import com.jc.logging.api.{LoggingSystemGrpcApi, LoggingSystemGrpcApiHandler}
-import com.jc.logging.proto.ZioLoggingSystemApi.RCLoggingSystemApiService
 import com.jc.user.search.api.graphql.UserSearchGraphqlApi
-import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
-  UserSearchGraphqlApiRequestContext,
-  UserSearchGraphqlApiService
-}
+import com.jc.user.search.api.graphql.UserSearchGraphqlApi.UserSearchGraphqlApiInterpreter
+import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiService
 import com.jc.user.search.module.kafka.KafkaConsumer
 import com.jc.user.search.module.processor.EventProcessor
 import com.jc.user.search.module.repo.{
@@ -28,25 +23,18 @@ import com.jc.user.search.module.repo.{
 }
 import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties}
-import io.grpc._
 import io.prometheus.client.exporter.{HTTPServer => PrometheusHttpServer}
-import org.http4s.{HttpApp, HttpRoutes}
-import org.http4s.implicits._
-import org.http4s.server.middleware.{Logger => HttpServerLogger}
 import zio._
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
-import zio.interop.catz._
 import zio.logging.slf4j.Slf4jLogger
 import zio.logging.Logging
 import zio.metrics.prometheus._
 import zio.metrics.prometheus.exporters.Exporters
 import zio.metrics.prometheus.helpers._
-import scalapb.zio_grpc.{Server => GrpcServer, ServerLayer => GrpcServerLayer, ServiceList => GrpcServiceList}
+import scalapb.zio_grpc.{Server => GrpcServer}
 import eu.timepit.refined.auto._
-import org.http4s.blaze.server.BlazeServerBuilder
-import org.http4s.server.Router
 import zio.magic._
 
 object Main extends App {
@@ -54,24 +42,8 @@ object Main extends App {
   type AppEnvironment = Clock
     with Console with Blocking with Has[ElasticClient] with JwtAuthenticator with UserSearchRepo with UserSearchRepoInit
     with DepartmentSearchRepo with DepartmentSearchRepoInit with EventProcessor with KafkaConsumer with LoggingSystem
-    with LoggingSystemGrpcApiHandler with UserSearchGrpcApiHandler with UserSearchGraphqlApiService with GrpcServer
-    with Logging with Registry with Exporters
-
-  private def httpRoutes(
-    interpreter: GraphQLInterpreter[
-      Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
-      CalibanError]): HttpRoutes[ZIO[AppEnvironment, Throwable, *]] =
-    Router[ZIO[AppEnvironment, Throwable, *]](
-      "/" -> UserSearchOpenApiHandler.httpRoutes[AppEnvironment],
-      "/" -> UserSearchGraphqlApiHandler.graphqlRoutes[AppEnvironment](interpreter),
-      "/" -> HealthCheckApi.httpRoutes
-    )
-
-  private def httpApp(
-    interpreter: GraphQLInterpreter[
-      Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
-      CalibanError]): HttpApp[ZIO[AppEnvironment, Throwable, *]] =
-    HttpServerLogger.httpApp[ZIO[AppEnvironment, Throwable, *]](true, true)(httpRoutes(interpreter).orNotFound)
+    with LoggingSystemGrpcApiHandler with UserSearchGrpcApiHandler with UserSearchGraphqlApiService
+    with UserSearchGraphqlApiInterpreter with GrpcServer with Logging with Registry with Exporters
 
   private def metrics(config: PrometheusConfig): ZIO[AppEnvironment, Throwable, PrometheusHttpServer] = {
     for {
@@ -87,13 +59,6 @@ object Main extends App {
       val jc = JavaClient(prop)
       ElasticClient(jc)
     }(_.close()))
-  }
-
-  private def createGrpcServer(
-    config: HttpApiConfig): ZLayer[LoggingSystemGrpcApiHandler with UserSearchGrpcApiHandler, Throwable, GrpcServer] = {
-    GrpcServerLayer.fromServiceList(
-      ServerBuilder.forPort(config.port),
-      GrpcServiceList.access[RCLoggingSystemApiService[Any]].access[RCUserSearchApiService[Any]])
   }
 
   private def createAppLayer(appConfig: AppConfig): ZLayer[Any, Throwable, AppEnvironment] = {
@@ -114,7 +79,8 @@ object Main extends App {
       LoggingSystemGrpcApi.live,
       UserSearchGrpcApiHandler.live,
       UserSearchGraphqlApiHandler.live,
-      createGrpcServer(appConfig.grpcApi),
+      UserSearchGraphqlApi.apiInterpreter,
+      GrpcApiServer.create(appConfig.grpcApi),
       Registry.live,
       Exporters.live
     )
@@ -124,24 +90,13 @@ object Main extends App {
     val result: ZIO[zio.ZEnv, Throwable, Nothing] = for {
       appConfig <- AppConfig.getConfig
 
-      graphqlInterpreter <- UserSearchGraphqlApi.api.interpreter
-
       runtime: ZIO[AppEnvironment, Throwable, Nothing] = ZIO.runtime[AppEnvironment].flatMap {
         implicit rts: Runtime[AppEnvironment] =>
-          val server: ZIO[AppEnvironment, Throwable, Nothing] =
-            BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]]
-              .bindHttp(appConfig.restApi.port, appConfig.restApi.address)
-              .withHttpApp(httpApp(graphqlInterpreter))
-              .serve
-              .compile[ZIO[AppEnvironment, Throwable, *], ZIO[AppEnvironment, Throwable, *], cats.effect.ExitCode]
-              .drain
-              .forever
-
           UserSearchRepoInit.init *>
             DepartmentSearchRepoInit.init *>
             metrics(appConfig.prometheus) *>
             KafkaConsumer.consume(appConfig.kafka) &>
-            server
+            HttpApiServer.serve(appConfig.restApi)
       }
 
       appLayer = createAppLayer(appConfig)

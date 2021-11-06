@@ -3,15 +3,17 @@ package com.jc.user.search.module.api
 import caliban.{CalibanError, GraphQLInterpreter}
 import com.jc.auth.JwtAuthenticator
 import com.jc.logging.LoggingSystem
-import com.jc.user.search.Main.{AppEnvironment, httpApp}
 import com.jc.user.search.api.graphql.UserSearchGraphqlApi.UserSearchGraphqlApiInterpreter
-import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{UserSearchGraphqlApiRequestContext, UserSearchGraphqlApiService}
+import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
+  UserSearchGraphqlApiRequestContext,
+  UserSearchGraphqlApiService
+}
 import com.jc.user.search.model.config.HttpApiConfig
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, UserSearchRepo}
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.{HttpApp, HttpRoutes}
 import org.http4s.server.middleware.{Logger => HttpServerLogger}
-import org.http4s.server.Router
+import org.http4s.server.{Router, Server}
 import org.http4s.implicits._
 import zio.interop.catz._
 import zio.{Has, ZIO, ZLayer}
@@ -19,6 +21,7 @@ import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.logging.Logging
 import eu.timepit.refined.auto._
+
 object HttpApiServer {
 
   type ServerEnv = UserSearchRepo
@@ -41,23 +44,52 @@ object HttpApiServer {
       CalibanError]): HttpApp[ZIO[ServerEnv, Throwable, *]] =
     HttpServerLogger.httpApp[ZIO[ServerEnv, Throwable, *]](true, true)(httpRoutes(interpreter).orNotFound)
 
-  def ha(): ZLayer[Has[GraphQLInterpreter[Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, CalibanError]], Nothing, Has[HttpApp[ZIO[ServerEnv, Throwable, *]]]] = {
-    ZLayer.fromService[
-      GraphQLInterpreter[
+//  def create(config: HttpApiConfig): ZLayer[ServerEnv, Throwable, Has[Server]] = {
+//    ZLayer.fromServiceManaged[
+//      GraphQLInterpreter[
+//        Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
+//        CalibanError],
+//      ServerEnv,
+//      Throwable,
+//      Server] { in =>
+//      BlazeServerBuilder[ZIO[ServerEnv, Throwable, *]]
+//        .bindHttp(config.port, config.address)
+//        .withHttpApp(httpApp(in))
+//        .resource
+//        .toManagedZIO
+//    }
+//  }
+
+//  def create(config: HttpApiConfig): ZLayer[ServerEnv, Throwable, Has[Server]] = {
+//    ZLayer.fromServiceM[
+//      GraphQLInterpreter[
+//        Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
+//        CalibanError],
+//      ServerEnv,
+//      Throwable,
+//      Server] { in =>
+//      BlazeServerBuilder[ZIO[ServerEnv, Throwable, *]]
+//        .bindHttp(config.port, config.address)
+//        .withHttpApp(httpApp(in))
+//        .resource
+//        .toManagedZIO
+//        .useForever
+//    }
+//  }
+
+  def serve(config: HttpApiConfig) = {
+    ZIO.accessM[ServerEnv] { env =>
+      val in = env.get[GraphQLInterpreter[
         Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
-        CalibanError],
-      HttpApp[ZIO[ServerEnv, Throwable, *]]] { in =>
-      httpApp(in)
+        CalibanError]]
+
+      BlazeServerBuilder[ZIO[ServerEnv, Throwable, *]]
+        .bindHttp(config.port, config.address)
+        .withHttpApp(httpApp(in))
+        .resource
+        .toManagedZIO
+        .useForever
     }
   }
 
-//  def create(config: HttpApiConfig) = {
-//    BlazeServerBuilder[ZIO[AppEnvironment, Throwable, *]]
-//      .bindHttp(config.port, config.address)
-//      .withHttpApp(httpApp(graphqlInterpreter))
-//      .serve
-//      .compile[ZIO[AppEnvironment, Throwable, *], ZIO[AppEnvironment, Throwable, *], cats.effect.ExitCode]
-//      .drain
-//      .forever
-//  }
 }

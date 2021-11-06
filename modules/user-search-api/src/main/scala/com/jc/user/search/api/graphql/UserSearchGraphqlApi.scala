@@ -84,7 +84,7 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
   implicit val termSuggestionSchema = gen[TermSuggestion]
   implicit val propertySuggestionSchema = gen[PropertySuggestion]
 
-  final val api: GraphQL[Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] =
+  val api: GraphQL[Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] =
     graphQL(
       RootResolver(
         Queries(
@@ -104,9 +104,8 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
       logErrors @@ // wrapper that logs errors
       apolloTracing // wrapper for https://github.com/apollographql/apollo-tracing
 
-  def apiInterpreter(): ZLayer[Any, CalibanError.ValidationError, UserSearchGraphqlApiInterpreter] = {
+  val apiInterpreter: ZLayer[Any, CalibanError.ValidationError, UserSearchGraphqlApiInterpreter] =
     api.interpreter.toLayer
-  }
 
   lazy val logErrors: OverallWrapper[Logging] =
     new OverallWrapper[Logging] {
