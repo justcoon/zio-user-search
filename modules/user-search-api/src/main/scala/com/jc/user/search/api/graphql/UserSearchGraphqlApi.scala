@@ -36,6 +36,10 @@ import scala.language.postfixOps
 
 object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] {
 
+  type UserSearchGraphqlApiInterpreter = Has[GraphQLInterpreter[
+    Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
+    CalibanError]]
+
   case class Queries(
     @GQLDescription("Get user")
     getUser: GetUser => RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[User]],
@@ -99,6 +103,9 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
       logSlowQueries(500 millis) @@ // wrapper that logs slow queries
       logErrors @@ // wrapper that logs errors
       apolloTracing // wrapper for https://github.com/apollographql/apollo-tracing
+
+  val apiInterpreter: ZLayer[Any, CalibanError.ValidationError, UserSearchGraphqlApiInterpreter] =
+    api.interpreter.toLayer
 
   lazy val logErrors: OverallWrapper[Logging] =
     new OverallWrapper[Logging] {

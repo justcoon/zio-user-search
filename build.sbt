@@ -20,7 +20,7 @@ lazy val Versions = new {
   val grpc = "1.42.0"
   val chimney = "0.6.1"
   val pauldijouJwt = "5.0.0"
-  val tapir = "0.19.0-M13"
+  val tapir = "0.19.0-M14"
   val caliban = "1.2.2"
 
   val scalaTest = "3.2.10"
