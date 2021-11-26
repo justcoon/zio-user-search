@@ -1,9 +1,7 @@
 package com.jc.user.search.api.graphql.model
 
-import shapeless.tag.@@
-
 final case class User(
-  id: String @@ com.jc.user.domain.UserEntity.UserIdTag,
+  id: com.jc.user.domain.UserEntity.UserId,
   username: String,
   email: String,
   pass: String,

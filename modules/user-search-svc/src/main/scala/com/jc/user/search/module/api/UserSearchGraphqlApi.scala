@@ -146,10 +146,12 @@ object UserSearchGraphqlApiHandler {
     import zio.interop.catz._
     http4s.server
       .Router[RIO[R, *]](
-        "/api/graphql" -> Http4sAdapter.provideSomeLayerFromRequest[R, UserSearchGraphqlApiRequestContext](
-          Http4sAdapter.makeHttpService(interpreter),
-          req => ZIO.succeed(HttpRequestContext(req.headers)).toLayer
-        ),
+        "/api/graphql" ->
+          Http4sAdapter
+            .provideSomeLayerFromRequest[R, UserSearchGraphqlApiRequestContext](
+              Http4sAdapter.makeHttpService[R with UserSearchGraphqlApiRequestContext, CalibanError](interpreter),
+              req => ZIO.succeed(HttpRequestContext(req.headers)).toLayer
+            ),
         "/graphiql" -> Kleisli.liftF(http4s.StaticFile.fromResource("/graphiql.html", None))
       )
   }

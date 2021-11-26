@@ -16,12 +16,14 @@ import com.jc.user.search.api.graphql.model.{
   UserSearchResponse
 }
 import caliban.schema.Annotations.GQLDescription
-import caliban.schema.{ArgBuilder, GenericSchema}
+import caliban.schema.{ArgBuilder, GenericSchema, Schema}
 import caliban.{CalibanError, GraphQL, GraphQLInterpreter, GraphQLRequest, GraphQLResponse, RootResolver}
 import caliban.GraphQL.graphQL
 import caliban.wrappers.ApolloTracing.apolloTracing
 import caliban.wrappers.Wrapper.OverallWrapper
 import caliban.wrappers.Wrappers._
+import com.jc.user.domain.DepartmentEntity.{DepartmentId, DepartmentIdTag}
+import com.jc.user.domain.UserEntity.{UserId, UserIdTag}
 import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
   UserSearchGraphqlApiRequestContext,
   UserSearchGraphqlApiService
@@ -65,24 +67,28 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
       SuggestResponse]
   )
 
-  implicit def tagSchema[A, T](implicit s: UserSearchGraphqlApi.Typeclass[A]): UserSearchGraphqlApi.Typeclass[A @@ T] =
-    s.asInstanceOf[UserSearchGraphqlApi.Typeclass[A @@ T]]
-
   implicit def tagArgBuilder[A, T](implicit s: ArgBuilder[A]): ArgBuilder[A @@ T] = s.asInstanceOf[ArgBuilder[A @@ T]]
 
-  implicit val addressSchema = gen[Address]
-  implicit val departmentSchema = gen[Department]
-  implicit val getDepartmentSchema = gen[GetDepartment]
-  implicit val userSchema = gen[User]
-  implicit val getUserSchema = gen[GetUser]
-  implicit val fieldSortSchema = gen[FieldSort]
-  implicit val searchRequestSchema = gen[SearchRequest]
-  implicit val userSearchResponseSchema = gen[UserSearchResponse]
-  implicit val departmentSearchResponseSchema = gen[DepartmentSearchResponse]
-  implicit val suggestRequestSchema = gen[SuggestRequest]
-  implicit val suggestResponseSchema = gen[SuggestResponse]
-  implicit val termSuggestionSchema = gen[TermSuggestion]
-  implicit val propertySuggestionSchema = gen[PropertySuggestion]
+  implicit val userIdArgBuilder: ArgBuilder[UserId] = tagArgBuilder[String, UserIdTag]
+  implicit val departmentIdArgBuilder: ArgBuilder[DepartmentId] = tagArgBuilder[String, DepartmentIdTag]
+
+  implicit def taggedStringSchema[T]: Schema[Any, String @@ T] = Schema.stringSchema.contramap(identity)
+
+  implicit val departmentId: Schema[Any, DepartmentId] = taggedStringSchema[DepartmentIdTag]
+  implicit val userId: Schema[Any, UserId] = taggedStringSchema[UserIdTag]
+  implicit val addressSchema: Schema[Any, Address] = Schema.gen
+  implicit val departmentSchema: Schema[Any, Department] = Schema.gen
+  implicit val getDepartmentSchema: Schema[Any, GetDepartment] = Schema.gen
+  implicit val userSchema: Schema[Any, User] = Schema.gen
+  implicit val getUserSchema: Schema[Any, GetUser] = Schema.gen
+  implicit val fieldSortSchema: Schema[Any, FieldSort] = Schema.gen
+  implicit val searchRequestSchema: Schema[Any, SearchRequest] = Schema.gen
+  implicit val userSearchResponseSchema: Schema[Any, UserSearchResponse] = Schema.gen
+  implicit val departmentSearchResponseSchema: Schema[Any, DepartmentSearchResponse] = Schema.gen
+  implicit val suggestRequestSchema: Schema[Any, SuggestRequest] = Schema.gen
+  implicit val termSuggestionSchema: Schema[Any, TermSuggestion] = Schema.gen
+  implicit val propertySuggestionSchema: Schema[Any, PropertySuggestion] = Schema.gen
+  implicit val suggestResponseSchema: Schema[Any, SuggestResponse] = Schema.gen
 
   val api: GraphQL[Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] =
     graphQL(

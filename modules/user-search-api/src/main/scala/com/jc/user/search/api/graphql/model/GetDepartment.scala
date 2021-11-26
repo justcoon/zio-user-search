@@ -1,6 +1,5 @@
 package com.jc.user.search.api.graphql.model
 
-import com.jc.user.domain.DepartmentEntity.DepartmentIdTag
-import shapeless.tag.@@
+import com.jc.user.domain.DepartmentEntity.DepartmentId
 
-final case class GetDepartment(id: String @@ DepartmentIdTag)
+final case class GetDepartment(id: DepartmentId)
