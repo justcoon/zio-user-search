@@ -6,7 +6,7 @@ import zio.{Has, ZIO, ZLayer}
 
 object DepartmentSearchRepoInit {
 
-  trait Service extends RepositoryInitializer
+  trait Service extends RepositoryInitializer[Any]
 
   def elasticsearch(indexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, DepartmentSearchRepoInit] =
     ZLayer.fromServices[ElasticClient, Logger[String], DepartmentSearchRepoInit.Service] { (elasticClient, logger) =>

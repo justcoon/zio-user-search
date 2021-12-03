@@ -6,7 +6,7 @@ import zio.logging.{Logger, Logging}
 
 object UserSearchRepoInit {
 
-  trait Service extends RepositoryInitializer
+  trait Service extends RepositoryInitializer[Any]
 
   def elasticsearch(indexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, UserSearchRepoInit] =
     ZLayer.fromServices[ElasticClient, Logger[String], UserSearchRepoInit.Service] { (elasticClient, logger) =>

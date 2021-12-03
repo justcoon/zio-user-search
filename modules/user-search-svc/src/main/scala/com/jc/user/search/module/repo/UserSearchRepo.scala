@@ -9,7 +9,7 @@ import zio.{Has, ZIO, ZLayer}
 
 object UserSearchRepo {
 
-  trait Service extends Repository[UserId, User] with SearchRepository[User] {
+  trait Service extends Repository[Any, UserId, User] with SearchRepository[Any, User] {
 
     def searchByDepartment(
       id: DepartmentId,
@@ -86,10 +86,10 @@ object UserSearchRepo {
 
   final case class EsUserSearchRepoService(indexName: String, elasticClient: ElasticClient, logger: Logger[String])
       extends UserSearchRepo.Service {
-    private val repo = new ESRepository[UserId, User](indexName, elasticClient, logger)
+    private val repo = new ESRepository[Any, UserId, User](indexName, elasticClient, logger)
 
     private val searchRepo =
-      new ESSearchRepository[User](indexName, EsUserSearchRepoService.suggestProperties, elasticClient, logger)
+      new ESSearchRepository[Any, User](indexName, EsUserSearchRepoService.suggestProperties, elasticClient, logger)
 
     override def insert(value: User): ZIO[Any, ExpectedFailure, Boolean] = repo.insert(value)
 

@@ -8,7 +8,7 @@ import zio.{Has, ZIO, ZLayer}
 
 object DepartmentSearchRepo {
 
-  trait Service extends Repository[DepartmentId, Department] with SearchRepository[Department]
+  trait Service extends Repository[Any, DepartmentId, Department] with SearchRepository[Any, Department]
 
   final case class Department(
     id: DepartmentId,
@@ -43,10 +43,10 @@ object DepartmentSearchRepo {
     elasticClient: ElasticClient,
     logger: Logger[String])
       extends DepartmentSearchRepo.Service {
-    private val repo = new ESRepository[DepartmentId, Department](indexName, elasticClient, logger)
+    private val repo = new ESRepository[Any, DepartmentId, Department](indexName, elasticClient, logger)
 
     private val searchRepo =
-      new ESSearchRepository[Department](
+      new ESSearchRepository[Any, Department](
         indexName,
         EsDepartmentSearchRepoService.suggestProperties,
         elasticClient,

@@ -5,7 +5,7 @@ lazy val Versions = new {
   val kindProjector = "0.13.2"
   val http4s = "0.23.6"
   val zio = "1.0.12"
-  val zioInteropCats =  "3.2.9.0"
+  val zioInteropCats = "3.2.9.0"
   val zioKafka = "0.17.1"
   val zioLogging = "0.5.14"
   val zioMetrics = "1.0.13"
@@ -15,12 +15,12 @@ lazy val Versions = new {
   val circe = "0.14.1"
   val randomDataGenerator = "2.9"
   val pureconfig = "0.17.1"
-  val refined = "0.9.27"
+  val refined = "0.9.28"
   val logback = "1.2.7"
   val grpc = "1.42.1"
   val chimney = "0.6.1"
   val pauldijouJwt = "5.0.0"
-  val tapir = "0.19.0"
+  val tapir = "0.19.1"
   val caliban = "1.3.0"
 
   val scalaTest = "3.2.10"
@@ -32,31 +32,31 @@ lazy val Versions = new {
 lazy val library =
   new {
     // Scala libraries
-    val zio = "dev.zio" %% "zio"                                                          % Versions.zio
-    val zioStreams = "dev.zio" %% "zio-streams"                                           % Versions.zio
-    val zioInteropCats = "dev.zio" %% "zio-interop-cats"                                  % Versions.zioInteropCats
-    val zioKafka = "dev.zio" %% "zio-kafka"                                               % Versions.zioKafka
-    val zioLoggingSlf4j = "dev.zio" %% "zio-logging-slf4j"                                % Versions.zioLogging
-    val zioMetricsPrometheus = "dev.zio" %% "zio-metrics-prometheus"                      % Versions.zioMetrics
-    val zioMagic = "io.github.kitlangton" %% "zio-magic"                                  % Versions.zioMagic
-    val elastic4sClientEsjava = "com.sksamuel.elastic4s" %% "elastic4s-client-esjava"     % Versions.elastic4s
-    val elastic4sEffectZio = "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"           % Versions.elastic4s
-    val elastic4sJsonCirce = "com.sksamuel.elastic4s" %% "elastic4s-json-circe"           % Versions.elastic4s
-    val jacksonModuleScala = "com.fasterxml.jackson.module" %% "jackson-module-scala"     % Versions.jackson
-    val http4sCore = "org.http4s" %% "http4s-core"                                        % Versions.http4s
-    val http4sDsl = "org.http4s" %% "http4s-dsl"                                          % Versions.http4s
-    val http4sBlazeServer = "org.http4s" %% "http4s-blaze-server"                         % Versions.http4s
-    val http4sBlazeClient = "org.http4s" %% "http4s-blaze-client"                         % Versions.http4s
-    val http4sCirce = "org.http4s" %% "http4s-circe"                                      % Versions.http4s
-    val tapirZioHttp4s = "com.softwaremill.sttp.tapir" %% "tapir-zio-http4s-server"       % Versions.tapir
-    val tapirSwaggerUi = "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui"              % Versions.tapir
-    val circeGeneric = "io.circe" %% "circe-generic"                                      % Versions.circe
-    val circeGenericExtras = "io.circe" %% "circe-generic-extras"                         % Versions.circe
-    val circeYaml = "io.circe" %% "circe-yaml"                                            % Versions.circe
-    val pauldijouJwtCirce = "com.pauldijou" %% "jwt-circe"                                % Versions.pauldijouJwt
-    val pureconfig = "com.github.pureconfig" %% "pureconfig"                              % Versions.pureconfig
-    val refinedPureconfig = "eu.timepit" %% "refined-pureconfig"                          % Versions.refined
-    val chimney = "io.scalaland" %% "chimney"                                             % Versions.chimney
+    val zio = "dev.zio" %% "zio"                                                      % Versions.zio
+    val zioStreams = "dev.zio" %% "zio-streams"                                       % Versions.zio
+    val zioInteropCats = "dev.zio" %% "zio-interop-cats"                              % Versions.zioInteropCats
+    val zioKafka = "dev.zio" %% "zio-kafka"                                           % Versions.zioKafka
+    val zioLoggingSlf4j = "dev.zio" %% "zio-logging-slf4j"                            % Versions.zioLogging
+    val zioMetricsPrometheus = "dev.zio" %% "zio-metrics-prometheus"                  % Versions.zioMetrics
+    val zioMagic = "io.github.kitlangton" %% "zio-magic"                              % Versions.zioMagic
+    val elastic4sClientEsjava = "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % Versions.elastic4s
+    val elastic4sEffectZio = "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"       % Versions.elastic4s
+    val elastic4sJsonCirce = "com.sksamuel.elastic4s" %% "elastic4s-json-circe"       % Versions.elastic4s
+    val jacksonModuleScala = "com.fasterxml.jackson.module" %% "jackson-module-scala" % Versions.jackson
+    val http4sCore = "org.http4s" %% "http4s-core"                                    % Versions.http4s
+    val http4sDsl = "org.http4s" %% "http4s-dsl"                                      % Versions.http4s
+    val http4sBlazeServer = "org.http4s" %% "http4s-blaze-server"                     % Versions.http4s
+    val http4sBlazeClient = "org.http4s" %% "http4s-blaze-client"                     % Versions.http4s
+    val http4sCirce = "org.http4s" %% "http4s-circe"                                  % Versions.http4s
+    val tapirZioHttp4s = "com.softwaremill.sttp.tapir" %% "tapir-zio-http4s-server"   % Versions.tapir
+    val tapirSwaggerUi = "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui"          % Versions.tapir
+    val circeGeneric = "io.circe" %% "circe-generic"                                  % Versions.circe
+    val circeGenericExtras = "io.circe" %% "circe-generic-extras"                     % Versions.circe
+    val circeYaml = "io.circe" %% "circe-yaml"                                        % Versions.circe
+    val pauldijouJwtCirce = "com.pauldijou" %% "jwt-circe"                            % Versions.pauldijouJwt
+    val pureconfig = "com.github.pureconfig" %% "pureconfig"                          % Versions.pureconfig
+    val refinedPureconfig = "eu.timepit" %% "refined-pureconfig"                      % Versions.refined
+    val chimney = "io.scalaland" %% "chimney"                                         % Versions.chimney
 
     val grpcServices = "io.grpc"     % "grpc-services"     % Versions.grpc
     val grpcNetty = "io.grpc"        % "grpc-netty"        % Versions.grpc
@@ -72,11 +72,13 @@ lazy val library =
     val gatlingTest = "io.gatling"              % "gatling-test-framework"    % Versions.gatling
     val gatlingGrpc = "com.github.phisgr"       % "gatling-grpc"              % Versions.gatlingGrpc
 
+    val zioTest = "dev.zio" %% "zio-test"                                      % Versions.zio                 % "test"
+    val zioTestSbt = "dev.zio" %% "zio-test-sbt"                               % Versions.zio                 % "test"
     val scalatest = "org.scalatest" %% "scalatest"                             % Versions.scalaTest           % "test"
     val randomDataGenerator = "com.danielasfregola" %% "random-data-generator" % Versions.randomDataGenerator % "test"
 
     // Java libraries
-    val logback = "ch.qos.logback"             % "logback-classic" % Versions.logback
+    val logback = "ch.qos.logback" % "logback-classic" % Versions.logback
   }
 
 lazy val `zio-user-search` =
@@ -113,7 +115,6 @@ lazy val `core` =
     .settings(Compile / unmanagedResourceDirectories += baseDirectory.value / "src" / "main" / "openapi")
     .settings(
       libraryDependencies ++= Seq(
-        // Scala libraries
         library.zio,
         library.zioStreams,
         library.zioInteropCats,
@@ -131,10 +132,11 @@ lazy val `core` =
         library.http4sCirce,
         library.scalapbRuntime,
         library.scalapbRuntimeGrpc,
-        library.scalatest,
-        // Java libraries
+        library.zioTest,
+        library.zioTestSbt,
         library.logback
-      )
+      ),
+      testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
     )
 
 lazy val `user-search-api` =
