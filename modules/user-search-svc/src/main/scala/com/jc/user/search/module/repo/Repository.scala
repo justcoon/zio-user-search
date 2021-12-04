@@ -1,12 +1,17 @@
 package com.jc.user.search.module.repo
 
+import cats.effect.kernel.Concurrent
 import com.jc.user.search.model.{ExpectedFailure, RepoFailure}
 import com.sksamuel.elastic4s.ElasticClient
 import io.circe.{Decoder, Encoder}
-import zio.ZIO
+import zio.{UIO, ZIO}
 import zio.logging.Logger
 
+import java.util
+import java.util.concurrent.ConcurrentHashMap
+import java.util.function.BiConsumer
 import scala.reflect.ClassTag
+import scala.tools.nsc.doc.html.HtmlTags.P
 
 trait Repository[R, ID, E <: Repository.Entity[ID]] {
 
@@ -234,5 +239,88 @@ class ESSearchRepository[R, E <: Repository.Entity[_]: Encoder: Decoder: ClassTa
         serviceLogger.error(s"suggest - ${indexName} - query: '$query' - error: ${e.throwable.getMessage}") *>
           ZIO.fail(e)
       }
+  }
+}
+
+class InMemoryRepository[R, ID, E <: Repository.Entity[ID]](private val store: ConcurrentHashMap[ID, E])
+    extends Repository[R, ID, E] {
+
+  override def insert(value: E): ZIO[R, ExpectedFailure, Boolean] = {
+    UIO {
+      val res = Option(store.put(value.id, value))
+      res.isDefined
+    }
+  }
+
+  override def update(value: E): ZIO[R, ExpectedFailure, Boolean] = {
+    UIO {
+      val res = Option(store.put(value.id, value))
+      res.isDefined
+    }
+  }
+
+  override def delete(id: ID): ZIO[R, ExpectedFailure, Boolean] = {
+    UIO {
+      Option(store.remove(id)).isDefined
+    }
+  }
+
+  override def find(id: ID): ZIO[R, ExpectedFailure, Option[E]] = {
+    UIO {
+      Option(store.get(id))
+    }
+  }
+
+  override def findAll(): ZIO[R, ExpectedFailure, Seq[E]] = {
+    import scala.jdk.CollectionConverters._
+    UIO {
+      store.values().asScala.toSeq
+    }
+  }
+
+  def find(predicate: E => Boolean): ZIO[R, ExpectedFailure, Seq[E]] = {
+    UIO {
+      val found = scala.collection.mutable.ListBuffer[E]()
+      store.forEach {
+        makeBiConsumer { (_, e) =>
+          if (predicate(e)) {
+            found += e
+          }
+        }
+      }
+      found.toSeq
+    }
+  }
+
+  private[this] def makeBiConsumer(f: (ID, E) => Unit): BiConsumer[ID, E] =
+    new BiConsumer[ID, E] {
+      override def accept(t: ID, u: E): Unit = f(t, u)
+    }
+}
+
+object InMemoryRepository {
+
+  def apply[R, ID, E <: Repository.Entity[ID]](): InMemoryRepository[R, ID, E] = {
+    new InMemoryRepository(new ConcurrentHashMap[ID, E]())
+  }
+}
+
+class NoOpSearchRepository[R, E <: Repository.Entity[_]]() extends SearchRepository[R, E] {
+
+  override def suggest(query: String): ZIO[R, ExpectedFailure, SearchRepository.SuggestResponse] = UIO(
+    SearchRepository.SuggestResponse(Nil))
+
+  override def search(
+    query: Option[String],
+    page: Int,
+    pageSize: Int,
+    sorts: Iterable[SearchRepository.FieldSort]): ZIO[R, ExpectedFailure, SearchRepository.PaginatedSequence[E]] =
+    UIO(SearchRepository.PaginatedSequence[E](Nil, page, pageSize, 0))
+}
+
+object NoOpSearchRepository {
+
+  def apply[R, E <: Repository.Entity[_]](): NoOpSearchRepository[R, E] = {
+    new NoOpSearchRepository()
   }
 }
