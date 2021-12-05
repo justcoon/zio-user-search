@@ -23,7 +23,6 @@ lazy val Versions = new {
   val tapir = "0.19.1"
   val caliban = "1.3.0"
 
-  val scalaTest = "3.2.10"
   val gatling = "3.6.1"
   val gatlingGrpc = "0.12.0"
 
@@ -74,7 +73,6 @@ lazy val library =
 
     val zioTest = "dev.zio" %% "zio-test"                                      % Versions.zio                 % "test"
     val zioTestSbt = "dev.zio" %% "zio-test-sbt"                               % Versions.zio                 % "test"
-    val scalatest = "org.scalatest" %% "scalatest"                             % Versions.scalaTest           % "test"
     val randomDataGenerator = "com.danielasfregola" %% "random-data-generator" % Versions.randomDataGenerator % "test"
 
     // Java libraries
@@ -132,9 +130,9 @@ lazy val `core` =
         library.http4sCirce,
         library.scalapbRuntime,
         library.scalapbRuntimeGrpc,
+        library.logback,
         library.zioTest,
-        library.zioTestSbt,
-        library.logback
+        library.zioTestSbt
       ),
       testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
     )
@@ -218,11 +216,12 @@ lazy val `user-search-svc` =
         library.grpcNettyShadded,
         library.scalapbRuntime,
         library.scalapbRuntimeGrpc,
-        library.scalatest,
         library.randomDataGenerator,
-        // Java libraries
-        library.logback
-      )
+        library.logback,
+        library.zioTest,
+        library.zioTestSbt
+      ),
+      testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
     )
     .aggregate(`user-search-api`)
     .dependsOn(`user-search-api`, `core`)

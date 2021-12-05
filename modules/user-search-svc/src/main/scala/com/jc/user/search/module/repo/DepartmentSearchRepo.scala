@@ -42,32 +42,15 @@ object DepartmentSearchRepo {
     indexName: String,
     elasticClient: ElasticClient,
     logger: Logger[String])
-      extends DepartmentSearchRepo.Service {
-    private val repo = new ESRepository[Any, DepartmentId, Department](indexName, elasticClient, logger)
+      extends AbstractCombinedRepository[Any, DepartmentId, Department] with DepartmentSearchRepo.Service {
+    override val repository = new ESRepository[Any, DepartmentId, Department](indexName, elasticClient, logger)
 
-    private val searchRepo =
+    override val searchRepository =
       new ESSearchRepository[Any, Department](
         indexName,
         EsDepartmentSearchRepoService.suggestProperties,
         elasticClient,
         logger)
-
-    override def insert(value: Department): ZIO[Any, ExpectedFailure, Boolean] = repo.insert(value)
-
-    override def update(value: Department): ZIO[Any, ExpectedFailure, Boolean] = repo.update(value)
-
-    override def delete(id: DepartmentId): ZIO[Any, ExpectedFailure, Boolean] = repo.delete(id)
-
-    override def find(id: DepartmentId): ZIO[Any, ExpectedFailure, Option[Department]] = repo.find(id)
-
-    override def findAll(): ZIO[Any, ExpectedFailure, Seq[Department]] = repo.findAll()
-
-    override def search(query: Option[String], page: Int, pageSize: Int, sorts: Iterable[SearchRepository.FieldSort])
-      : ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[Department]] =
-      searchRepo.search(query, page, pageSize, sorts)
-
-    override def suggest(query: String): ZIO[Any, ExpectedFailure, SearchRepository.SuggestResponse] =
-      searchRepo.suggest(query)
   }
 
   object EsDepartmentSearchRepoService {
@@ -86,4 +69,12 @@ object DepartmentSearchRepo {
     ZLayer.fromServices[ElasticClient, Logger[String], DepartmentSearchRepo.Service] { (elasticClient, logger) =>
       EsDepartmentSearchRepoService(indexName, elasticClient, logger)
     }
+
+  def find(id: DepartmentId): ZIO[DepartmentSearchRepo, ExpectedFailure, Option[Department]] = {
+    ZIO.accessM[DepartmentSearchRepo](_.get.find(id))
+  }
+
+  def findAll(): ZIO[DepartmentSearchRepo, ExpectedFailure, Seq[Department]] = {
+    ZIO.accessM[DepartmentSearchRepo](_.get.findAll())
+  }
 }

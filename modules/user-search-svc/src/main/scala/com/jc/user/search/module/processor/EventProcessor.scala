@@ -59,6 +59,9 @@ object EventProcessor {
         LiveEventProcessorService(userSearchRepo, departmentSearchRepo, logger)
     }
 
+  def process(eventEnvelope: EventEnvelope[_]): ZIO[EventProcessor, ExpectedFailure, Boolean] =
+    ZIO.accessM[EventProcessor](_.get.process(eventEnvelope))
+
   def processUser(
     event: UserPayloadEvent,
     userSearchRepo: UserSearchRepo.Service,

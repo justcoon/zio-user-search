@@ -85,21 +85,11 @@ object UserSearchRepo {
   }
 
   final case class EsUserSearchRepoService(indexName: String, elasticClient: ElasticClient, logger: Logger[String])
-      extends UserSearchRepo.Service {
-    private val repo = new ESRepository[Any, UserId, User](indexName, elasticClient, logger)
+      extends AbstractCombinedRepository[Any, UserId, User] with UserSearchRepo.Service {
+    override val repository = new ESRepository[Any, UserId, User](indexName, elasticClient, logger)
 
-    private val searchRepo =
+    override val searchRepository =
       new ESSearchRepository[Any, User](indexName, EsUserSearchRepoService.suggestProperties, elasticClient, logger)
-
-    override def insert(value: User): ZIO[Any, ExpectedFailure, Boolean] = repo.insert(value)
-
-    override def update(value: User): ZIO[Any, ExpectedFailure, Boolean] = repo.update(value)
-
-    override def delete(id: UserId): ZIO[Any, ExpectedFailure, Boolean] = repo.delete(id)
-
-    override def find(id: UserId): ZIO[Any, ExpectedFailure, Option[User]] = repo.find(id)
-
-    override def findAll(): ZIO[Any, ExpectedFailure, Seq[User]] = repo.findAll()
 
     override def searchByDepartment(
       id: DepartmentId,
@@ -109,15 +99,8 @@ object UserSearchRepo {
       import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
       val query = MatchQuery("department.id", id)
       val sorts = Seq(FieldSort("username"))
-      searchRepo.search(query, page, pageSize, sorts)
+      searchRepository.search(query, page, pageSize, sorts)
     }
-
-    override def search(query: Option[String], page: Int, pageSize: Int, sorts: Iterable[SearchRepository.FieldSort])
-      : ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[User]] =
-      searchRepo.search(query, page, pageSize, sorts)
-
-    override def suggest(query: String): ZIO[Any, ExpectedFailure, SearchRepository.SuggestResponse] =
-      searchRepo.suggest(query)
   }
 
   object EsUserSearchRepoService {
@@ -145,4 +128,12 @@ object UserSearchRepo {
     ZLayer.fromServices[ElasticClient, Logger[String], UserSearchRepo.Service] { (elasticClient, logger) =>
       EsUserSearchRepoService(indexName, elasticClient, logger)
     }
+
+  def find(id: UserId): ZIO[UserSearchRepo, ExpectedFailure, Option[User]] = {
+    ZIO.accessM[UserSearchRepo](_.get.find(id))
+  }
+
+  def findAll(): ZIO[UserSearchRepo, ExpectedFailure, Seq[User]] = {
+    ZIO.accessM[UserSearchRepo](_.get.findAll())
+  }
 }
