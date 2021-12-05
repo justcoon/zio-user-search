@@ -86,4 +86,12 @@ object DepartmentSearchRepo {
     ZLayer.fromServices[ElasticClient, Logger[String], DepartmentSearchRepo.Service] { (elasticClient, logger) =>
       EsDepartmentSearchRepoService(indexName, elasticClient, logger)
     }
+
+  def find(id: DepartmentId): ZIO[DepartmentSearchRepo, ExpectedFailure, Option[Department]] = {
+    ZIO.accessM[DepartmentSearchRepo](_.get.find(id))
+  }
+
+  def findAll(): ZIO[DepartmentSearchRepo, ExpectedFailure, Seq[Department]] = {
+    ZIO.accessM[DepartmentSearchRepo](_.get.findAll())
+  }
 }

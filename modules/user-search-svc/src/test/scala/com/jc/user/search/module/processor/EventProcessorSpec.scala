@@ -4,6 +4,8 @@ import com.jc.user.domain.proto.{
   DepartmentCreatedPayload,
   DepartmentPayloadEvent,
   DepartmentRef,
+  DepartmentRemovedPayload,
+  DepartmentUpdatedPayload,
   UserCreatedPayload,
   UserPayloadEvent
 }
@@ -38,6 +40,14 @@ object EventProcessorSpec extends DefaultRunnableSpec {
     "d1".asDepartmentId,
     payload = DepartmentPayloadEvent.Payload.Created(DepartmentCreatedPayload("d1", "dep 1")))
 
+  val departmentUpdatedEvent1 = DepartmentPayloadEvent(
+    "d1".asDepartmentId,
+    payload = DepartmentPayloadEvent.Payload.Updated(DepartmentUpdatedPayload("d1", "dep 1 upd")))
+
+  val departmentRemovedEvent1 = DepartmentPayloadEvent(
+    "d1".asDepartmentId,
+    payload = DepartmentPayloadEvent.Payload.Removed(DepartmentRemovedPayload()))
+
   val userCreatedEvent1 = UserPayloadEvent(
     "u1".asUserId,
     payload = UserPayloadEvent.Payload.Created(
@@ -45,13 +55,32 @@ object EventProcessorSpec extends DefaultRunnableSpec {
   )
 
   override def spec = suite("EventProcessorSpec")(
-    testM("process") {
+    testM("process - create") {
       for {
         _ <- EventProcessor.process(EventEnvelope.Department(departmentTopic, departmentCreatedEvent1))
         _ <- EventProcessor.process(EventEnvelope.User(userTopic, userCreatedEvent1))
-        departmentRes1 <- ZIO.accessM[DepartmentSearchRepo](_.get.find(departmentCreatedEvent1.entityId))
-        userRes1 <- ZIO.accessM[UserSearchRepo](_.get.find(userCreatedEvent1.entityId))
-      } yield assert(departmentRes1.isDefined)(isTrue) && assert(userRes1.isDefined)(isTrue)
-    }.provideLayer(layer)
-  )
+        departmentRes1 <- DepartmentSearchRepo.find(departmentCreatedEvent1.entityId)
+        userRes1 <- UserSearchRepo.find(userCreatedEvent1.entityId)
+      } yield {
+        assert(departmentRes1.isDefined)(isTrue) && assert(userRes1.isDefined)(isTrue) && assert(
+          userRes1.flatMap(_.department).map(_.name))(equalTo(departmentRes1.map(_.name)))
+      }
+    },
+    testM("process - update") {
+      for {
+        _ <- EventProcessor.process(EventEnvelope.Department(departmentTopic, departmentUpdatedEvent1))
+        departmentRes1 <- DepartmentSearchRepo.find(departmentUpdatedEvent1.entityId)
+        userRes1 <- UserSearchRepo.find(userCreatedEvent1.entityId)
+      } yield {
+        assert(departmentRes1.isDefined)(isTrue) && assert(userRes1.isDefined)(isTrue) && assert(
+          userRes1.flatMap(_.department).map(_.name))(equalTo(departmentRes1.map(_.name)))
+      }
+    },
+    testM("process - remove") {
+      for {
+        _ <- EventProcessor.process(EventEnvelope.Department(departmentTopic, departmentRemovedEvent1))
+        departmentRes1 <- DepartmentSearchRepo.find(departmentCreatedEvent1.entityId)
+      } yield assert(departmentRes1.isEmpty)(isTrue)
+    }
+  ).provideLayer(layer) @@ TestAspect.sequential
 }

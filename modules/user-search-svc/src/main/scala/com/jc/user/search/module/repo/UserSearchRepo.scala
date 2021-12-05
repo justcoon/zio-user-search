@@ -145,4 +145,12 @@ object UserSearchRepo {
     ZLayer.fromServices[ElasticClient, Logger[String], UserSearchRepo.Service] { (elasticClient, logger) =>
       EsUserSearchRepoService(indexName, elasticClient, logger)
     }
+
+  def find(id: UserId): ZIO[UserSearchRepo, ExpectedFailure, Option[User]] = {
+    ZIO.accessM[UserSearchRepo](_.get.find(id))
+  }
+
+  def findAll(): ZIO[UserSearchRepo, ExpectedFailure, Seq[User]] = {
+    ZIO.accessM[UserSearchRepo](_.get.findAll())
+  }
 }
