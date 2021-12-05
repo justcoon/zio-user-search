@@ -61,6 +61,33 @@ object SearchRepository {
 
 }
 
+abstract class AbstractCombinedRepository[R, ID, E <: Repository.Entity[ID]]
+    extends Repository[R, ID, E] with SearchRepository[R, E] {
+
+  protected def repository: Repository[R, ID, E]
+  protected def searchRepository: SearchRepository[R, E]
+
+  override def insert(value: E): ZIO[R, ExpectedFailure, Boolean] = repository.insert(value)
+
+  override def update(value: E): ZIO[R, ExpectedFailure, Boolean] = repository.update(value)
+
+  override def delete(id: ID): ZIO[R, ExpectedFailure, Boolean] = repository.delete(id)
+
+  override def find(id: ID): ZIO[R, ExpectedFailure, Option[E]] = repository.find(id)
+
+  override def findAll(): ZIO[R, ExpectedFailure, Seq[E]] = repository.findAll()
+
+  override def search(
+    query: Option[String],
+    page: Int,
+    pageSize: Int,
+    sorts: Iterable[SearchRepository.FieldSort]): ZIO[R, ExpectedFailure, SearchRepository.PaginatedSequence[E]] =
+    searchRepository.search(query, page, pageSize, sorts)
+
+  override def suggest(query: String): ZIO[R, ExpectedFailure, SearchRepository.SuggestResponse] =
+    searchRepository.suggest(query)
+}
+
 class ESRepository[R, ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: Decoder: ClassTag](
   indexName: String,
   elasticClient: ElasticClient,
