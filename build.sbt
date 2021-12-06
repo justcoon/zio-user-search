@@ -108,7 +108,8 @@ lazy val `core` =
           tracing = false,
           customExtraction = true
         )
-      )
+      ),
+      PB.protocVersion := "3.17.3" // mac m1 issue
     )
     .settings(Compile / unmanagedResourceDirectories += baseDirectory.value / "src" / "main" / "openapi")
     .settings(
@@ -155,7 +156,8 @@ lazy val `user-search-api` =
           tracing = false,
           customExtraction = true
         )
-      )
+      ),
+      PB.protocVersion := "3.17.3" // mac m1 issue
     )
     .settings(Compile / unmanagedResourceDirectories += baseDirectory.value / "src" / "main" / "openapi")
     .settings(

@@ -9,11 +9,10 @@ import com.jc.logging.openapi.definitions.{
   LoggerConfigurationRes,
   LoggerConfigurationsRes
 }
-import com.jc.logging.openapi.logging.{
+import com.jc.logging.openapi.logging.{LoggingHandler, LoggingResource}
+import com.jc.logging.openapi.logging.LoggingResource.{
   GetLoggerConfigurationResponse,
   GetLoggerConfigurationsResponse,
-  LoggingHandler,
-  LoggingResource,
   SetLoggerConfigurationResponse
 }
 import org.http4s.{Headers, HttpRoutes}

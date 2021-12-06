@@ -10,16 +10,15 @@ import com.jc.user.search.api.openapi.definitions.{
   User,
   UserSearchResponse
 }
-import com.jc.user.search.api.openapi.user.{
+import com.jc.user.search.api.openapi.user.UserResource.{
   GetDepartmentResponse,
   GetUserResponse,
   SearchDepartmentsResponse,
   SearchUsersResponse,
   SuggestDepartmentsResponse,
-  SuggestUsersResponse,
-  UserHandler,
-  UserResource
+  SuggestUsersResponse
 }
+import com.jc.user.search.api.openapi.user.{UserHandler, UserResource}
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.auth.JwtAuthenticator
 import com.jc.auth.api.HttpJwtAuth
