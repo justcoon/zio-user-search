@@ -42,9 +42,7 @@ object KafkaConsumer {
       .subscribeAnd(Subscription.topics(config.userTopic, config.departmentTopic))
       .plainStream(Serde.string, KafkaConsumer.eventDes(config))
       .tap { cr =>
-        ZIO.accessM[EventProcessor] {
-          _.get.process(cr.value)
-        }
+        EventProcessor.process(cr.value)
       }
       .map(_.offset)
       .aggregateAsync(Consumer.offsetBatches)

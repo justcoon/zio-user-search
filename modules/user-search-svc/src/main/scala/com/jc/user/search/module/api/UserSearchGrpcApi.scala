@@ -1,7 +1,6 @@
 package com.jc.user.search.module.api
 
-import com.jc.user.domain.proto.{Department, User}
-import com.jc.user.domain.{proto, DepartmentEntity, UserEntity}
+import com.jc.user.domain.proto
 import com.jc.user.search.api.proto.ZioUserSearchApi.RCUserSearchApiService
 import com.jc.user.search.api.proto.{
   FieldSort,
@@ -19,7 +18,8 @@ import com.jc.user.search.api.proto.{
   SuggestDepartmentsReq,
   SuggestDepartmentsRes,
   SuggestUsersReq,
-  SuggestUsersRes
+  SuggestUsersRes,
+  UserView
 }
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.auth.JwtAuthenticator
@@ -36,6 +36,10 @@ object UserSearchGrpcApiHandler {
     SearchRepository.FieldSort(sort.field, sort.order.isAsc)
   }
 
+  def toStatus(e: ExpectedFailure): Status = {
+    Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e))
+  }
+
   final case class LiveUserSearchApiService(
     userSearchRepo: UserSearchRepo.Service,
     departmentSearchRepo: DepartmentSearchRepo.Service,
@@ -44,17 +48,15 @@ object UserSearchGrpcApiHandler {
     import io.scalaland.chimney.dsl._
 
     override def getUser(request: GetUserReq): ZIO[Has[RequestContext], Status, GetUserRes] = {
-      val res: ZIO[Has[RequestContext], Status, GetUserRes] = for {
+      for {
         _ <- GrpcJwtAuth.authenticated(jwtAuthenticator)
         res <- userSearchRepo
           .find(request.id)
-          .mapError[Status](e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)))
-      } yield GetUserRes(res.map(_.transformInto[proto.User]))
-
-      res
+          .mapError(toStatus)
+      } yield GetUserRes(res.map(_.transformInto[UserView]))
     }
 
-    override def searchUserStream(request: SearchUserStreamReq): ZStream[Any, Status, User] = {
+    override def searchUserStream(request: SearchUserStreamReq): ZStream[Any, Status, UserView] = {
       val ss = request.sorts.map(toRepoFieldSort)
       val q = if (request.query.isBlank) None else Some(request.query)
 
@@ -71,8 +73,8 @@ object UserSearchGrpcApiHandler {
             }
         }
         .mapConcat(identity)
-        .map(_.transformInto[proto.User])
-        .mapError { e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)) }
+        .map(_.transformInto[UserView])
+        .mapError(toStatus)
     }
 
     override def searchUsers(request: SearchUsersReq): IO[Status, SearchUsersRes] = {
@@ -84,7 +86,7 @@ object UserSearchGrpcApiHandler {
           e => SearchUsersRes(result = SearchUsersRes.Result.Failure(ExpectedFailure.getMessage(e))),
           r =>
             SearchUsersRes(
-              r.items.map(_.transformInto[proto.User]),
+              r.items.map(_.transformInto[UserView]),
               r.page,
               r.pageSize,
               r.count,
@@ -102,14 +104,12 @@ object UserSearchGrpcApiHandler {
     }
 
     override def getDepartment(request: GetDepartmentReq): ZIO[Has[RequestContext], Status, GetDepartmentRes] = {
-      val res: ZIO[Has[RequestContext], Status, GetDepartmentRes] = for {
+      for {
         _ <- GrpcJwtAuth.authenticated(jwtAuthenticator)
         res <- departmentSearchRepo
           .find(request.id)
-          .mapError[Status](e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)))
+          .mapError(toStatus)
       } yield GetDepartmentRes(res.map(_.transformInto[proto.Department]))
-
-      res
     }
 
     override def searchDepartments(request: SearchDepartmentsReq): IO[Status, SearchDepartmentsRes] = {
@@ -129,7 +129,7 @@ object UserSearchGrpcApiHandler {
         )
     }
 
-    override def searchDepartmentStream(request: SearchDepartmentStreamReq): ZStream[Any, Status, Department] = {
+    override def searchDepartmentStream(request: SearchDepartmentStreamReq): ZStream[Any, Status, proto.Department] = {
       val ss = request.sorts.map(toRepoFieldSort)
       val q = if (request.query.isBlank) None else Some(request.query)
 
@@ -147,7 +147,7 @@ object UserSearchGrpcApiHandler {
         }
         .mapConcat(identity)
         .map(_.transformInto[proto.Department])
-        .mapError { e => Status.INTERNAL.withDescription(ExpectedFailure.getMessage(e)) }
+        .mapError(toStatus)
     }
 
     override def suggestDepartments(request: SuggestDepartmentsReq): IO[Status, SuggestDepartmentsRes] = {

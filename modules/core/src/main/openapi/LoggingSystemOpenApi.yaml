@@ -1,0 +1,158 @@
+openapi: 3.0.3
+servers:
+  - url: /v1
+info:
+  description: |-
+    Logging system OpenAPI 3.0 specification.
+  version: 1.0.0-SNAPSHOT
+  title: Logging system - OpenAPI 3.0
+  termsOfService: 'http://swagger.io/terms/'
+  contact:
+    email: xxx@xxx.com
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+tags:
+  - name: logging
+    description: Logging configuration
+    externalDocs:
+      description: TODO
+      url: 'http://swagger.io'
+paths:
+  /configuration/logger:
+    get:
+      tags:
+        - logging
+      summary: Get loggers configurations
+      description: ''
+      operationId: getLoggerConfigurations
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoggerConfigurationsRes'
+        '401':
+          description: unauthorized
+      security:
+        - bearerAuth: [ ]
+  '/configuration/logger/{name}':
+    get:
+      tags:
+        - logging
+      summary: Get logger configuration
+      description: ''
+      operationId: getLoggerConfiguration
+      parameters:
+        - name: name
+          in: path
+          description: 'Logger name'
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoggerConfigurationRes'
+        '401':
+          description: unauthorized
+        '404':
+          description: Logger not found
+      security:
+        - bearerAuth: [ ]
+    put:
+      tags:
+        - logging
+      summary: Set logger configuration
+      description: ''
+      operationId: setLoggerConfiguration
+      parameters:
+        - name: name
+          in: path
+          description: 'Logger name'
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogLevel'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoggerConfigurationRes'
+        '401':
+          description: unauthorized
+        '404':
+          description: Logger not found
+      security:
+        - bearerAuth: [ ]
+externalDocs:
+  description: Find out more about Swagger
+  url: 'http://swagger.io'
+components:
+  schemas:
+    LogLevel:
+      type: string
+      enum:
+        - "TRACE"
+        - "DEBUG"
+        - "INFO"
+        - "WARN"
+        - "ERROR"
+        - "FATAL"
+        - "OFF"
+    LoggerConfiguration:
+      properties:
+        name:
+          type: string
+          example: 'com.jc'
+        effectiveLevel:
+          $ref: '#/components/schemas/LogLevel'
+        configuredLevel:
+          $ref: '#/components/schemas/LogLevel'
+      type: object
+      required:
+        - name
+        - effectiveLevel
+    LoggerConfigurationRes:
+      properties:
+        configuration:
+          $ref: '#/components/schemas/LoggerConfiguration'
+        levels:
+          type: array
+          x-scala-array-type: Seq
+          items:
+            $ref: '#/components/schemas/LogLevel'
+      type: object
+      required:
+        - levels
+    LoggerConfigurationsRes:
+      properties:
+        configurations:
+          type: array
+          x-scala-array-type: Seq
+          items:
+            $ref: '#/components/schemas/LoggerConfiguration'
+        levels:
+          type: array
+          x-scala-array-type: Seq
+          items:
+            $ref: '#/components/schemas/LogLevel'
+      type: object
+      required:
+        - configurations
+        - levels
+  securitySchemes:
+    bearerAuth: # arbitrary name for the security scheme
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

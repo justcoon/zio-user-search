@@ -1,18 +1,20 @@
 package com.jc.user.search.module.api
 
-import cats.effect.{ContextShift, Sync}
+import cats.effect.Sync
 import org.http4s.HttpRoutes
 import org.http4s.dsl.Http4sDsl
-import zio.ZIO
+import zio.RIO
+import zio.blocking.Blocking
+import zio.clock.Clock
 
 object HealthCheckApi {
 
-  def httpRoutes[E <: Any]: HttpRoutes[ZIO[E, Throwable, *]] = {
+  def httpRoutes[R <: Clock with Blocking]: HttpRoutes[RIO[R, *]] = {
     import zio.interop.catz._
     healthCheckRoutes
   }
 
-  private def healthCheckRoutes[F[_]: ContextShift: Sync]: HttpRoutes[F] = {
+  private def healthCheckRoutes[F[_]: Sync]: HttpRoutes[F] = {
     val dsl = Http4sDsl[F]
     import dsl._
     HttpRoutes.of[F] {

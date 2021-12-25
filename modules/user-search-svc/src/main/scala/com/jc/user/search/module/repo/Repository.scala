@@ -1,24 +1,29 @@
 package com.jc.user.search.module.repo
 
+import cats.effect.kernel.Concurrent
 import com.jc.user.search.model.{ExpectedFailure, RepoFailure}
 import com.sksamuel.elastic4s.ElasticClient
 import io.circe.{Decoder, Encoder}
-import zio.ZIO
+import zio.{UIO, ZIO}
 import zio.logging.Logger
 
+import java.util
+import java.util.concurrent.ConcurrentHashMap
+import java.util.function.BiConsumer
 import scala.reflect.ClassTag
+import scala.tools.nsc.doc.html.HtmlTags.P
 
-trait Repository[ID, E <: Repository.Entity[ID]] {
+trait Repository[R, ID, E <: Repository.Entity[ID]] {
 
-  def insert(value: E): ZIO[Any, ExpectedFailure, Boolean]
+  def insert(value: E): ZIO[R, ExpectedFailure, Boolean]
 
-  def update(value: E): ZIO[Any, ExpectedFailure, Boolean]
+  def update(value: E): ZIO[R, ExpectedFailure, Boolean]
 
-  def delete(id: ID): ZIO[Any, ExpectedFailure, Boolean]
+  def delete(id: ID): ZIO[R, ExpectedFailure, Boolean]
 
-  def find(id: ID): ZIO[Any, ExpectedFailure, Option[E]]
+  def find(id: ID): ZIO[R, ExpectedFailure, Option[E]]
 
-  def findAll(): ZIO[Any, ExpectedFailure, Seq[E]]
+  def findAll(): ZIO[R, ExpectedFailure, Seq[E]]
 }
 
 object Repository {
@@ -28,18 +33,18 @@ object Repository {
   }
 }
 
-trait SearchRepository[E <: Repository.Entity[_]] {
+trait SearchRepository[R, E <: Repository.Entity[_]] {
 
   def search(
     query: Option[String],
     page: Int,
     pageSize: Int,
     sorts: Iterable[SearchRepository.FieldSort]
-  ): ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[E]]
+  ): ZIO[R, ExpectedFailure, SearchRepository.PaginatedSequence[E]]
 
   def suggest(
     query: String
-  ): ZIO[Any, ExpectedFailure, SearchRepository.SuggestResponse]
+  ): ZIO[R, ExpectedFailure, SearchRepository.SuggestResponse]
 }
 
 object SearchRepository {
@@ -56,11 +61,38 @@ object SearchRepository {
 
 }
 
-class ESRepository[ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: Decoder: ClassTag](
+abstract class AbstractCombinedRepository[R, ID, E <: Repository.Entity[ID]]
+    extends Repository[R, ID, E] with SearchRepository[R, E] {
+
+  protected def repository: Repository[R, ID, E]
+  protected def searchRepository: SearchRepository[R, E]
+
+  override def insert(value: E): ZIO[R, ExpectedFailure, Boolean] = repository.insert(value)
+
+  override def update(value: E): ZIO[R, ExpectedFailure, Boolean] = repository.update(value)
+
+  override def delete(id: ID): ZIO[R, ExpectedFailure, Boolean] = repository.delete(id)
+
+  override def find(id: ID): ZIO[R, ExpectedFailure, Option[E]] = repository.find(id)
+
+  override def findAll(): ZIO[R, ExpectedFailure, Seq[E]] = repository.findAll()
+
+  override def search(
+    query: Option[String],
+    page: Int,
+    pageSize: Int,
+    sorts: Iterable[SearchRepository.FieldSort]): ZIO[R, ExpectedFailure, SearchRepository.PaginatedSequence[E]] =
+    searchRepository.search(query, page, pageSize, sorts)
+
+  override def suggest(query: String): ZIO[R, ExpectedFailure, SearchRepository.SuggestResponse] =
+    searchRepository.suggest(query)
+}
+
+class ESRepository[R, ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: Decoder: ClassTag](
   indexName: String,
   elasticClient: ElasticClient,
   logger: Logger[String])
-    extends Repository[ID, E] {
+    extends Repository[R, ID, E] {
 
   import com.sksamuel.elastic4s.zio.instances._
   import com.sksamuel.elastic4s.ElasticDsl.{search => searchIndex, _}
@@ -68,7 +100,7 @@ class ESRepository[ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: De
 
   val serviceLogger = logger.named(getClass.getName)
 
-  override def insert(value: E): ZIO[Any, ExpectedFailure, Boolean] = {
+  override def insert(value: E): ZIO[R, ExpectedFailure, Boolean] = {
     val id = value.id.toString
     serviceLogger.debug(s"insert - ${indexName} - id: ${id}") *>
       elasticClient.execute {
@@ -79,7 +111,7 @@ class ESRepository[ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: De
       }
   }
 
-  override def update(value: E): ZIO[Any, ExpectedFailure, Boolean] = {
+  override def update(value: E): ZIO[R, ExpectedFailure, Boolean] = {
     val id = value.id.toString
     serviceLogger.debug(s"update - ${indexName} - id: ${id}") *>
       elasticClient.execute {
@@ -90,7 +122,7 @@ class ESRepository[ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: De
       }
   }
 
-  override def delete(id: ID): ZIO[Any, ExpectedFailure, Boolean] = {
+  override def delete(id: ID): ZIO[R, ExpectedFailure, Boolean] = {
     serviceLogger.debug(s"update - id: ${id}") *>
       elasticClient.execute {
         deleteById(indexName, id.toString)
@@ -100,7 +132,7 @@ class ESRepository[ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: De
       }
   }
 
-  override def find(id: ID): ZIO[Any, ExpectedFailure, Option[E]] = {
+  override def find(id: ID): ZIO[R, ExpectedFailure, Option[E]] = {
     serviceLogger.debug(s"find - ${indexName} - id: ${id}") *>
       elasticClient.execute {
         get(indexName, id.toString)
@@ -115,7 +147,7 @@ class ESRepository[ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: De
       }
   }
 
-  override def findAll(): ZIO[Any, ExpectedFailure, Seq[E]] = {
+  override def findAll(): ZIO[R, ExpectedFailure, Seq[E]] = {
     serviceLogger.debug(s"findAll - ${indexName}") *>
       elasticClient.execute {
         searchIndex(indexName).matchAllQuery()
@@ -126,12 +158,12 @@ class ESRepository[ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder: De
   }
 }
 
-class ESSearchRepository[E <: Repository.Entity[_]: Encoder: Decoder: ClassTag](
+class ESSearchRepository[R, E <: Repository.Entity[_]: Encoder: Decoder: ClassTag](
   indexName: String,
   suggestProperties: Seq[String],
   elasticClient: ElasticClient,
   logger: Logger[String]
-) extends SearchRepository[E] {
+) extends SearchRepository[R, E] {
 
   import com.sksamuel.elastic4s.zio.instances._
   import com.sksamuel.elastic4s.ElasticDsl.{search => searchIndex, _}
@@ -148,7 +180,7 @@ class ESSearchRepository[E <: Repository.Entity[_]: Encoder: Decoder: ClassTag](
     page: Int,
     pageSize: Int,
     sorts: Iterable[com.sksamuel.elastic4s.requests.searches.sort.FieldSort])
-    : ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[E]] = {
+    : ZIO[R, ExpectedFailure, SearchRepository.PaginatedSequence[E]] = {
 
     val elasticQuery = searchIndex(indexName).query(query).from(page * pageSize).limit(pageSize).sortBy(sorts)
 
@@ -176,7 +208,7 @@ class ESSearchRepository[E <: Repository.Entity[_]: Encoder: Decoder: ClassTag](
     query: Option[String],
     page: Int,
     pageSize: Int,
-    sorts: Iterable[SearchRepository.FieldSort]): ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[E]] = {
+    sorts: Iterable[SearchRepository.FieldSort]): ZIO[R, ExpectedFailure, SearchRepository.PaginatedSequence[E]] = {
     val q = query.map(QueryStringQuery(_)).getOrElse(MatchAllQuery())
     val ss = sorts.map { case SearchRepository.FieldSort(property, asc) =>
       val o = if (asc) SortOrder.Asc else SortOrder.Desc
@@ -203,7 +235,7 @@ class ESSearchRepository[E <: Repository.Entity[_]: Encoder: Decoder: ClassTag](
       }
   }
 
-  override def suggest(query: String): ZIO[Any, ExpectedFailure, SearchRepository.SuggestResponse] = {
+  override def suggest(query: String): ZIO[R, ExpectedFailure, SearchRepository.SuggestResponse] = {
     // completion suggestion
     val complSuggestions = suggestProperties.map { p =>
       suggestion
@@ -234,5 +266,88 @@ class ESSearchRepository[E <: Repository.Entity[_]: Encoder: Decoder: ClassTag](
         serviceLogger.error(s"suggest - ${indexName} - query: '$query' - error: ${e.throwable.getMessage}") *>
           ZIO.fail(e)
       }
+  }
+}
+
+class InMemoryRepository[R, ID, E <: Repository.Entity[ID]](private val store: ConcurrentHashMap[ID, E])
+    extends Repository[R, ID, E] {
+
+  override def insert(value: E): ZIO[R, ExpectedFailure, Boolean] = {
+    UIO {
+      val res = Option(store.put(value.id, value))
+      res.isDefined
+    }
+  }
+
+  override def update(value: E): ZIO[R, ExpectedFailure, Boolean] = {
+    UIO {
+      val res = Option(store.put(value.id, value))
+      res.isDefined
+    }
+  }
+
+  override def delete(id: ID): ZIO[R, ExpectedFailure, Boolean] = {
+    UIO {
+      Option(store.remove(id)).isDefined
+    }
+  }
+
+  override def find(id: ID): ZIO[R, ExpectedFailure, Option[E]] = {
+    UIO {
+      Option(store.get(id))
+    }
+  }
+
+  override def findAll(): ZIO[R, ExpectedFailure, Seq[E]] = {
+    import scala.jdk.CollectionConverters._
+    UIO {
+      store.values().asScala.toSeq
+    }
+  }
+
+  def find(predicate: E => Boolean): ZIO[R, ExpectedFailure, Seq[E]] = {
+    UIO {
+      val found = scala.collection.mutable.ListBuffer[E]()
+      store.forEach {
+        makeBiConsumer { (_, e) =>
+          if (predicate(e)) {
+            found += e
+          }
+        }
+      }
+      found.toSeq
+    }
+  }
+
+  private[this] def makeBiConsumer(f: (ID, E) => Unit): BiConsumer[ID, E] =
+    new BiConsumer[ID, E] {
+      override def accept(t: ID, u: E): Unit = f(t, u)
+    }
+}
+
+object InMemoryRepository {
+
+  def apply[R, ID, E <: Repository.Entity[ID]](): InMemoryRepository[R, ID, E] = {
+    new InMemoryRepository(new ConcurrentHashMap[ID, E]())
+  }
+}
+
+class NoOpSearchRepository[R, E <: Repository.Entity[_]]() extends SearchRepository[R, E] {
+
+  override def suggest(query: String): ZIO[R, ExpectedFailure, SearchRepository.SuggestResponse] = UIO(
+    SearchRepository.SuggestResponse(Nil))
+
+  override def search(
+    query: Option[String],
+    page: Int,
+    pageSize: Int,
+    sorts: Iterable[SearchRepository.FieldSort]): ZIO[R, ExpectedFailure, SearchRepository.PaginatedSequence[E]] =
+    UIO(SearchRepository.PaginatedSequence[E](Nil, page, pageSize, 0))
+}
+
+object NoOpSearchRepository {
+
+  def apply[R, E <: Repository.Entity[_]](): NoOpSearchRepository[R, E] = {
+    new NoOpSearchRepository()
   }
 }

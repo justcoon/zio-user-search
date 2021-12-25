@@ -1,60 +1,61 @@
 Global / resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-Scope.Global / scalaVersion := "3.0.0"
-Scope.Global / crossScalaVersions ++= Seq("2.13.6", "3.0.0")
+Scope.Global / scalaVersion := "2.13.6"
 
 lazy val Versions = new {
-  val kindProjector = "0.13.0"
-  val http4s = "0.21.25"
-  val zio = "1.0.10"
-  val zioInteropCats = "2.5.1.0" // "3.1.1.0"
-  val zioKafka = "0.15.0"
-  val zioLogging = "0.5.11"
-  val zioMetrics = "1.0.12"
-  val zioMagic = "0.3.6"
-  val elastic4s = "7.13.0"
-  val jackson = "2.12.4"
+  val kindProjector = "0.13.2"
+  val http4s = "0.23.7"
+  val zio = "1.0.13"
+  val zioInteropCats = "3.2.9.0"
+  val zioKafka = "0.17.3"
+  val zioLogging = "0.5.14"
+  val zioMetrics = "1.0.13"
+  val zioMagic = "0.3.11"
+  val elastic4s = "7.16.1"
+  val jackson = "2.13.1"
   val circe = "0.14.1"
   val randomDataGenerator = "2.9"
-  val pureconfig = "0.16.0"
-  val refined = "0.9.27"
-  val logback = "1.2.5"
-  val grpc = "1.39.0"
+  val pureconfig = "0.17.1"
+  val refined = "0.9.28"
+  val logback = "1.2.10"
+  val grpc = "1.43.1"
   val chimney = "0.6.1"
   val pauldijouJwt = "5.0.0"
-  val tapir = "0.17.20"
+  val tapir = "0.19.3"
+  val caliban = "1.3.1"
 
-  val scalaTest = "3.2.9"
   val gatling = "3.6.1"
-  val gatlingGrpc = "0.11.1"
+  val gatlingGrpc = "0.12.0"
+
 }
 
 lazy val library =
   new {
     // Scala libraries
-    val zio = "dev.zio" %% "zio"                                                          % Versions.zio
-    val zioStreams = "dev.zio" %% "zio-streams"                                           % Versions.zio
-    val zioInteropCats = "dev.zio" %% "zio-interop-cats"                                  % Versions.zioInteropCats
-    val zioKafka = "dev.zio" %% "zio-kafka"                                               % Versions.zioKafka
-    val zioLoggingSlf4j = "dev.zio" %% "zio-logging-slf4j"                                % Versions.zioLogging
-    val zioMetricsPrometheus = "dev.zio" %% "zio-metrics-prometheus"                      % Versions.zioMetrics
-    val zioMagic = "io.github.kitlangton" %% "zio-magic"                                  % Versions.zioMagic
-    val elastic4sClientEsjava = "com.sksamuel.elastic4s" %% "elastic4s-client-esjava"     % Versions.elastic4s
-    val elastic4sEffectZio = "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"           % Versions.elastic4s
-    val elastic4sJsonCirce = "com.sksamuel.elastic4s" %% "elastic4s-json-circe"           % Versions.elastic4s
-    val jacksonModuleScala = "com.fasterxml.jackson.module" %% "jackson-module-scala"     % Versions.jackson
-    val http4sCore = ("org.http4s" %% "http4s-core"                                       % Versions.http4s).cross(CrossVersion.for3Use2_13)
-    val http4sDsl = ("org.http4s" %% "http4s-dsl"                                         % Versions.http4s).cross(CrossVersion.for3Use2_13)
-    val http4sBlazeServer = ("org.http4s" %% "http4s-blaze-server"                        % Versions.http4s).cross(CrossVersion.for3Use2_13)
-    val http4sBlazeClient = ("org.http4s" %% "http4s-blaze-client"                        % Versions.http4s).cross(CrossVersion.for3Use2_13)
-    val http4sCirce = ("org.http4s" %% "http4s-circe"                                     % Versions.http4s).cross(CrossVersion.for3Use2_13)
-    val tapirZioHttp4s = "com.softwaremill.sttp.tapir" %% "tapir-zio-http4s-server"       % Versions.tapir
-    val tapirSwaggerUiHttp4s = "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-http4s" % Versions.tapir
-    val circeGeneric = ("io.circe" %% "circe-generic"                                     % Versions.circe).cross(CrossVersion.for3Use2_13)
+    val zio = "dev.zio" %% "zio"                                                      % Versions.zio
+    val zioStreams = "dev.zio" %% "zio-streams"                                       % Versions.zio
+    val zioInteropCats = "dev.zio" %% "zio-interop-cats"                              % Versions.zioInteropCats
+    val zioKafka = "dev.zio" %% "zio-kafka"                                           % Versions.zioKafka
+    val zioLoggingSlf4j = "dev.zio" %% "zio-logging-slf4j"                            % Versions.zioLogging
+    val zioMetricsPrometheus = "dev.zio" %% "zio-metrics-prometheus"                  % Versions.zioMetrics
+    val zioMagic = "io.github.kitlangton" %% "zio-magic"                              % Versions.zioMagic
+    val elastic4sClientEsjava = "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % Versions.elastic4s
+    val elastic4sEffectZio = "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"       % Versions.elastic4s
+    val elastic4sJsonCirce = "com.sksamuel.elastic4s" %% "elastic4s-json-circe"       % Versions.elastic4s
+    val jacksonModuleScala = "com.fasterxml.jackson.module" %% "jackson-module-scala" % Versions.jackson
+    val http4sCore = "org.http4s" %% "http4s-core"                                    % Versions.http4s
+    val http4sDsl = "org.http4s" %% "http4s-dsl"                                      % Versions.http4s
+    val http4sBlazeServer = "org.http4s" %% "http4s-blaze-server"                     % Versions.http4s
+    val http4sBlazeClient = "org.http4s" %% "http4s-blaze-client"                     % Versions.http4s
+    val http4sCirce = "org.http4s" %% "http4s-circe"                                  % Versions.http4s
+    val tapirZioHttp4s = "com.softwaremill.sttp.tapir" %% "tapir-zio-http4s-server"   % Versions.tapir
+    val tapirSwaggerUi = "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui"          % Versions.tapir
+    val circeGeneric = "io.circe" %% "circe-generic"                                  % Versions.circe
     val circeGenericExtras = ("io.circe" %% "circe-generic-extras"                        % Versions.circe).cross(CrossVersion.for3Use2_13)
+    val circeYaml = "io.circe" %% "circe-yaml"                                        % Versions.circe
     val pauldijouJwtCirce = ("com.pauldijou" %% "jwt-circe"                               % Versions.pauldijouJwt).cross(CrossVersion.for3Use2_13)
     val pureconfig = ("com.github.pureconfig" %% "pureconfig"                             % Versions.pureconfig).cross(CrossVersion.for3Use2_13)
     val refinedPureconfig = ("eu.timepit" %% "refined-pureconfig"                         % Versions.refined).cross(CrossVersion.for3Use2_13)
-    val chimney = "io.scalaland" %% "chimney"                                             % Versions.chimney
+    val chimney = "io.scalaland" %% "chimney"                                         % Versions.chimney
 
     val zioGrpcCore = ("com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core" % "0.5.0").cross(CrossVersion.for3Use2_13)
 
@@ -66,11 +67,14 @@ lazy val library =
       "com.thesamet.scalapb" %% "scalapb-runtime"                             % scalapb.compiler.Version.scalapbVersion % "protobuf"
     val scalapbRuntimeGrpc = "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion
 
+    val calibanHttp4s = "com.github.ghostdogpr" %% "caliban-http4s" % Versions.caliban
+
     val gatlingCharts = "io.gatling.highcharts" % "gatling-charts-highcharts" % Versions.gatling
     val gatlingTest = "io.gatling"              % "gatling-test-framework"    % Versions.gatling
     val gatlingGrpc = "com.github.phisgr"       % "gatling-grpc"              % Versions.gatlingGrpc
 
-    val scalatest = "org.scalatest" %% "scalatest"                             % Versions.scalaTest           % "test"
+    val zioTest = "dev.zio" %% "zio-test"                                      % Versions.zio                 % "test"
+    val zioTestSbt = "dev.zio" %% "zio-test-sbt"                               % Versions.zio                 % "test"
     val randomDataGenerator = "com.danielasfregola" %% "random-data-generator" % Versions.randomDataGenerator % "test"
 
     // Java libraries
@@ -98,11 +102,21 @@ lazy val `core` =
       Compile / PB.targets := Seq(
         scalapb.gen(grpc = true) -> (Compile / sourceManaged).value,
         scalapb.zio_grpc.ZioCodeGenerator -> (Compile / sourceManaged).value
-      )
+      ),
+      Compile / guardrailTasks := List(
+        ScalaServer(
+          file(s"${baseDirectory.value}/src/main/openapi/LoggingSystemOpenApi.yaml"),
+          pkg = "com.jc.logging.openapi",
+          framework = "http4s",
+          tracing = false,
+          customExtraction = true
+        )
+      ),
+      PB.protocVersion := "3.17.3" // mac m1 issue
     )
+    .settings(Compile / unmanagedResourceDirectories += baseDirectory.value / "src" / "main" / "openapi")
     .settings(
       libraryDependencies ++= Seq(
-        // Scala libraries
         library.zio,
         library.zioStreams,
         library.zioInteropCats,
@@ -110,16 +124,22 @@ lazy val `core` =
         library.zioGrpcCore,
         library.circeGeneric,
         library.circeGenericExtras,
+        library.circeYaml,
         library.pauldijouJwtCirce,
         library.pureconfig,
         library.refinedPureconfig,
         library.http4sCore,
+        library.http4sDsl,
+        library.http4sBlazeServer,
+        library.http4sBlazeClient,
+        library.http4sCirce,
         library.scalapbRuntime,
         library.scalapbRuntimeGrpc,
-        library.scalatest,
-        // Java libraries
-        library.logback
-      )
+        library.logback,
+        library.zioTest,
+        library.zioTestSbt
+      ),
+      testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
     )
 
 lazy val `user-search-api` =
@@ -141,7 +161,8 @@ lazy val `user-search-api` =
           tracing = false,
           customExtraction = true
         )
-      )
+      ),
+      PB.protocVersion := "3.17.3" // mac m1 issue
     )
     .settings(Compile / unmanagedResourceDirectories += baseDirectory.value / "src" / "main" / "openapi")
     .settings(
@@ -150,6 +171,7 @@ lazy val `user-search-api` =
         library.zio,
         library.zioStreams,
         library.zioInteropCats,
+        library.zioLoggingSlf4j,
         library.http4sCore,
         library.http4sDsl,
         library.http4sBlazeServer,
@@ -157,6 +179,7 @@ lazy val `user-search-api` =
         library.http4sCirce,
         library.circeGeneric,
         library.circeGenericExtras,
+        library.calibanHttp4s,
         library.scalapbRuntime,
         library.scalapbRuntimeGrpc
       )
@@ -189,7 +212,7 @@ lazy val `user-search-svc` =
         library.http4sBlazeClient,
         library.http4sCirce,
         library.tapirZioHttp4s,
-        library.tapirSwaggerUiHttp4s,
+        library.tapirSwaggerUi,
         library.circeGeneric,
         library.circeGenericExtras,
         library.pureconfig,
@@ -200,11 +223,12 @@ lazy val `user-search-svc` =
         library.grpcNettyShadded,
         library.scalapbRuntime,
         library.scalapbRuntimeGrpc,
-        library.scalatest,
         library.randomDataGenerator,
-        // Java libraries
-        library.logback
-      )
+        library.logback,
+        library.zioTest,
+        library.zioTestSbt
+      ),
+      testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
     )
     .aggregate(`user-search-api`)
     .dependsOn(`user-search-api`, `core`)

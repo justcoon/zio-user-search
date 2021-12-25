@@ -19,32 +19,6 @@ tags:
       description: TODO
       url: 'http://swagger.io'
 paths:
-  '/department/{id}':
-    get:
-      tags:
-        - user
-      summary: Get department by department id
-      description: ''
-      operationId: getDepartment
-      parameters:
-        - name: id
-          in: path
-          description: 'The id that needs to be fetched. Department dep1 for testing. '
-          required: true
-          schema:
-            type: string
-          x-scala-type: com.jc.user.domain.DepartmentEntity.DepartmentId
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Department'
-        '401':
-          description: unauthorized
-        '404':
-          description: department not found
   /department/search:
     get:
       tags:
@@ -121,39 +95,41 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DepartmentSuggestResponse'
+                $ref: '#/components/schemas/SuggestResponse'
         '400':
           description: failed operation
           content:
             application/json:
               schema:
                 type: string
-  '/user/{id}':
+  '/department/{id}':
     get:
       tags:
         - user
-      summary: Get user by user id
+      summary: Get department by department id
       description: ''
-      operationId: getUser
+      operationId: getDepartment
       parameters:
         - name: id
           in: path
-          description: 'The id that needs to be fetched. Use user1 for testing. '
+          description: 'The id that needs to be fetched. Department dep1 for testing. '
           required: true
           schema:
             type: string
-          x-scala-type: com.jc.user.domain.UserEntity.UserId
+          x-scala-type: com.jc.user.domain.DepartmentEntity.DepartmentId
       responses:
         '200':
           description: successful operation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/Department'
         '401':
           description: unauthorized
         '404':
-          description: user not found
+          description: department not found
+      security:
+        - bearerAuth: [ ]
   /user/search:
     get:
       tags:
@@ -230,13 +206,41 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserSuggestResponse'
+                $ref: '#/components/schemas/SuggestResponse'
         '400':
           description: failed operation
           content:
             application/json:
               schema:
                 type: string
+  '/user/{id}':
+    get:
+      tags:
+        - user
+      summary: Get user by user id
+      description: ''
+      operationId: getUser
+      parameters:
+        - name: id
+          in: path
+          description: 'The id that needs to be fetched. Use user1 for testing. '
+          required: true
+          schema:
+            type: string
+          x-scala-type: com.jc.user.domain.UserEntity.UserId
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: unauthorized
+        '404':
+          description: user not found
+      security:
+        - bearerAuth: [ ]
 externalDocs:
   description: Find out more about Swagger
   url: 'http://swagger.io'
@@ -312,16 +316,6 @@ components:
         - page
         - pageSize
         - count
-    DepartmentSuggestResponse:
-      description: Department suggest response
-      properties:
-        suggestions:
-          type: array
-          items:
-            $ref: '#/components/schemas/PropertySuggestion'
-      type: object
-      required:
-        - suggestions
     User:
       properties:
         id:
@@ -372,8 +366,8 @@ components:
         - page
         - pageSize
         - count
-    UserSuggestResponse:
-      description: User suggest response
+    SuggestResponse:
+      description: Suggest response
       properties:
         suggestions:
           type: array
