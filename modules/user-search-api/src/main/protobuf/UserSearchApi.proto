@@ -15,6 +15,14 @@ option (scalapb.options) = {
 //option java_multiple_files = true;
 //option java_package = "com.jc.user.api.proto";
 
+message UserView {
+  string id = 1 [(scalapb.field).type = "com.jc.user.domain.UserEntity.UserId"];
+  string username = 2;
+  string email = 3;
+  string pass = 4;
+  com.jc.user.domain.proto.Address address = 5;
+  com.jc.user.domain.proto.Department department = 6;
+}
 
 enum SortOrder {
     ASC = 0;
@@ -43,7 +51,7 @@ message GetUserReq {
 }
 
 message GetUserRes {
-    com.jc.user.domain.proto.User user = 1;
+    UserView user = 1;
 }
 
 message SearchUsersReq {
@@ -54,7 +62,7 @@ message SearchUsersReq {
 }
 
 message SearchUsersRes {
-    repeated com.jc.user.domain.proto.User users = 1;
+    repeated UserView users = 1;
     int32 page = 2;
     int32 pageSize = 3;
     int32 count = 4;
@@ -132,7 +140,7 @@ service UserSearchApiService {
     rpc SearchUsers (SearchUsersReq) returns (SearchUsersRes) {
     }
 
-    rpc SearchUserStream (SearchUserStreamReq) returns (stream com.jc.user.domain.proto.User) {
+    rpc SearchUserStream (SearchUserStreamReq) returns (stream UserView) {
     }
 
     rpc SuggestUsers (SuggestUsersReq) returns (SuggestUsersRes) {

@@ -11,5 +11,5 @@ addSbtPlugin("com.typesafe.sbt"      % "sbt-git"       % "1.0.0")
 addSbtPlugin("com.thesamet"          % "sbt-protoc"    % "1.0.4")
 addSbtPlugin("io.gatling" % "gatling-sbt" % "4.0.0")
 
-libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.6"
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.7"
 libraryDependencies += "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-codegen" % "0.5.1"

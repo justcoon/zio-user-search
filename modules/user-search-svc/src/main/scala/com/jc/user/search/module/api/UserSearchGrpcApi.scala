@@ -18,7 +18,8 @@ import com.jc.user.search.api.proto.{
   SuggestDepartmentsReq,
   SuggestDepartmentsRes,
   SuggestUsersReq,
-  SuggestUsersRes
+  SuggestUsersRes,
+  UserView
 }
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.auth.JwtAuthenticator
@@ -52,10 +53,10 @@ object UserSearchGrpcApiHandler {
         res <- userSearchRepo
           .find(request.id)
           .mapError(toStatus)
-      } yield GetUserRes(res.map(_.transformInto[proto.User]))
+      } yield GetUserRes(res.map(_.transformInto[UserView]))
     }
 
-    override def searchUserStream(request: SearchUserStreamReq): ZStream[Any, Status, proto.User] = {
+    override def searchUserStream(request: SearchUserStreamReq): ZStream[Any, Status, UserView] = {
       val ss = request.sorts.map(toRepoFieldSort)
       val q = if (request.query.isBlank) None else Some(request.query)
 
@@ -72,7 +73,7 @@ object UserSearchGrpcApiHandler {
             }
         }
         .mapConcat(identity)
-        .map(_.transformInto[proto.User])
+        .map(_.transformInto[UserView])
         .mapError(toStatus)
     }
 
@@ -85,7 +86,7 @@ object UserSearchGrpcApiHandler {
           e => SearchUsersRes(result = SearchUsersRes.Result.Failure(ExpectedFailure.getMessage(e))),
           r =>
             SearchUsersRes(
-              r.items.map(_.transformInto[proto.User]),
+              r.items.map(_.transformInto[UserView]),
               r.page,
               r.pageSize,
               r.count,
