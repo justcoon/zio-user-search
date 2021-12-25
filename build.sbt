@@ -1,5 +1,6 @@
 Global / resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-Scope.Global / scalaVersion := "2.13.6"
+Scope.Global / scalaVersion := "3.1.0"
+Scope.Global / crossScalaVersions ++= Seq("2.13.7", "3.0.0")
 
 lazy val Versions = new {
   val kindProjector = "0.13.2"
