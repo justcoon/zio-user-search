@@ -41,6 +41,8 @@ object LoggingSystemGrpcApi {
     authenticator: JwtAuthenticator.Service)
       extends RCLoggingSystemApiService[Any] {
 
+    private val authenticated = GrpcJwtAuth.authenticated(authenticator)
+
     def getSupportedLogLevels: UIO[Seq[LogLevel]] =
       loggingSystem.getSupportedLogLevels.map { levels =>
         levels.map(logLevelMapping.toLogger).toSeq
@@ -56,7 +58,7 @@ object LoggingSystemGrpcApi {
     override def setLoggerConfiguration(
       request: SetLoggerConfigurationReq): ZIO[Any with Has[RequestContext], Status, LoggerConfigurationRes] = {
       for {
-        _ <- GrpcJwtAuth.authenticated(authenticator)
+        _ <- authenticated
         res <- loggingSystem.setLogLevel(request.name, request.level.flatMap(logLevelMapping.fromLogger.get))
         levels <- getSupportedLogLevels
         configuration <-
@@ -69,7 +71,7 @@ object LoggingSystemGrpcApi {
     override def getLoggerConfiguration(
       request: GetLoggerConfigurationReq): ZIO[Any with Has[RequestContext], Status, LoggerConfigurationRes] = {
       for {
-        _ <- GrpcJwtAuth.authenticated(authenticator)
+        _ <- authenticated
         levels <- getSupportedLogLevels
         configuration <- loggingSystem.getLoggerConfiguration(request.name)
       } yield LoggerConfigurationRes(configuration.map(toApiLoggerConfiguration), levels)
@@ -78,7 +80,7 @@ object LoggingSystemGrpcApi {
     override def getLoggerConfigurations(
       request: GetLoggerConfigurationsReq): ZIO[Any with Has[RequestContext], Status, LoggerConfigurationsRes] = {
       for {
-        _ <- GrpcJwtAuth.authenticated(authenticator)
+        _ <- authenticated
         levels <- getSupportedLogLevels
         configurations <- loggingSystem.getLoggerConfigurations
       } yield LoggerConfigurationsRes(configurations.map(toApiLoggerConfiguration), levels)

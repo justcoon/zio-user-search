@@ -17,4 +17,10 @@ object HttpJwtAuth {
     } yield subject
   }
 
+  def authenticated[R <: JwtAuthenticator](headers: Headers): ZIO[R, Status, String] = {
+    ZIO.accessM[R] { env =>
+      authenticated(headers, env.get[JwtAuthenticator.Service])
+    }
+  }
+
 }

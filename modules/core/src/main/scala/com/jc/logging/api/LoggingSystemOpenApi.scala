@@ -24,7 +24,9 @@ final class LoggingSystemOpenApiHandler[R <: LoggingSystem with JwtAuthenticator
     extends LoggingHandler[ZIO[R, Throwable, *], Headers] {
   type F[A] = ZIO[R, Throwable, A]
 
-  def toApiLoggerConfiguration(configuration: LoggingSystem.LoggerConfiguration): LoggerConfiguration =
+  private val envServices = ZIO.services[LoggingSystem.Service, JwtAuthenticator.Service]
+
+  private def toApiLoggerConfiguration(configuration: LoggingSystem.LoggerConfiguration): LoggerConfiguration =
     LoggerConfiguration(
       configuration.name,
       LoggingSystemOpenApiHandler.logLevelMapping.toLogger(configuration.effectiveLevel),
@@ -33,7 +35,7 @@ final class LoggingSystemOpenApiHandler[R <: LoggingSystem with JwtAuthenticator
 
   override def getLoggerConfiguration(respond: GetLoggerConfigurationResponse.type)(name: String)(
     extracted: Headers): ZIO[R, Throwable, GetLoggerConfigurationResponse] =
-    ZIO.services[LoggingSystem.Service, JwtAuthenticator.Service].flatMap { case (loggingSystem, authenticator) =>
+    envServices.flatMap { case (loggingSystem, authenticator) =>
       HttpJwtAuth
         .authenticated(extracted, authenticator)
         .foldM(
@@ -50,7 +52,7 @@ final class LoggingSystemOpenApiHandler[R <: LoggingSystem with JwtAuthenticator
 
   override def getLoggerConfigurations(respond: GetLoggerConfigurationsResponse.type)()(
     extracted: Headers): ZIO[R, Throwable, GetLoggerConfigurationsResponse] =
-    ZIO.services[LoggingSystem.Service, JwtAuthenticator.Service].flatMap { case (loggingSystem, authenticator) =>
+    envServices.flatMap { case (loggingSystem, authenticator) =>
       HttpJwtAuth
         .authenticated(extracted, authenticator)
         .foldM(
@@ -68,7 +70,7 @@ final class LoggingSystemOpenApiHandler[R <: LoggingSystem with JwtAuthenticator
   override def setLoggerConfiguration(
     respond: SetLoggerConfigurationResponse.type)(name: String, body: Option[LogLevel])(
     extracted: Headers): ZIO[R, Throwable, SetLoggerConfigurationResponse] =
-    ZIO.services[LoggingSystem.Service, JwtAuthenticator.Service].flatMap { case (loggingSystem, authenticator) =>
+    envServices.flatMap { case (loggingSystem, authenticator) =>
       HttpJwtAuth
         .authenticated(extracted, authenticator)
         .foldM(

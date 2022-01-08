@@ -47,9 +47,11 @@ object UserSearchGrpcApiHandler {
       extends RCUserSearchApiService[Any] {
     import io.scalaland.chimney.dsl._
 
+    private val authenticated = GrpcJwtAuth.authenticated(jwtAuthenticator)
+
     override def getUser(request: GetUserReq): ZIO[Has[RequestContext], Status, GetUserRes] = {
       for {
-        _ <- GrpcJwtAuth.authenticated(jwtAuthenticator)
+        _ <- authenticated
         res <- userSearchRepo
           .find(request.id)
           .mapError(toStatus)
@@ -105,7 +107,7 @@ object UserSearchGrpcApiHandler {
 
     override def getDepartment(request: GetDepartmentReq): ZIO[Has[RequestContext], Status, GetDepartmentRes] = {
       for {
-        _ <- GrpcJwtAuth.authenticated(jwtAuthenticator)
+        _ <- authenticated
         res <- departmentSearchRepo
           .find(request.id)
           .mapError(toStatus)

@@ -61,7 +61,7 @@ object UserSearchGraphqlApiHandler {
 
     private val unauthorized = CalibanError.ExecutionError("Unauthorized")
 
-    def authenticated(): ZIO[UserSearchGraphqlApiRequestContext, CalibanError, String] = {
+    private val authenticated: ZIO[UserSearchGraphqlApiRequestContext, CalibanError, String] = {
       ZIO.serviceWith { context =>
         for {
           rawToken <- ZIO.getOrFailWith(unauthorized)(context.get(JwtAuthenticator.AuthHeader))
@@ -71,45 +71,41 @@ object UserSearchGraphqlApiHandler {
       }
     }
 
-    override def getUser(request: GetUser): RIO[UserSearchGraphqlApiRequestContext, Option[User]] = {
-      authenticated().flatMap { _ =>
+    override def getUser(request: GetUser): RIO[UserSearchGraphqlApiRequestContext, Option[User]] =
+      authenticated >>>
         userSearchRepo
           .find(request.id)
           .mapError(toCalibanError)
           .map(_.map(_.transformInto[User]))
-      }
-    }
 
-    override def searchUsers(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, UserSearchResponse] = {
-      authenticated().flatMap { _ =>
+    override def searchUsers(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, UserSearchResponse] =
+      authenticated >>> {
         val ss = request.sorts.getOrElse(Seq.empty).map(toRepoFieldSort)
         userSearchRepo
           .search(request.query, request.page, request.pageSize, ss)
           .mapError(toCalibanError)
           .map(r => UserSearchResponse(r.items.map(_.transformInto[User]), r.page, r.pageSize, r.count))
       }
-    }
 
     override def suggestUsers(request: SuggestRequest): RIO[UserSearchGraphqlApiRequestContext, SuggestResponse] =
-      authenticated().flatMap { _ =>
+      authenticated >>>
         userSearchRepo
           .suggest(request.query)
           .mapError(toCalibanError)
           .map(r => SuggestResponse(r.items.map(_.transformInto[PropertySuggestion])))
-      }
 
     override def getDepartment(request: GetDepartment): RIO[UserSearchGraphqlApiRequestContext, Option[Department]] = {
-      authenticated().flatMap { _ =>
+      authenticated >>>
         departmentSearchRepo
           .find(request.id)
           .mapError(toCalibanError)
           .map(_.map(_.transformInto[Department]))
-      }
+
     }
 
     override def searchDepartments(
       request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, DepartmentSearchResponse] = {
-      authenticated().flatMap { _ =>
+      authenticated >>> {
         val ss = request.sorts.getOrElse(Seq.empty).map(toRepoFieldSort)
         departmentSearchRepo
           .search(request.query, request.page, request.pageSize, ss)
@@ -119,12 +115,11 @@ object UserSearchGraphqlApiHandler {
     }
 
     override def suggestDepartments(request: SuggestRequest): RIO[UserSearchGraphqlApiRequestContext, SuggestResponse] =
-      authenticated().flatMap { _ =>
+      authenticated >>>
         departmentSearchRepo
           .suggest(request.query)
           .mapError(toCalibanError)
           .map(r => SuggestResponse(r.items.map(_.transformInto[PropertySuggestion])))
-      }
 
   }
 
