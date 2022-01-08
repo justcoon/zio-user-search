@@ -1,26 +1,17 @@
 package com.jc.user.search
 
 import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, PrometheusConfig}
-import com.jc.user.search.module.api.{
-  GrpcApiServer,
-  HttpApiServer,
-  UserSearchGraphqlApiHandler,
-  UserSearchGrpcApiHandler
-}
+import com.jc.user.search.module.api.{GrpcApiServer, HttpApiServer, UserSearchGraphqlApiHandler, UserSearchGrpcApiHandler}
 import com.jc.auth.JwtAuthenticator
+import com.jc.kafka.KafkaDistributedProcessing
 import com.jc.logging.{LogbackLoggingSystem, LoggingSystem}
 import com.jc.logging.api.{LoggingSystemGrpcApi, LoggingSystemGrpcApiHandler}
 import com.jc.user.search.api.graphql.UserSearchGraphqlApi
 import com.jc.user.search.api.graphql.UserSearchGraphqlApi.UserSearchGraphqlApiInterpreter
 import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiService
-import com.jc.user.search.module.kafka.KafkaConsumer
+import com.jc.user.search.module.kafka.{KafkaConsumer, KafkaDistributedProcessingTest}
 import com.jc.user.search.module.processor.EventProcessor
-import com.jc.user.search.module.repo.{
-  DepartmentSearchRepo,
-  DepartmentSearchRepoInit,
-  UserSearchRepo,
-  UserSearchRepoInit
-}
+import com.jc.user.search.module.repo.{DepartmentSearchRepo, DepartmentSearchRepoInit, UserSearchRepo, UserSearchRepoInit}
 import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties}
 import io.prometheus.client.exporter.{HTTPServer => PrometheusHttpServer}
@@ -98,6 +89,7 @@ object Main extends App {
             DepartmentSearchRepoInit.init *>
             metrics(appConfig.prometheus) *>
             KafkaConsumer.consume(appConfig.kafka) &>
+            KafkaDistributedProcessingTest.distributionTest(appConfig.kafka) &>
             ZIO.never
       }
 

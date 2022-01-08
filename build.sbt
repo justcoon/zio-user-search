@@ -118,6 +118,7 @@ lazy val `core` =
         library.zioStreams,
         library.zioInteropCats,
         library.zioLoggingSlf4j,
+        library.zioKafka,
         library.circeGeneric,
         library.circeGenericExtras,
         library.circeYaml,
