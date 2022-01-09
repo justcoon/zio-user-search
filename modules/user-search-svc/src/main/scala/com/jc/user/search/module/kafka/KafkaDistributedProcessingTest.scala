@@ -6,10 +6,10 @@ import zio.kafka.consumer.Consumer.AutoOffsetStrategy
 import zio.kafka.consumer.{Consumer, ConsumerSettings}
 import zio.duration._
 import eu.timepit.refined.auto._
-import zio.ZIO
+import zio.{Schedule, ZIO}
 import zio.blocking.Blocking
 import zio.clock.Clock
-import zio.logging.Logging
+import zio.logging.{Logger, Logging}
 
 object KafkaDistributedProcessingTest {
 
@@ -27,8 +27,14 @@ object KafkaDistributedProcessingTest {
     val settings = consumerSettings(config)
 
     def process(partition: Int): ZIO[R, Throwable, Unit] = {
-      ZIO.accessM[Logging] {
-        _.get.log(s"distributionTest - partition ${partition}")
+      ZIO.accessM[R] { env =>
+        val logger = env.get[Logger[String]]
+        logger.log(s"distributionTest - partition ${partition} - starting") >>>
+          logger
+            .log(s"distributionTest - partition ${partition} - exec")
+            .repeat(Schedule.duration(10.seconds))
+            .provide(env) >>>
+          ZIO.effect(())
       }
     }
 
