@@ -37,23 +37,24 @@ object KafkaDistributedProcessing {
                 ZStream[R, Throwable, CommittableRecord[Array[Byte], Array[Byte]]])] =>
                 val ops = store.keys().asScala.toSet
 
+
                 val nps = newPartitions.map { case (topicPartition, _) =>
                   topicPartition.partition()
                 }.toSet
 
+                val rps = ops.filterNot(nps.contains)
 
-                val removed: Set[ZIO[R, Throwable, Unit]] = ops.filterNot(nps.contains).map { partition =>
-                  Option(store.remove(partition)).fold[ZIO[R, Throwable, Unit]](ZIO.unit) {
-                    p: URIO[R, Fiber.Runtime[Throwable, Unit]] =>
-                      for {
-                        fiber <- p
-                        _ <- fiber.interrupt
-                        _ <- logger.debug(s"process - partition: ${partition} - stopped")
-                      } yield ()
+                lazy val removed: Set[ZIO[R, Throwable, Unit]] = rps.map { partition =>
+                  Option(store.remove(partition)).fold[ZIO[R, Throwable, Unit]](ZIO.unit) { d =>
+                    for {
+                      fiber <- d
+                      _ <- fiber.interrupt
+                      _ <- logger.debug(s"process - partition: ${partition} - stopped")
+                    } yield ()
                   }
                 }
 
-                val updated: Set[URIO[R, Fiber.Runtime[Throwable, Unit]]] = nps.map { partition =>
+                lazy val updated: Set[URIO[R, Fiber.Runtime[Throwable, Unit]]] = nps.map { partition =>
                   store.computeIfAbsent(
                     partition,
                     { _ =>
@@ -63,7 +64,7 @@ object KafkaDistributedProcessing {
                 }
 
                 for {
-                  _ <- logger.debug(s"process - partitions: ${nps.mkString(",")}")
+                  _ <- logger.debug(s"process - partitions assigned: ${nps.mkString(",")}, removing: ${rps.mkString(",")}")
                   _ <- ZIO.collectAll(removed)
                   _ <- ZIO.collectAll(updated)
                 } yield ()
