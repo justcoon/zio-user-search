@@ -29,11 +29,13 @@ object KafkaDistributedProcessingTest {
     def process(partition: Int): ZIO[R, Throwable, Unit] = {
       ZIO.accessM[R] { env =>
         val logger = env.get[Logger[String]]
-        logger.log(s"distributionTest - partition ${partition} - starting") *>
-          logger
+        for {
+          _ <- logger.log(s"distributionTest - partition ${partition} - starting")
+          _ <- logger
             .log(s"distributionTest - partition ${partition} - exec")
-            .repeat(Schedule.duration(10.seconds))
-            .provide(env).unit
+            .repeat(Schedule.fixed(10.seconds))
+          _ <- logger.log(s"distributionTest - partition ${partition} - done")
+        } yield ()
       }
     }
 

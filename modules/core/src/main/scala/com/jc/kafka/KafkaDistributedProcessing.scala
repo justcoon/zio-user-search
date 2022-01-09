@@ -1,14 +1,12 @@
 package com.jc.kafka
 
-import org.apache.kafka.common.TopicPartition
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.duration._
-import zio.{Chunk, Fiber, RManaged, URIO, ZIO, ZRefM}
-import zio.kafka.consumer.{CommittableRecord, Consumer, ConsumerSettings, Subscription}
+import zio.{Fiber, URIO, ZIO, ZRefM}
+import zio.kafka.consumer.{Consumer, ConsumerSettings, Subscription}
 import zio.kafka.serde.Serde
 import zio.logging.{Logger, Logging}
-import zio.stream.ZStream
 
 object KafkaDistributedProcessing {
 
@@ -18,7 +16,7 @@ object KafkaDistributedProcessing {
     settings: ConsumerSettings,
     process: Int => ZIO[R, Throwable, Unit]) = {
 
-    val consumer: RManaged[R, Consumer] = Consumer.make(settings)
+    val consumer = Consumer.make(settings)
 
     consumer.use[R, Throwable, Unit] { consumer =>
       val subscribe = consumer.subscribe(Subscription.topics(name))
@@ -54,7 +52,6 @@ object KafkaDistributedProcessing {
 //              } yield ()
 //
 //              res.ignore
-//
 //            }
 
           ZRefM
@@ -62,47 +59,44 @@ object KafkaDistributedProcessing {
             .flatMap { stored =>
               consumer
                 .partitionedAssignmentStream[R, Array[Byte], Array[Byte]](Serde.byteArray, Serde.byteArray)
-                .mapM {
-                  newPartitions: Chunk[(
-                    TopicPartition,
-                    ZStream[R, Throwable, CommittableRecord[Array[Byte], Array[Byte]]])] =>
-                    def getUpdated(stored: Map[Int, URIO[R, Fiber.Runtime[Throwable, Unit]]]) = {
-                      val assignedPartitions = newPartitions.map { case (topicPartition, _) =>
-                        topicPartition.partition()
-                      }.toSet
+                .mapM { newPartitions =>
+                  def getUpdated(stored: Map[Int, URIO[R, Fiber.Runtime[Throwable, Unit]]]) = {
+                    val assignedPartitions = newPartitions.map { case (topicPartition, _) =>
+                      topicPartition.partition()
+                    }.toSet
 
-                      val removedPartitions = stored.keySet.filterNot(assignedPartitions.contains)
+                    val removedPartitions = stored.keySet.filterNot(assignedPartitions.contains)
 
-                      val remove = stored.collect {
-                        case (partition, daemon) if (!assignedPartitions.contains(partition)) =>
-                          stopDaemon(partition, daemon)
-                      }
+                    val remove = stored.collect {
+                      case (partition, daemon) if (!assignedPartitions.contains(partition)) =>
+                        stopDaemon(partition, daemon)
+                    }
 
-                      val update = assignedPartitions.map { partition =>
-                        stored.get(partition) match {
-                          case Some(daemon) => URIO.succeed(partition -> daemon)
-                          case None =>
-                            startDaemon(partition).map { d =>
-                              partition -> URIO.succeed(d)
-                            }
-                        }
-                      }
-
-                      for {
-                        _ <- logger.debug(s"process - partitions assigned: ${assignedPartitions.mkString(
-                          ",")}, removing: ${removedPartitions.mkString(",")}")
-                        _ <- ZIO.collectAll(remove)
-                        updated <- ZIO.collectAll(update)
-                      } yield {
-                        updated.toMap
+                    val update = assignedPartitions.map { partition =>
+                      stored.get(partition) match {
+                        case Some(daemon) => URIO.succeed(partition -> daemon)
+                        case None =>
+                          startDaemon(partition).map { d =>
+                            partition -> URIO.succeed(d)
+                          }
                       }
                     }
 
                     for {
-                      _ <- stored.getAndUpdate(getUpdated)
-                      m <- stored.get
-                      _ <- logger.debug(s"process - partitions assigned: ${m.keySet.mkString(",")} - done")
-                    } yield m
+                      _ <- logger.debug(s"process - partitions assigned: ${assignedPartitions.mkString(
+                        ",")}, removing: ${removedPartitions.mkString(",")}")
+                      _ <- ZIO.collectAll(remove)
+                      updated <- ZIO.collectAll(update)
+                    } yield {
+                      updated.toMap
+                    }
+                  }
+
+                  for {
+                    _ <- stored.getAndUpdate(getUpdated)
+                    m <- stored.get
+                    _ <- logger.debug(s"process - partitions assigned: ${m.keySet.mkString(",")} - done")
+                  } yield m
                 }
                 .runDrain
             }
