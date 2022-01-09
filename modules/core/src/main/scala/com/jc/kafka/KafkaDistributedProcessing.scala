@@ -3,14 +3,12 @@ package com.jc.kafka
 import org.apache.kafka.common.TopicPartition
 import zio.blocking.Blocking
 import zio.clock.Clock
-import zio.{Chunk, Exit, Fiber, RManaged, URIO, ZIO}
+import zio.duration._
+import zio.{Chunk, Fiber, RManaged, URIO, ZIO, ZRefM}
 import zio.kafka.consumer.{CommittableRecord, Consumer, ConsumerSettings, Subscription}
 import zio.kafka.serde.Serde
 import zio.logging.{Logger, Logging}
 import zio.stream.ZStream
-
-import scala.jdk.CollectionConverters._
-import java.util.concurrent.ConcurrentHashMap
 
 object KafkaDistributedProcessing {
 
@@ -22,55 +20,92 @@ object KafkaDistributedProcessing {
 
     val consumer: RManaged[R, Consumer] = Consumer.make(settings)
 
-    consumer.use[R, Throwable, Unit] { c =>
-      val subscribe = c.subscribe(Subscription.topics(name))
-
-      val store = new ConcurrentHashMap[Int, URIO[R, Fiber.Runtime[Throwable, Unit]]]()
+    consumer.use[R, Throwable, Unit] { consumer =>
+      val subscribe = consumer.subscribe(Subscription.topics(name))
 
       val run: ZIO[R, Throwable, Unit] = {
         ZIO.accessM[R] { env =>
           val logger = env.get[Logger[String]]
-          c.partitionedAssignmentStream[R, Array[Byte], Array[Byte]](Serde.byteArray, Serde.byteArray)
-            .mapM {
-              newPartitions: Chunk[(
-                TopicPartition,
-                ZStream[R, Throwable, CommittableRecord[Array[Byte], Array[Byte]]])] =>
-                val ops = store.keys().asScala.toSet
 
+          def stopDaemon(partition: Int, daemon: URIO[R, Fiber.Runtime[Throwable, Unit]]): ZIO[R, Throwable, Unit] = {
+            for {
+              fiber <- daemon
+              //                      _ <- fiber.interrupt
+              timeout <- fiber.join.resurrect.ignore.disconnect.timeout(1.seconds)
+              _ <- ZIO.when(timeout.isEmpty)(fiber.interruptFork)
+              _ <- logger.debug(s"process - partition: ${partition} - stopped")
+            } yield ()
+          }
 
-                val nps = newPartitions.map { case (topicPartition, _) =>
-                  topicPartition.partition()
-                }.toSet
+          def startDaemon(partition: Int): URIO[R, Fiber.Runtime[Throwable, Unit]] = {
+            logger.debug(s"process - partition: ${partition} - starting") *>
+              process(partition).forkDaemon
+          }
 
-                val rps = ops.filterNot(nps.contains)
+//          val store = ZRefM
+//            .make(Map.empty[Int, URIO[R, Fiber.Runtime[Throwable, Unit]]])
+//            .toManaged { stored =>
+//              val res = for {
+//                m <- stored.get
+//                _ <- ZIO.collectAll(m.collect { case (partition, daemon) =>
+//                  stopDaemon(partition, daemon)
+//                })
+//                _ <- logger.debug(s"process - partitions: ${m.keySet.mkString(",")} - stopped")
+//              } yield ()
+//
+//              res.ignore
+//
+//            }
 
-                lazy val removed: Set[ZIO[R, Throwable, Unit]] = rps.map { partition =>
-                  Option(store.remove(partition)).fold[ZIO[R, Throwable, Unit]](ZIO.unit) { d =>
+          ZRefM
+            .make(Map.empty[Int, URIO[R, Fiber.Runtime[Throwable, Unit]]])
+            .flatMap { stored =>
+              consumer
+                .partitionedAssignmentStream[R, Array[Byte], Array[Byte]](Serde.byteArray, Serde.byteArray)
+                .mapM {
+                  newPartitions: Chunk[(
+                    TopicPartition,
+                    ZStream[R, Throwable, CommittableRecord[Array[Byte], Array[Byte]]])] =>
+                    def getUpdated(stored: Map[Int, URIO[R, Fiber.Runtime[Throwable, Unit]]]) = {
+                      val assignedPartitions = newPartitions.map { case (topicPartition, _) =>
+                        topicPartition.partition()
+                      }.toSet
+
+                      val removedPartitions = stored.keySet.filterNot(assignedPartitions.contains)
+
+                      val remove = stored.collect {
+                        case (partition, daemon) if (!assignedPartitions.contains(partition)) =>
+                          stopDaemon(partition, daemon)
+                      }
+
+                      val update = assignedPartitions.map { partition =>
+                        stored.get(partition) match {
+                          case Some(daemon) => URIO.succeed(partition -> daemon)
+                          case None =>
+                            startDaemon(partition).map { d =>
+                              partition -> URIO.succeed(d)
+                            }
+                        }
+                      }
+
+                      for {
+                        _ <- logger.debug(s"process - partitions assigned: ${assignedPartitions.mkString(
+                          ",")}, removing: ${removedPartitions.mkString(",")}")
+                        _ <- ZIO.collectAll(remove)
+                        updated <- ZIO.collectAll(update)
+                      } yield {
+                        updated.toMap
+                      }
+                    }
+
                     for {
-                      fiber <- d
-                      _ <- fiber.interrupt
-                      _ <- logger.debug(s"process - partition: ${partition} - stopped")
-                    } yield ()
-                  }
+                      _ <- stored.getAndUpdate(getUpdated)
+                      m <- stored.get
+                      _ <- logger.debug(s"process - partitions assigned: ${m.keySet.mkString(",")} - done")
+                    } yield m
                 }
-
-                lazy val updated: Set[URIO[R, Fiber.Runtime[Throwable, Unit]]] = nps.map { partition =>
-                  store.computeIfAbsent(
-                    partition,
-                    { _ =>
-                      logger.debug(s"process - partition: ${partition} - starting") *>
-                        process(partition).forkDaemon
-                    })
-                }
-
-                for {
-                  _ <- logger.debug(s"process - partitions assigned: ${nps.mkString(",")}, removing: ${rps.mkString(",")}")
-                  _ <- ZIO.collectAll(removed)
-                  _ <- ZIO.collectAll(updated)
-                } yield ()
-
+                .runDrain
             }
-            .runDrain
         }
       }
 
