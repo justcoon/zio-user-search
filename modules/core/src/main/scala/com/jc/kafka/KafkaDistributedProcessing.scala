@@ -29,7 +29,7 @@ object KafkaDistributedProcessing {
     for {
       logger <- ZIO.service[Logger[String]]
       _ <- logger.debug(s"process - partition: ${partition} - starting")
-      daemon <- process.forkDaemon
+      daemon <- process.ensuring(logger.debug(s"process - partition: ${partition} - stopping")).forkDaemon
     } yield daemon
   }
 
