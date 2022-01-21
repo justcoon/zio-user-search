@@ -1,9 +1,11 @@
 package com.jc.user.search.module.processor
 
+import com.jc.user.domain.DepartmentEntity.DepartmentId
+import com.jc.user.domain.UserEntity.UserId
 import com.jc.user.domain.proto.{DepartmentPayloadEvent, UserPayloadEvent}
 import com.jc.user.search.model.ExpectedFailure
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, UserSearchRepo}
-import zio.{ZIO, ZLayer}
+import zio.{Chunk, ZIO, ZLayer}
 import zio.logging.{Logger, Logging}
 import zio.stream.{Sink, ZStream}
 
@@ -24,7 +26,7 @@ object EventProcessor {
   }
 
   trait Service {
-    def process(eventEnvelope: EventEnvelope[_]): ZIO[Any, ExpectedFailure, Boolean]
+    def process(eventEnvelopes: Chunk[EventEnvelope[_]]): ZIO[Any, ExpectedFailure, Boolean]
   }
 
   final case class LiveEventProcessorService(
@@ -35,21 +37,24 @@ object EventProcessor {
 
     val serviceLogger = logger.named(getClass.getName)
 
-    override def process(eventEnvelope: EventEnvelope[_]): ZIO[Any, ExpectedFailure, Boolean] = {
-      eventEnvelope match {
-        case EventEnvelope.User(topic, event) =>
-          serviceLogger.log(
-            s"processing event - topic: ${topic}, entityId: ${event.entityId}, type: ${event.payload.getClass.getSimpleName}") *>
-            processUser(event, userSearchRepo, departmentSearchRepo)
-        case EventEnvelope.Department(topic, event) =>
-          serviceLogger.log(
-            s"processing event - topic: ${topic}, entityId: ${event.entityId}, type: ${event.payload.getClass.getSimpleName}") *>
-            processDepartment(event, userSearchRepo, departmentSearchRepo)
-        case e: EventEnvelope[_] =>
-          serviceLogger.error(
-            s"processing event - topic: ${e.topic}, type: ${e.event.getClass.getSimpleName}) - unknown event, skipping") *>
-            ZIO.succeed(false)
-      }
+    override def process(eventEnvelopes: Chunk[EventEnvelope[_]]): ZIO[Any, ExpectedFailure, Boolean] = {
+      val userEvents: Map[UserId, Chunk[UserPayloadEvent]] = eventEnvelopes.collect {
+        case EventEnvelope.User(_, event) => event
+      }.groupBy(_.entityId)
+
+      val departmentEvents: Map[DepartmentId, Chunk[DepartmentPayloadEvent]] = eventEnvelopes.collect {
+        case EventEnvelope.Department(_, event) => event
+      }.groupBy(_.entityId)
+
+      for {
+        _ <- ZIO.when(userEvents.nonEmpty)(
+          serviceLogger.log(s"processing events - user, entityIds: ${userEvents.keySet.mkString(",")}"))
+        usersRes <- processUsers(userEvents, userSearchRepo, departmentSearchRepo)
+        _ <-
+          ZIO.when(departmentEvents.nonEmpty)(
+            serviceLogger.log(s"processing events - department, entityIds: ${departmentEvents.keySet.mkString(",")}"))
+        departmentRes <- processDepartments(departmentEvents, userSearchRepo, departmentSearchRepo)
+      } yield usersRes || departmentRes
     }
   }
 
@@ -59,43 +64,46 @@ object EventProcessor {
         LiveEventProcessorService(userSearchRepo, departmentSearchRepo, logger)
     }
 
-  def process(eventEnvelope: EventEnvelope[_]): ZIO[EventProcessor, ExpectedFailure, Boolean] =
-    ZIO.accessM[EventProcessor](_.get.process(eventEnvelope))
+  def process(eventEnvelopes: Chunk[EventEnvelope[_]]): ZIO[EventProcessor, ExpectedFailure, Boolean] =
+    ZIO.accessM[EventProcessor](_.get.process(eventEnvelopes))
 
-  def processUser(
-    event: UserPayloadEvent,
+  def processUsers(
+    events: Map[UserId, Chunk[UserPayloadEvent]],
     userSearchRepo: UserSearchRepo.Service,
     departmentSearchRepo: DepartmentSearchRepo.Service): ZIO[Any, ExpectedFailure, Boolean] = {
-    if (isUserRemoved(event))
-      userSearchRepo.delete(event.entityId)
-    else
-      userSearchRepo
-        .find(event.entityId)
-        .flatMap {
-          case u @ Some(_) => getUpdatedUser(event, u, departmentSearchRepo).flatMap(userSearchRepo.update)
-          case None => getUpdatedUser(event, None, departmentSearchRepo).flatMap(userSearchRepo.insert)
-        }
+
+    ZIO.foldLeft(events)(false) { case (r, (entityId, events)) =>
+      val res =
+        if (events.exists(isUserRemoved))
+          userSearchRepo.delete(entityId)
+        else
+          userSearchRepo
+            .find(entityId)
+            .flatMap {
+              case u @ Some(_) =>
+                getUpdatedUser(entityId, events, u, departmentSearchRepo).flatMap(userSearchRepo.update)
+              case None => getUpdatedUser(entityId, events, None, departmentSearchRepo).flatMap(userSearchRepo.insert)
+            }
+      res.map(_ || r)
+    }
   }
 
   def isUserRemoved(event: UserPayloadEvent): Boolean = {
-    import com.jc.user.domain.proto._
-    event match {
-      case UserPayloadEvent(_, _, _: UserPayloadEvent.Payload.Removed, _) => true
-      case _ => false
-    }
+    event.payload.isRemoved
   }
 
   def createUser(id: com.jc.user.domain.UserEntity.UserId): UserSearchRepo.User = UserSearchRepo.User(id, "", "", "")
 
   def getUpdatedUser(
-    event: UserPayloadEvent,
+    entityId: UserId,
+    events: Chunk[UserPayloadEvent],
     user: Option[UserSearchRepo.User],
     departmentSearchRepo: DepartmentSearchRepo.Service): ZIO[Any, ExpectedFailure, UserSearchRepo.User] = {
     import io.scalaland.chimney.dsl._
     import com.jc.user.domain.proto._
     import UserSearchRepo.User._
 
-    val currentUser = user.getOrElse(createUser(event.entityId))
+    val currentUser = user.getOrElse(createUser(entityId))
 
     def getDepartment(d: Option[com.jc.user.domain.proto.DepartmentRef])
       : ZIO[Any, ExpectedFailure, Option[UserSearchRepo.Department]] = {
@@ -105,55 +113,63 @@ object EventProcessor {
       }
     }
 
-    event match {
-      case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.Created, _) =>
-        val na = payload.value.address.map(_.transformInto[UserSearchRepo.Address])
-        getDepartment(payload.value.department).map { nd =>
-          usernameEmailPassAddressDepartmentLens.set(currentUser)(
-            (
-              payload.value.username,
-              payload.value.email,
-              payload.value.pass,
-              na,
-              nd
-            ))
-        }
+    val updatedUser = events.foldM(currentUser) { (currentUser, event) =>
+      event match {
+        case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.Created, _) =>
+          val na = payload.value.address.map(_.transformInto[UserSearchRepo.Address])
+          getDepartment(payload.value.department).map { nd =>
+            usernameEmailPassAddressDepartmentLens.set(currentUser)(
+              (
+                payload.value.username,
+                payload.value.email,
+                payload.value.pass,
+                na,
+                nd
+              ))
+          }
+        case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.PasswordUpdated, _) =>
+          ZIO.succeed(passLens.set(currentUser)(payload.value.pass))
 
-      case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.PasswordUpdated, _) =>
-        ZIO.succeed(passLens.set(currentUser)(payload.value.pass))
+        case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.EmailUpdated, _) =>
+          ZIO.succeed(emailLens.set(currentUser)(payload.value.email))
 
-      case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.EmailUpdated, _) =>
-        ZIO.succeed(emailLens.set(currentUser)(payload.value.email))
+        case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.AddressUpdated, _) =>
+          val na = payload.value.address.map(_.transformInto[UserSearchRepo.Address])
+          ZIO.succeed(addressLens.set(currentUser)(na))
 
-      case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.AddressUpdated, _) =>
-        val na = payload.value.address.map(_.transformInto[UserSearchRepo.Address])
-        ZIO.succeed(addressLens.set(currentUser)(na))
+        case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.DepartmentUpdated, _) =>
+          getDepartment(payload.value.department).map { nd => departmentLens.set(currentUser)(nd) }
 
-      case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.DepartmentUpdated, _) =>
-        getDepartment(payload.value.department).map { nd => departmentLens.set(currentUser)(nd) }
-
-      case _ => ZIO.succeed(currentUser)
+        case _ => ZIO.succeed(currentUser)
+      }
     }
+    updatedUser
   }
 
-  def processDepartment(
-    event: DepartmentPayloadEvent,
+  def processDepartments(
+    events: Map[DepartmentId, Chunk[DepartmentPayloadEvent]],
     userSearchRepo: UserSearchRepo.Service,
     departmentSearchRepo: DepartmentSearchRepo.Service): ZIO[Any, ExpectedFailure, Boolean] = {
-    if (isDepartmentRemoved(event))
-      departmentSearchRepo.delete(event.entityId)
-    else
-      departmentSearchRepo
-        .find(event.entityId)
-        .flatMap {
-          case d @ Some(_) =>
-            for {
-              dep <- getUpdatedDepartment(event, d)
-              res <- departmentSearchRepo.update(dep)
-              _ <- updateUsersDepartment(dep, userSearchRepo)
-            } yield res
-          case None => getUpdatedDepartment(event, None).flatMap(departmentSearchRepo.insert)
-        }
+
+    ZIO.foldLeft(events)(false) { case (r, (entityId, events)) =>
+      val res =
+        if (events.exists(isDepartmentRemoved))
+          departmentSearchRepo.delete(entityId)
+        else
+          departmentSearchRepo
+            .find(entityId)
+            .flatMap {
+              case d @ Some(_) =>
+                for {
+                  dep <- getUpdatedDepartment(entityId, events, d)
+                  res <- departmentSearchRepo.update(dep)
+                  _ <- updateUsersDepartment(dep, userSearchRepo)
+                } yield res
+              case None => getUpdatedDepartment(entityId, events, None).flatMap(departmentSearchRepo.insert)
+            }
+
+      res.map(_ || r)
+    }
   }
 
   def updateUsersDepartment(
@@ -184,30 +200,31 @@ object EventProcessor {
   }
 
   def isDepartmentRemoved(event: DepartmentPayloadEvent): Boolean = {
-    import com.jc.user.domain.proto._
-    event match {
-      case DepartmentPayloadEvent(_, _, _: DepartmentPayloadEvent.Payload.Removed, _) => true
-      case _ => false
-    }
+    event.payload.isRemoved
   }
 
   def createDepartment(id: com.jc.user.domain.DepartmentEntity.DepartmentId): DepartmentSearchRepo.Department =
     DepartmentSearchRepo.Department(id, "", "")
 
   def getUpdatedDepartment(
-    event: DepartmentPayloadEvent,
+    entityId: DepartmentId,
+    events: Chunk[DepartmentPayloadEvent],
     user: Option[DepartmentSearchRepo.Department]): ZIO[Any, ExpectedFailure, DepartmentSearchRepo.Department] = {
     import com.jc.user.domain.proto._
     import DepartmentSearchRepo.Department._
 
-    val currentDepartment = user.getOrElse(createDepartment(event.entityId))
+    val currentDepartment = user.getOrElse(createDepartment(entityId))
 
-    event match {
-      case DepartmentPayloadEvent(_, _, payload: DepartmentPayloadEvent.Payload.Created, _) =>
-        ZIO.succeed(nameDescriptionLens.set(currentDepartment)((payload.value.name, payload.value.description)))
-      case DepartmentPayloadEvent(_, _, payload: DepartmentPayloadEvent.Payload.Updated, _) =>
-        ZIO.succeed(nameDescriptionLens.set(currentDepartment)((payload.value.name, payload.value.description)))
-      case _ => ZIO.succeed(currentDepartment)
+    val updatedDepartment = events.foldLeft(currentDepartment) { (currentDepartment, event) =>
+      event match {
+        case DepartmentPayloadEvent(_, _, payload: DepartmentPayloadEvent.Payload.Created, _) =>
+          nameDescriptionLens.set(currentDepartment)((payload.value.name, payload.value.description))
+        case DepartmentPayloadEvent(_, _, payload: DepartmentPayloadEvent.Payload.Updated, _) =>
+          nameDescriptionLens.set(currentDepartment)((payload.value.name, payload.value.description))
+        case _ => currentDepartment
+      }
     }
+
+    ZIO.succeed(updatedDepartment)
   }
 }

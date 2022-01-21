@@ -5,9 +5,8 @@ import com.jc.user.search.model.config.KafkaConfig
 import com.jc.user.search.module.processor.EventProcessor
 import zio.blocking.Blocking
 import zio.clock.Clock
-import zio.{RIO, ZIO, ZLayer}
+import zio.{RIO, ZLayer}
 import zio.duration._
-import zio.kafka.consumer.Consumer.AutoOffsetStrategy
 import zio.kafka.consumer.{Consumer, ConsumerSettings, Subscription}
 import zio.kafka.serde.{Deserializer, Serde}
 import eu.timepit.refined.auto._
@@ -19,7 +18,7 @@ object KafkaConsumer {
       .withGroupId(s"user-search-${config.userTopic}")
       .withClientId("user-search-client")
       .withCloseTimeout(30.seconds)
-      .withOffsetRetrieval(Consumer.OffsetRetrieval.Auto(AutoOffsetStrategy.Earliest))
+      .withOffsetRetrieval(Consumer.OffsetRetrieval.Auto(Consumer.AutoOffsetStrategy.Earliest))
   }
 
   def eventDes(config: KafkaConfig): Deserializer[Any, EventProcessor.EventEnvelope[_]] = {
@@ -41,9 +40,11 @@ object KafkaConsumer {
     Consumer
       .subscribeAnd(Subscription.topics(config.userTopic, config.departmentTopic))
       .plainStream(Serde.string, KafkaConsumer.eventDes(config))
-      .tap { cr =>
-        EventProcessor.process(cr.value)
+      .groupedWithin(50, 5.seconds)
+      .tap { crs =>
+        EventProcessor.process(crs.map(_.value))
       }
+      .flattenChunks
       .map(_.offset)
       .aggregateAsync(Consumer.offsetBatches)
       .mapM(_.commit)

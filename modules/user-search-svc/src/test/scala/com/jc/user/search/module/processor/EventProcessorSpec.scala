@@ -22,7 +22,7 @@ import zio.logging.Logging
 import zio.logging.slf4j.Slf4jLogger
 import zio.test.Assertion._
 import zio.test._
-import zio.{ZIO, ZLayer}
+import zio.{Chunk, ZLayer}
 import zio.magic._
 
 object EventProcessorSpec extends DefaultRunnableSpec {
@@ -57,8 +57,8 @@ object EventProcessorSpec extends DefaultRunnableSpec {
   override def spec = suite("EventProcessorSpec")(
     testM("process - create") {
       for {
-        _ <- EventProcessor.process(EventEnvelope.Department(departmentTopic, departmentCreatedEvent1))
-        _ <- EventProcessor.process(EventEnvelope.User(userTopic, userCreatedEvent1))
+        _ <- EventProcessor.process(Chunk(EventEnvelope.Department(departmentTopic, departmentCreatedEvent1)))
+        _ <- EventProcessor.process(Chunk(EventEnvelope.User(userTopic, userCreatedEvent1)))
         departmentRes1 <- DepartmentSearchRepo.find(departmentCreatedEvent1.entityId)
         userRes1 <- UserSearchRepo.find(userCreatedEvent1.entityId)
       } yield {
@@ -68,7 +68,7 @@ object EventProcessorSpec extends DefaultRunnableSpec {
     },
     testM("process - update") {
       for {
-        _ <- EventProcessor.process(EventEnvelope.Department(departmentTopic, departmentUpdatedEvent1))
+        _ <- EventProcessor.process(Chunk(EventEnvelope.Department(departmentTopic, departmentUpdatedEvent1)))
         departmentRes1 <- DepartmentSearchRepo.find(departmentUpdatedEvent1.entityId)
         userRes1 <- UserSearchRepo.find(userCreatedEvent1.entityId)
       } yield {
@@ -78,7 +78,7 @@ object EventProcessorSpec extends DefaultRunnableSpec {
     },
     testM("process - remove") {
       for {
-        _ <- EventProcessor.process(EventEnvelope.Department(departmentTopic, departmentRemovedEvent1))
+        _ <- EventProcessor.process(Chunk(EventEnvelope.Department(departmentTopic, departmentRemovedEvent1)))
         departmentRes1 <- DepartmentSearchRepo.find(departmentCreatedEvent1.entityId)
       } yield assert(departmentRes1.isEmpty)(isTrue)
     }
