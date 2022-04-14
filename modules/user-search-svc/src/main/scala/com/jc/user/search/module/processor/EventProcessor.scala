@@ -82,7 +82,8 @@ object EventProcessor {
             .flatMap {
               case u @ Some(_) =>
                 getUpdatedUser(entityId, events, u, departmentSearchRepo).flatMap(userSearchRepo.update)
-              case None => getUpdatedUser(entityId, events, None, departmentSearchRepo).flatMap(userSearchRepo.insert)
+              case None =>
+                getUpdatedUser(entityId, events, None, departmentSearchRepo).flatMap(userSearchRepo.insert)
             }
       res.map(_ || r)
     }
@@ -138,7 +139,9 @@ object EventProcessor {
           ZIO.succeed(addressLens.set(currentUser)(na))
 
         case UserPayloadEvent(_, _, payload: UserPayloadEvent.Payload.DepartmentUpdated, _) =>
-          getDepartment(payload.value.department).map { nd => departmentLens.set(currentUser)(nd) }
+          if (currentUser.department.map(_.id) != payload.value.department.map(_.id)) {
+            getDepartment(payload.value.department).map { nd => departmentLens.set(currentUser)(nd) }
+          } else ZIO.succeed(currentUser)
 
         case _ => ZIO.succeed(currentUser)
       }
@@ -165,7 +168,8 @@ object EventProcessor {
                   res <- departmentSearchRepo.update(dep)
                   _ <- updateUsersDepartment(dep, userSearchRepo)
                 } yield res
-              case None => getUpdatedDepartment(entityId, events, None).flatMap(departmentSearchRepo.insert)
+              case None =>
+                getUpdatedDepartment(entityId, events, None).flatMap(departmentSearchRepo.insert)
             }
 
       res.map(_ || r)
