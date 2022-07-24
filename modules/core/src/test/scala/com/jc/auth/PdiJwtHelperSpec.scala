@@ -19,21 +19,20 @@ object PdiJwtHelperSpec extends ZIOSpecDefault {
   override def spec = suite("PdiJwtHelperSpec")(
     test("equal decoded jwt decoded token") {
       for {
-        (authToken, token) <- getTestToken()
-        authTokenDecoded <- decodeToken(token)
-      } yield assert(authTokenDecoded.content)(equalTo(authToken))
+        token <- getTestToken()
+        authTokenDecoded <- decodeToken(token._2)
+      } yield assert(authTokenDecoded.content)(equalTo(token._1))
     }.provideLayer(helper)
   )
 
   private def decodeToken(token: String): RIO[PdiJwtHelper, JwtClaim] = {
-    ZIO.environmentWithZIO[PdiJwtHelper] { env =>
-      ZIO.fromEither(env.get.decodeClaim(token).toEither)
+    ZIO.service[PdiJwtHelper].flatMap { helper =>
+      ZIO.fromEither(helper.decodeClaim(token).toEither)
     }
   }
 
   private def getTestToken(): RIO[PdiJwtHelper, (String, String)] = {
-    ZIO.environment[PdiJwtHelper] { env =>
-      val helper = env.get
+    ZIO.service[PdiJwtHelper].map { helper =>
       val authToken = "{}"
       val claim = helper.claim(authToken, subject = Some("test"), issuer = helper.config.issuer.map(_.value))
       val token = helper.encodeClaim(claim)

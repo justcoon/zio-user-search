@@ -17,21 +17,18 @@ import com.jc.user.search.module.repo.{
 }
 import com.jc.user.domain.DepartmentEntity._
 import com.jc.user.domain.UserEntity._
+import com.jc.user.search.module.Logger
 import com.jc.user.search.module.processor.EventProcessor.EventEnvelope
-import zio.logging.Logging
-import zio.logging.slf4j.Slf4jLogger
 import zio.test.Assertion._
 import zio.test._
 import zio.{Chunk, ZLayer}
-import zio.magic._
 
-object EventProcessorSpec extends DefaultRunnableSpec {
+object EventProcessorSpec extends ZIOSpecDefault {
 
-  val layer = ZLayer.fromMagic[UserSearchRepo with DepartmentSearchRepo with Logging with EventProcessor](
-    Slf4jLogger.make((_, message) => message),
-    TestUserSearchRepo.test,
-    TestDepartmentSearchRepo.test,
-    EventProcessor.live)
+  val layer = ZLayer.make[UserSearchRepo with DepartmentSearchRepo with EventProcessor](
+    TestUserSearchRepo.layer,
+    TestDepartmentSearchRepo.layer,
+    LiveEventProcessor.layer)
 
   val departmentTopic = "department"
   val userTopic = "user"
@@ -55,7 +52,7 @@ object EventProcessorSpec extends DefaultRunnableSpec {
   )
 
   override def spec = suite("EventProcessorSpec")(
-    testM("process - create") {
+    test("process - create") {
       for {
         _ <- EventProcessor.process(Chunk(EventEnvelope.Department(departmentTopic, departmentCreatedEvent1)))
         _ <- EventProcessor.process(Chunk(EventEnvelope.User(userTopic, userCreatedEvent1)))
@@ -66,7 +63,7 @@ object EventProcessorSpec extends DefaultRunnableSpec {
           userRes1.flatMap(_.department).map(_.name))(equalTo(departmentRes1.map(_.name)))
       }
     },
-    testM("process - update") {
+    test("process - update") {
       for {
         _ <- EventProcessor.process(Chunk(EventEnvelope.Department(departmentTopic, departmentUpdatedEvent1)))
         departmentRes1 <- DepartmentSearchRepo.find(departmentUpdatedEvent1.entityId)
@@ -76,11 +73,11 @@ object EventProcessorSpec extends DefaultRunnableSpec {
           userRes1.flatMap(_.department).map(_.name))(equalTo(departmentRes1.map(_.name)))
       }
     },
-    testM("process - remove") {
+    test("process - remove") {
       for {
         _ <- EventProcessor.process(Chunk(EventEnvelope.Department(departmentTopic, departmentRemovedEvent1)))
         departmentRes1 <- DepartmentSearchRepo.find(departmentCreatedEvent1.entityId)
       } yield assert(departmentRes1.isEmpty)(isTrue)
     }
-  ).provideLayer(layer) @@ TestAspect.sequential
+  ).provideLayer(layer ++ Logger.layer) @@ TestAspect.sequential
 }

@@ -19,7 +19,6 @@ import zio.{RIO, ZIO, ZLayer}
 import caliban.{CalibanError, GraphQLInterpreter, Http4sAdapter}
 import cats.data.Kleisli
 import com.jc.auth.JwtAuthenticator
-import com.jc.user.search.api.graphql.UserSearchGraphqlApiService
 import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiRequestContext
 
 import com.jc.user.search.model.ExpectedFailure
