@@ -13,7 +13,7 @@ object DepartmentSearchRepoInit {
 
 object EsDepartmentSearchRepoInit {
 
-  def layer(indexName: String): ZLayer[ElasticClient, Nothing, DepartmentSearchRepoInit] =
+  def make(indexName: String): ZLayer[ElasticClient, Nothing, DepartmentSearchRepoInit] =
     ZLayer.fromZIO {
       ZIO.serviceWith[ElasticClient] { elasticClient =>
         val res: DepartmentSearchRepoInit =

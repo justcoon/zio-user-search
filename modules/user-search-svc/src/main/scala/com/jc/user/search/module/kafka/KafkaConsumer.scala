@@ -29,7 +29,7 @@ object KafkaConsumer {
       })
   }
 
-  def live(config: KafkaConfig): ZLayer[Any, Throwable, Consumer] = {
+  def make(config: KafkaConfig): ZLayer[Any, Throwable, Consumer] = {
     ZLayer.scoped(Consumer.make(consumerSettings(config)))
   }
 

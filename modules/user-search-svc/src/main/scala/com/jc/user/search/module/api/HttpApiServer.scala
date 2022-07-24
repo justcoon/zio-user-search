@@ -37,7 +37,7 @@ object HttpApiServer {
     : HttpApp[RIO[ServerEnv, *]] =
     HttpServerLogger.httpApp[RIO[ServerEnv, *]](true, true)(httpRoutes(interpreter).orNotFound)
 
-  def create(config: HttpApiConfig): ZLayer[ServerEnv, Throwable, Server] = {
+  def make(config: HttpApiConfig): ZLayer[ServerEnv, Throwable, Server] = {
     ZLayer.scoped {
       ZIO.serviceWithZIO[
         GraphQLInterpreter[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, CalibanError]] { in =>

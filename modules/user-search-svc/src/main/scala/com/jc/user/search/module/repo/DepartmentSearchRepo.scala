@@ -23,26 +23,6 @@ final case class EsDepartmentSearchRepo(indexName: String, elasticClient: Elasti
       elasticClient)
 }
 
-object EsDepartmentSearchRepo {
-  import com.sksamuel.elastic4s.ElasticDsl._
-
-  val suggestProperties = Seq("name")
-
-  val fields = Seq(
-    textField("id").fielddata(true),
-    textField("name").fielddata(true),
-    textField("description").fielddata(true)
-  ) ++ suggestProperties.map(prop => completionField(ElasticUtils.getSuggestPropertyName(prop)))
-
-  def layer(indexName: String): ZLayer[ElasticClient, Nothing, EsDepartmentSearchRepo] = {
-    ZLayer.fromZIO {
-      ZIO.serviceWith[ElasticClient] { elasticClient =>
-        EsDepartmentSearchRepo(indexName, elasticClient)
-      }
-    }
-  }
-}
-
 object DepartmentSearchRepo {
 
   final case class Department(
@@ -79,5 +59,25 @@ object DepartmentSearchRepo {
 
   def findAll(): ZIO[DepartmentSearchRepo, ExpectedFailure, Seq[Department]] = {
     ZIO.serviceWithZIO[DepartmentSearchRepo](_.findAll())
+  }
+}
+
+object EsDepartmentSearchRepo {
+  import com.sksamuel.elastic4s.ElasticDsl._
+
+  val suggestProperties = Seq("name")
+
+  val fields = Seq(
+    textField("id").fielddata(true),
+    textField("name").fielddata(true),
+    textField("description").fielddata(true)
+  ) ++ suggestProperties.map(prop => completionField(ElasticUtils.getSuggestPropertyName(prop)))
+
+  def make(indexName: String): ZLayer[ElasticClient, Nothing, EsDepartmentSearchRepo] = {
+    ZLayer.fromZIO {
+      ZIO.serviceWith[ElasticClient] { elasticClient =>
+        EsDepartmentSearchRepo(indexName, elasticClient)
+      }
+    }
   }
 }

@@ -16,53 +16,6 @@ trait UserSearchRepo
     pageSize: Int): ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[UserSearchRepo.User]]
 }
 
-final case class EsUserSearchRepo(indexName: String, elasticClient: ElasticClient)
-    extends AbstractCombinedRepository[Any, UserId, UserSearchRepo.User] with UserSearchRepo {
-  override val repository = new ESRepository[Any, UserId, UserSearchRepo.User](indexName, elasticClient)
-
-  override val searchRepository =
-    new ESSearchRepository[Any, UserSearchRepo.User](indexName, EsUserSearchRepo.suggestProperties, elasticClient)
-
-  override def searchByDepartment(
-    id: DepartmentId,
-    page: Int,
-    pageSize: Int): ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[UserSearchRepo.User]] = {
-    import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchQuery
-    import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
-    val query = MatchQuery("department.id", id)
-    val sorts = Seq(FieldSort("username"))
-    searchRepository.search(query, page, pageSize, sorts)
-  }
-}
-
-object EsUserSearchRepo {
-  import com.sksamuel.elastic4s.ElasticDsl._
-
-  val suggestProperties = Seq("username", "email")
-
-  val fields = Seq(
-    textField("id").fielddata(true),
-    textField("username").fielddata(true),
-    textField("email").fielddata(true),
-    textField("address.street").fielddata(true),
-    textField("address.number").fielddata(true),
-    textField("address.city").fielddata(true),
-    textField("address.state").fielddata(true),
-    textField("address.zip").fielddata(true),
-    textField("address.country").fielddata(true),
-    textField("department.id").fielddata(true),
-    textField("department.name").fielddata(true),
-    textField("department.description").fielddata(true)
-  ) ++ suggestProperties.map(prop => completionField(ElasticUtils.getSuggestPropertyName(prop)))
-
-  def layer(indexName: String): ZLayer[ElasticClient, Nothing, UserSearchRepo] =
-    ZLayer.fromZIO {
-      ZIO.serviceWith[ElasticClient] { elasticClient =>
-        EsUserSearchRepo(indexName, elasticClient)
-      }
-    }
-}
-
 object UserSearchRepo {
 
   final case class Department(
@@ -139,4 +92,51 @@ object UserSearchRepo {
   def findAll(): ZIO[UserSearchRepo, ExpectedFailure, Seq[User]] = {
     ZIO.serviceWithZIO[UserSearchRepo](_.findAll())
   }
+}
+
+final case class EsUserSearchRepo(indexName: String, elasticClient: ElasticClient)
+    extends AbstractCombinedRepository[Any, UserId, UserSearchRepo.User] with UserSearchRepo {
+  override val repository = new ESRepository[Any, UserId, UserSearchRepo.User](indexName, elasticClient)
+
+  override val searchRepository =
+    new ESSearchRepository[Any, UserSearchRepo.User](indexName, EsUserSearchRepo.suggestProperties, elasticClient)
+
+  override def searchByDepartment(
+    id: DepartmentId,
+    page: Int,
+    pageSize: Int): ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[UserSearchRepo.User]] = {
+    import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchQuery
+    import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
+    val query = MatchQuery("department.id", id)
+    val sorts = Seq(FieldSort("username"))
+    searchRepository.search(query, page, pageSize, sorts)
+  }
+}
+
+object EsUserSearchRepo {
+  import com.sksamuel.elastic4s.ElasticDsl._
+
+  val suggestProperties = Seq("username", "email")
+
+  val fields = Seq(
+    textField("id").fielddata(true),
+    textField("username").fielddata(true),
+    textField("email").fielddata(true),
+    textField("address.street").fielddata(true),
+    textField("address.number").fielddata(true),
+    textField("address.city").fielddata(true),
+    textField("address.state").fielddata(true),
+    textField("address.zip").fielddata(true),
+    textField("address.country").fielddata(true),
+    textField("department.id").fielddata(true),
+    textField("department.name").fielddata(true),
+    textField("department.description").fielddata(true)
+  ) ++ suggestProperties.map(prop => completionField(ElasticUtils.getSuggestPropertyName(prop)))
+
+  def make(indexName: String): ZLayer[ElasticClient, Nothing, UserSearchRepo] =
+    ZLayer.fromZIO {
+      ZIO.serviceWith[ElasticClient] { elasticClient =>
+        EsUserSearchRepo(indexName, elasticClient)
+      }
+    }
 }

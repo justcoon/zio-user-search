@@ -14,7 +14,7 @@ object GrpcApiServer {
 
   type ServerEnv = LoggingSystemGrpcApiHandler with RCUserSearchApiService[Any]
 
-  def create(config: HttpApiConfig): ZLayer[ServerEnv, Throwable, GrpcServer] = {
+  def make(config: HttpApiConfig): ZLayer[ServerEnv, Throwable, GrpcServer] = {
     GrpcServerLayer.fromServiceList(
       ServerBuilder.forPort(config.port),
       GrpcServiceList.access[RCLoggingSystemApiService[Any]].access[RCUserSearchApiService[Any]])

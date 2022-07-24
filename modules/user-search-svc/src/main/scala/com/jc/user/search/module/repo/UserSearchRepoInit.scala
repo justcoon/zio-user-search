@@ -11,7 +11,7 @@ object UserSearchRepoInit {
 
 object EsUserSearchRepoInit {
 
-  def layer(indexName: String): ZLayer[ElasticClient, Nothing, UserSearchRepoInit] =
+  def make(indexName: String): ZLayer[ElasticClient, Nothing, UserSearchRepoInit] =
     ZLayer.fromZIO {
       ZIO.serviceWith[ElasticClient] { elasticClient =>
         val res: UserSearchRepoInit = new ESRepositoryInitializer(indexName, EsUserSearchRepo.fields, elasticClient)
