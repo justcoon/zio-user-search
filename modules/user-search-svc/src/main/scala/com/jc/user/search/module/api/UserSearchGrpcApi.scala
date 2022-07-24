@@ -27,7 +27,7 @@ import com.jc.auth.api.GrpcJwtAuth
 import com.jc.user.search.module.repo.{DepartmentSearchRepo, SearchRepository, UserSearchRepo}
 import io.grpc.Status
 import scalapb.zio_grpc.RequestContext
-import zio.{Has, IO, ZIO, ZLayer}
+import zio.{IO, ZIO, ZLayer}
 import zio.stream.ZStream
 
 object UserSearchGrpcApiHandler {
@@ -41,15 +41,15 @@ object UserSearchGrpcApiHandler {
   }
 
   final case class LiveUserSearchApiService(
-    userSearchRepo: UserSearchRepo.Service,
-    departmentSearchRepo: DepartmentSearchRepo.Service,
-    jwtAuthenticator: JwtAuthenticator.Service)
+    userSearchRepo: UserSearchRepo,
+    departmentSearchRepo: DepartmentSearchRepo,
+    jwtAuthenticator: JwtAuthenticator)
       extends RCUserSearchApiService[Any] {
     import io.scalaland.chimney.dsl._
 
     private val authenticated = GrpcJwtAuth.authenticated(jwtAuthenticator)
 
-    override def getUser(request: GetUserReq): ZIO[Has[RequestContext], Status, GetUserRes] = {
+    override def getUser(request: GetUserReq): ZIO[RequestContext, Status, GetUserRes] = {
       for {
         _ <- authenticated
         res <- userSearchRepo
@@ -66,7 +66,7 @@ object UserSearchGrpcApiHandler {
       val pageSize = 20
 
       ZStream
-        .unfoldM(pageInitial) { page =>
+        .unfoldZIO(pageInitial) { page =>
           userSearchRepo
             .search(q, page, pageSize, ss)
             .map { r =>
@@ -105,7 +105,7 @@ object UserSearchGrpcApiHandler {
         )
     }
 
-    override def getDepartment(request: GetDepartmentReq): ZIO[Has[RequestContext], Status, GetDepartmentRes] = {
+    override def getDepartment(request: GetDepartmentReq): ZIO[RequestContext, Status, GetDepartmentRes] = {
       for {
         _ <- authenticated
         res <- departmentSearchRepo
@@ -139,7 +139,7 @@ object UserSearchGrpcApiHandler {
       val pageSize = 20
 
       ZStream
-        .unfoldM(pageInitial) { page =>
+        .unfoldZIO(pageInitial) { page =>
           departmentSearchRepo
             .search(q, page, pageSize, ss)
             .map { r =>
@@ -166,12 +166,13 @@ object UserSearchGrpcApiHandler {
 
   }
 
-  val live: ZLayer[UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator, Nothing, UserSearchGrpcApiHandler] =
-    ZLayer.fromServices[
-      UserSearchRepo.Service,
-      DepartmentSearchRepo.Service,
-      JwtAuthenticator.Service,
-      RCUserSearchApiService[Any]] { (userSearchRepo, departmentSearchRepo, jwtAuth) =>
-      LiveUserSearchApiService(userSearchRepo, departmentSearchRepo, jwtAuth)
+  val layer
+    : ZLayer[UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator, Nothing, RCUserSearchApiService[Any]] =
+    ZLayer.fromZIO {
+      for {
+        userSearchRepo <- ZIO.service[UserSearchRepo]
+        departmentSearchRepo <- ZIO.service[DepartmentSearchRepo]
+        jwtAuthenticator <- ZIO.service[JwtAuthenticator]
+      } yield LiveUserSearchApiService(userSearchRepo, departmentSearchRepo, jwtAuthenticator)
     }
 }

@@ -24,23 +24,19 @@ import caliban.wrappers.Wrapper.OverallWrapper
 import caliban.wrappers.Wrappers._
 import com.jc.user.domain.DepartmentEntity.{DepartmentId, DepartmentIdTag}
 import com.jc.user.domain.UserEntity.{UserId, UserIdTag}
-import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
-  UserSearchGraphqlApiRequestContext,
-  UserSearchGraphqlApiService
-}
-import zio.{Has, RIO, ZIO, ZLayer}
-import zio.clock.Clock
-import zio.duration._
+import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiRequestContext
+
+import zio.{RIO, ZIO, ZLayer}
+
 import shapeless.tag.@@
-import zio.logging.Logging
 
 import scala.language.postfixOps
+import zio._
 
 object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] {
 
-  type UserSearchGraphqlApiInterpreter = Has[GraphQLInterpreter[
-    Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext,
-    CalibanError]]
+  type UserSearchGraphqlApiInterpreter =
+    GraphQLInterpreter[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, CalibanError]
 
   case class Queries(
     @GQLDescription("Get user")
@@ -90,7 +86,7 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
   implicit val propertySuggestionSchema: Schema[Any, PropertySuggestion] = Schema.gen
   implicit val suggestResponseSchema: Schema[Any, SuggestResponse] = Schema.gen
 
-  val api: GraphQL[Clock with Logging with UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] =
+  val api: GraphQL[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] =
     graphQL(
       RootResolver(
         Queries(
@@ -106,27 +102,27 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
       maxFields(200) @@ // query analyzer that limit query fields
       maxDepth(30) @@ // query analyzer that limit query depth
       timeout(3 seconds) @@ // wrapper that fails slow queries
-      logSlowQueries(500 millis) @@ // wrapper that logs slow queries
-      logErrors @@ // wrapper that logs errors
+//      logSlowQueries(500 millis) @@ // wrapper that logs slow queries
+//      logErrors @@ // wrapper that logs errors
       apolloTracing // wrapper for https://github.com/apollographql/apollo-tracing
 
   val apiInterpreter: ZLayer[Any, CalibanError.ValidationError, UserSearchGraphqlApiInterpreter] =
-    api.interpreter.toLayer
+    ZLayer.fromZIO(api.interpreter)
 
-  lazy val logErrors: OverallWrapper[Logging] =
-    new OverallWrapper[Logging] {
-
-      def wrap[R1 <: Logging](
-        process: GraphQLRequest => ZIO[R1, Nothing, GraphQLResponse[CalibanError]]
-      ): GraphQLRequest => ZIO[R1, Nothing, GraphQLResponse[CalibanError]] =
-        request =>
-          process(request).tap(response =>
-            ZIO.foreach(response.errors) { e =>
-              Logging.throwable("Error", e)
-            })
-    }
-
-  def logSlowQueries(duration: Duration): OverallWrapper[Logging with Clock] =
-    onSlowQueries(duration) { case (time, query) => Logging.debug(s"Slow query took ${time.render}:\n$query") }
+//  lazy val logErrors: OverallWrapper[Logging] =
+//    new OverallWrapper[Logging] {
+//
+//      def wrap[R1 <: Logging](
+//        process: GraphQLRequest => ZIO[R1, Nothing, GraphQLResponse[CalibanError]]
+//      ): GraphQLRequest => ZIO[R1, Nothing, GraphQLResponse[CalibanError]] =
+//        request =>
+//          process(request).tap(response =>
+//            ZIO.foreach(response.errors) { e =>
+//              Logging.throwable("Error", e)
+//            })
+//    }
+//
+//  def logSlowQueries(duration: Duration): OverallWrapper[Logging with Clock] =
+//    onSlowQueries(duration) { case (time, query) => Logging.debug(s"Slow query took ${time.render}:\n$query") }
 
 }

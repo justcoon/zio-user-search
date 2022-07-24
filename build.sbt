@@ -3,25 +3,24 @@ Scope.Global / scalaVersion := "2.13.8"
 
 lazy val Versions = new {
   val kindProjector = "0.13.2"
-  val http4s = "0.23.10"
-  val zio = "1.0.13"
-  val zioInteropCats = "3.2.9.1"
-  val zioKafka = "0.17.5"
-  val zioLogging = "0.5.14"
-  val zioMetrics = "1.0.14"
-  val zioMagic = "0.3.11"
-  val elastic4s = "7.17.0"
+  val http4s = "0.23.12"
+  val zio = "2.0.0"
+  val zioInteropCats = "3.3.0"
+  val zioLogging = "2.0.1"
+  val zioMetrics = "2.0.0"
+  val zioKafka = "2.0.0"
+  val elastic4s = "8.2.2"
   val jackson = "2.13.1"
   val circe = "0.14.1"
   val randomDataGenerator = "2.9"
   val pureconfig = "0.17.1"
-  val refined = "0.9.28"
-  val logback = "1.2.10"
-  val grpc = "1.44.1"
-  val chimney = "0.6.1"
-  val pauldijouJwt = "5.0.0"
-  val tapir = "0.19.4"
-  val caliban = "1.3.3"
+  val refined = "0.10.1"
+  val logback = "1.2.11"
+  val grpc = "1.48.0"
+  val chimney = "0.6.2"
+  val scalaJwt = "9.0.6"
+  val tapir = "1.0.2"
+  val caliban = "2.0.0"
 
   val gatling = "3.6.1"
   val gatlingGrpc = "0.12.0"
@@ -37,7 +36,6 @@ lazy val library =
     val zioKafka = "dev.zio" %% "zio-kafka"                                           % Versions.zioKafka
     val zioLoggingSlf4j = "dev.zio" %% "zio-logging-slf4j"                            % Versions.zioLogging
     val zioMetricsPrometheus = "dev.zio" %% "zio-metrics-prometheus"                  % Versions.zioMetrics
-    val zioMagic = "io.github.kitlangton" %% "zio-magic"                              % Versions.zioMagic
     val elastic4sClientEsjava = "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % Versions.elastic4s
     val elastic4sEffectZio = "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"       % Versions.elastic4s
     val elastic4sJsonCirce = "com.sksamuel.elastic4s" %% "elastic4s-json-circe"       % Versions.elastic4s
@@ -47,12 +45,12 @@ lazy val library =
     val http4sBlazeServer = "org.http4s" %% "http4s-blaze-server"                     % Versions.http4s
     val http4sBlazeClient = "org.http4s" %% "http4s-blaze-client"                     % Versions.http4s
     val http4sCirce = "org.http4s" %% "http4s-circe"                                  % Versions.http4s
-    val tapirZioHttp4s = "com.softwaremill.sttp.tapir" %% "tapir-zio-http4s-server"   % Versions.tapir
+    val tapirZioHttp4s = "com.softwaremill.sttp.tapir" %% "tapir-http4s-server-zio"   % Versions.tapir
     val tapirSwaggerUi = "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui"          % Versions.tapir
     val circeGeneric = "io.circe" %% "circe-generic"                                  % Versions.circe
     val circeGenericExtras = "io.circe" %% "circe-generic-extras"                     % Versions.circe
     val circeYaml = "io.circe" %% "circe-yaml"                                        % Versions.circe
-    val pauldijouJwtCirce = "com.pauldijou" %% "jwt-circe"                            % Versions.pauldijouJwt
+    val jwtCirce = "com.github.jwt-scala" %% "jwt-circe" % Versions.scalaJwt
     val pureconfig = "com.github.pureconfig" %% "pureconfig"                          % Versions.pureconfig
     val refinedPureconfig = "eu.timepit" %% "refined-pureconfig"                      % Versions.refined
     val chimney = "io.scalaland" %% "chimney"                                         % Versions.chimney
@@ -121,7 +119,7 @@ lazy val `core` =
         library.circeGeneric,
         library.circeGenericExtras,
         library.circeYaml,
-        library.pauldijouJwtCirce,
+        library.jwtCirce,
         library.pureconfig,
         library.refinedPureconfig,
         library.http4sCore,
@@ -196,7 +194,6 @@ lazy val `user-search-svc` =
         library.zioKafka,
         library.zioLoggingSlf4j,
         library.zioMetricsPrometheus,
-        library.zioMagic,
         library.elastic4sClientEsjava,
         library.elastic4sEffectZio,
         library.elastic4sJsonCirce,

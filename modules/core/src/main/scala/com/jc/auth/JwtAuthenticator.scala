@@ -7,6 +7,10 @@ import zio.{UIO, ZIO, ZLayer}
 
 import scala.util.Try
 
+trait JwtAuthenticator {
+  def authenticated(rawToken: String): UIO[Option[String]]
+}
+
 object JwtAuthenticator {
   val AuthHeader = "Authorization"
 
@@ -14,28 +18,38 @@ object JwtAuthenticator {
 
   def sanitizeBearerAuthToken(header: String): String = header.replaceFirst(BearerTokenPrefix, "")
 
-  trait Service {
-    def authenticated(rawToken: String): UIO[Option[String]]
-  }
+}
 
-  final case class PdiJwtAuthenticator(helper: PdiJwtHelper, clock: Clock) extends Service {
+final case class PdiJwtAuthenticator(helper: PdiJwtHelper, clock: Clock) extends JwtAuthenticator {
 
-    override def authenticated(rawToken: String): UIO[Option[String]] = {
-      ZIO.succeed {
-        for {
-          claim <- helper.decodeClaim(rawToken).toOption
-          subject <-
-            if (claim.isValid(clock)) {
-              claim.subject
-            } else None
-        } yield subject
-      }
+  override def authenticated(rawToken: String): UIO[Option[String]] = {
+    ZIO.succeed {
+      for {
+        claim <- helper.decodeClaim(rawToken).toOption
+        subject <-
+          if (claim.isValid(clock)) {
+            claim.subject
+          } else None
+      } yield subject
     }
   }
+}
 
-  def live(config: JwtConfig): ZLayer[Any, Nothing, JwtAuthenticator] = {
+object PdiJwtAuthenticator {
+
+  def make(config: JwtConfig): ZLayer[Any, Nothing, JwtAuthenticator] = {
     val helper = new PdiJwtHelper(config)
     ZLayer.succeed(PdiJwtAuthenticator(helper, Clock.systemUTC()))
+  }
+
+  val layer: ZLayer[JwtConfig, Nothing, JwtAuthenticator] = {
+    ZLayer.fromZIO(
+      ZIO
+        .service[JwtConfig]
+        .map { config =>
+          val helper = new PdiJwtHelper(config)
+          PdiJwtAuthenticator(helper, Clock.systemUTC())
+        })
   }
 }
 

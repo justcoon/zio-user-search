@@ -2,23 +2,16 @@ package com.jc.user.search.module.repo
 
 import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.fields.ElasticField
-import zio.{ZIO, ZLayer}
-import zio.logging.{Logger, Logging}
+import zio.ZIO
 
 trait RepositoryInitializer[R] {
   def init(): ZIO[R, Throwable, Boolean]
 }
 
-class ESRepositoryInitializer(
-  indexName: String,
-  fields: Seq[ElasticField],
-  elasticClient: ElasticClient,
-  logger: Logger[String])
+class ESRepositoryInitializer(indexName: String, fields: Seq[ElasticField], elasticClient: ElasticClient)
     extends RepositoryInitializer[Any] {
   import com.sksamuel.elastic4s.ElasticDsl._
   import com.sksamuel.elastic4s.zio.instances._
-
-  val serviceLogger = logger.named(getClass.getName)
 
 //  override def init(): ZIO[Any, Throwable, Boolean] = {
 //    for {
@@ -46,26 +39,25 @@ class ESRepositoryInitializer(
 //    } yield initResp
 //  }
 
-  import com.jc.logging.aspect.LoggingAspect
-  import com.jc.aspect.Aspect._
-
   override def init(): ZIO[Any, Throwable, Boolean] = {
-    val in = for {
+    for {
       existResp <- elasticClient.execute {
         indexExists(indexName)
       }
       initResp <-
         if (!existResp.result.exists) {
-          elasticClient.execute {
-            createIndex(indexName).mapping(properties(fields))
-          }.map(r => r.result.acknowledged) @@ LoggingAspect.loggingStartEnd(s"init - $indexName - initializing")
+          ZIO.logInfo(s"init - $indexName - initializing") *>
+            elasticClient.execute {
+              createIndex(indexName).mapping(properties(fields))
+            }.map(r => r.result.acknowledged)
         } else {
-          elasticClient.execute {
-            putMapping(indexName).properties(fields)
-          }.map(r => r.result.acknowledged) @@ LoggingAspect.loggingStartEnd(s"init - $indexName - updating")
+
+          ZIO.logInfo(s"init - $indexName - updating") *>
+            elasticClient.execute {
+              putMapping(indexName).properties(fields)
+            }.map(r => r.result.acknowledged)
         }
     } yield initResp
 
-    in.provideLayer(ZLayer.succeed(serviceLogger))
   }
 }

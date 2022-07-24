@@ -3,10 +3,7 @@ package com.jc.user.search.module.kafka
 import com.jc.user.domain.proto.{DepartmentPayloadEvent, UserPayloadEvent}
 import com.jc.user.search.model.config.KafkaConfig
 import com.jc.user.search.module.processor.EventProcessor
-import zio.blocking.Blocking
-import zio.clock.Clock
-import zio.{RIO, ZLayer}
-import zio.duration._
+import zio._
 import zio.kafka.consumer.{Consumer, ConsumerSettings, Subscription}
 import zio.kafka.serde.{Deserializer, Serde}
 import eu.timepit.refined.auto._
@@ -23,7 +20,7 @@ object KafkaConsumer {
 
   def eventDes(config: KafkaConfig): Deserializer[Any, EventProcessor.EventEnvelope[_]] = {
     Deserializer((topic, _, data) =>
-      RIO {
+      ZIO.succeed {
         if (topic == config.userTopic.value) {
           EventProcessor.EventEnvelope.User(topic, UserPayloadEvent.parseFrom(data))
         } else if (topic == config.departmentTopic.value) {
@@ -32,8 +29,8 @@ object KafkaConsumer {
       })
   }
 
-  def live(config: KafkaConfig): ZLayer[Clock with Blocking, Throwable, KafkaConsumer] = {
-    ZLayer.fromManaged(Consumer.make(consumerSettings(config)))
+  def live(config: KafkaConfig): ZLayer[Any, Throwable, Consumer] = {
+    ZLayer.scoped(Consumer.make(consumerSettings(config)))
   }
 
   def consume(config: KafkaConfig) = {
@@ -47,7 +44,7 @@ object KafkaConsumer {
       .flattenChunks
       .map(_.offset)
       .aggregateAsync(Consumer.offsetBatches)
-      .mapM(_.commit)
+      .mapZIO(_.commit)
       .runDrain
   }
 }

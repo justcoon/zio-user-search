@@ -7,17 +7,23 @@ import com.jc.user.search.module.api.{
   UserSearchGraphqlApiHandler,
   UserSearchGrpcApiHandler
 }
-import com.jc.auth.JwtAuthenticator
+import com.jc.auth.{JwtAuthenticator, PdiJwtAuthenticator}
 import com.jc.logging.{LogbackLoggingSystem, LoggingSystem}
-import com.jc.logging.api.{LoggingSystemGrpcApi, LoggingSystemGrpcApiHandler}
+import com.jc.logging.api.LoggingSystemGrpcApiHandler
 import com.jc.user.search.api.graphql.UserSearchGraphqlApi
 import com.jc.user.search.api.graphql.UserSearchGraphqlApi.UserSearchGraphqlApiInterpreter
-import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiService
+import com.jc.user.search.api.graphql.UserSearchGraphqlApiService
+import com.jc.user.search.api.proto.ZioUserSearchApi.RCUserSearchApiService
+import com.jc.user.search.module.Logger
 import com.jc.user.search.module.kafka.KafkaConsumer
-import com.jc.user.search.module.processor.EventProcessor
+import com.jc.user.search.module.processor.{EventProcessor, LiveEventProcessor}
 import com.jc.user.search.module.repo.{
   DepartmentSearchRepo,
   DepartmentSearchRepoInit,
+  EsDepartmentSearchRepo,
+  EsDepartmentSearchRepoInit,
+  EsUserSearchRepo,
+  EsUserSearchRepoInit,
   UserSearchRepo,
   UserSearchRepoInit
 }
@@ -25,26 +31,21 @@ import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties}
 import io.prometheus.client.exporter.{HTTPServer => PrometheusHttpServer}
 import zio._
-import zio.blocking.Blocking
-import zio.clock.Clock
-import zio.console.Console
-import zio.logging.slf4j.Slf4jLogger
-import zio.logging.Logging
 import zio.metrics.prometheus._
 import zio.metrics.prometheus.exporters.Exporters
 import zio.metrics.prometheus.helpers._
 import scalapb.zio_grpc.{Server => GrpcServer}
 import org.http4s.server.{Server => HttpServer}
 import eu.timepit.refined.auto._
-import zio.magic._
+import zio.kafka.consumer.Consumer
 
-object Main extends App {
+object Main extends ZIOAppDefault {
 
-  type AppEnvironment = Clock
-    with Console with Blocking with Has[ElasticClient] with JwtAuthenticator with UserSearchRepo with UserSearchRepoInit
-    with DepartmentSearchRepo with DepartmentSearchRepoInit with EventProcessor with KafkaConsumer with LoggingSystem
-    with LoggingSystemGrpcApiHandler with UserSearchGrpcApiHandler with UserSearchGraphqlApiService
-    with UserSearchGraphqlApiInterpreter with GrpcServer with Has[HttpServer] with Logging with Registry with Exporters
+  type AppEnvironment = ElasticClient
+    with JwtAuthenticator with UserSearchRepo with UserSearchRepoInit with DepartmentSearchRepo
+    with DepartmentSearchRepoInit with EventProcessor with Consumer with LoggingSystem with LoggingSystemGrpcApiHandler
+    with RCUserSearchApiService[Any] with UserSearchGraphqlApiService with UserSearchGraphqlApiInterpreter
+    with GrpcServer with HttpServer with Registry with Exporters
 
   private def metrics(config: PrometheusConfig): ZIO[AppEnvironment, Throwable, PrometheusHttpServer] = {
     for {
@@ -54,32 +55,32 @@ object Main extends App {
     } yield prometheusServer
   }
 
-  private def createElasticClient(config: ElasticsearchConfig): ZLayer[Any, Throwable, Has[ElasticClient]] = {
-    ZManaged.makeEffect {
-      val prop = ElasticProperties(config.addresses.mkString(","))
-      val jc = JavaClient(prop)
-      ElasticClient(jc)
-    }(_.close()).toLayer
+  private def createElasticClient(config: ElasticsearchConfig): ZLayer[Any, Throwable, ElasticClient] = {
+    ZLayer.scoped {
+      ZIO.acquireRelease {
+        ZIO.succeed {
+          val prop = ElasticProperties(config.addresses.mkString(","))
+          val jc = JavaClient(prop)
+          ElasticClient(jc)
+        }
+      }(c => ZIO.attempt(c.close()).orDie)
+    }
   }
 
   private def createAppLayer(appConfig: AppConfig): ZLayer[Any, Throwable, AppEnvironment] = {
-    ZLayer.fromMagic[AppEnvironment](
-      Clock.live,
-      Console.live,
-      Blocking.live,
+    ZLayer.make[AppEnvironment](
       createElasticClient(appConfig.elasticsearch),
-      Slf4jLogger.make((_, message) => message),
-      JwtAuthenticator.live(appConfig.jwt),
+      PdiJwtAuthenticator.make(appConfig.jwt),
       KafkaConsumer.live(appConfig.kafka),
-      DepartmentSearchRepoInit.elasticsearch(appConfig.elasticsearch.departmentIndexName),
-      DepartmentSearchRepo.elasticsearch(appConfig.elasticsearch.departmentIndexName),
-      UserSearchRepoInit.elasticsearch(appConfig.elasticsearch.userIndexName),
-      UserSearchRepo.elasticsearch(appConfig.elasticsearch.userIndexName),
-      EventProcessor.live,
-      LogbackLoggingSystem.create(),
-      LoggingSystemGrpcApi.live,
-      UserSearchGrpcApiHandler.live,
-      UserSearchGraphqlApiHandler.live,
+      EsDepartmentSearchRepoInit.layer(appConfig.elasticsearch.departmentIndexName),
+      EsDepartmentSearchRepo.layer(appConfig.elasticsearch.departmentIndexName),
+      EsUserSearchRepoInit.layer(appConfig.elasticsearch.userIndexName),
+      EsUserSearchRepo.layer(appConfig.elasticsearch.userIndexName),
+      LiveEventProcessor.layer,
+      LogbackLoggingSystem.make(),
+      LoggingSystemGrpcApiHandler.layer,
+      UserSearchGrpcApiHandler.layer,
+      UserSearchGraphqlApiHandler.layer,
       UserSearchGraphqlApi.apiInterpreter,
       GrpcApiServer.create(appConfig.grpcApi),
       HttpApiServer.create(appConfig.restApi),
@@ -88,8 +89,8 @@ object Main extends App {
     )
   }
 
-  override def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] = {
-    val result: ZIO[zio.ZEnv, Throwable, Nothing] = for {
+  override def run: ZIO[Scope, Any, ExitCode] = {
+    val run = for {
       appConfig <- AppConfig.getConfig
 
       runtime: ZIO[AppEnvironment, Throwable, Nothing] = ZIO.runtime[AppEnvironment].flatMap {
@@ -103,16 +104,9 @@ object Main extends App {
 
       appLayer = createAppLayer(appConfig)
 
-      program <- runtime.provideCustomLayer[Throwable, AppEnvironment](appLayer)
+      program <- runtime.provideLayer(appLayer)
     } yield program
 
-    result
-      .foldM(
-        failure = err => {
-          ZIO.accessM[ZEnv](_.get[Console.Service].putStrLn(s"Execution failed with: $err")).ignore *> ZIO.succeed(
-            ExitCode.failure)
-        },
-        success = _ => ZIO.succeed(ExitCode.success)
-      )
+    run.provideLayer(Logger.layer).as(ExitCode.success)
   }
 }

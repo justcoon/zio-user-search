@@ -1,12 +1,13 @@
 package com.jc.api.openapi
 
-import zio.{Has, ZIO, ZLayer}
+import zio.{ZIO, ZLayer}
 import zio.test.Assertion.isTrue
-import zio.test.{assert, DefaultRunnableSpec}
+import zio.test.assert
 
 import scala.io.Source
+import zio.test.ZIOSpecDefault
 
-object OpenApiCirceMergerSpec extends DefaultRunnableSpec {
+object OpenApiCirceMergerSpec extends ZIOSpecDefault {
 
   val y1 = Source.fromResource("UserSearchOpenApi.yaml").mkString
   val y2 = Source.fromResource("LoggingSystemOpenApi.yaml").mkString
@@ -14,15 +15,15 @@ object OpenApiCirceMergerSpec extends DefaultRunnableSpec {
   val merger = ZLayer.succeed(OpenApiCirceMerger())
 
   override def spec = suite("OpenApiCirceMergerSpec")(
-    testM("mergeYamls") {
+    test("mergeYamls") {
       for {
         m <- mergeYamls(y1, y2)
       } yield assert(m.nonEmpty)(isTrue)
     }.provideLayer(merger)
   )
 
-  def mergeYamls(main: String, second: String): ZIO[Has[OpenApiCirceMerger], String, String] = {
-    ZIO.accessM[Has[OpenApiCirceMerger]] { env =>
+  def mergeYamls(main: String, second: String): ZIO[OpenApiCirceMerger, String, String] = {
+    ZIO.environmentWithZIO[OpenApiCirceMerger] { env =>
       val merger = env.get
       ZIO.fromEither(merger.mergeYamls(main, second))
     }

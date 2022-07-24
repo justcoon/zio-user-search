@@ -29,8 +29,6 @@ import org.http4s.{Headers, HttpRoutes}
 import org.http4s.server.Router
 import sttp.tapir.swagger.SwaggerUI
 import zio.{RIO, ZIO}
-import zio.blocking.Blocking
-import zio.clock.Clock
 
 import scala.io.Source
 
@@ -42,12 +40,13 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
 
   override def getDepartment(respond: GetDepartmentResponse.type)(id: com.jc.user.domain.DepartmentEntity.DepartmentId)(
     extracted: Headers): F[GetDepartmentResponse] = {
-    ZIO.services[DepartmentSearchRepo.Service, JwtAuthenticator.Service].flatMap { case (repo, authenticator) =>
-      HttpJwtAuth
-        .authenticated(extracted, authenticator)
-        .foldM(
-          _ => ZIO.succeed(respond.Unauthorized),
-          _ =>
+
+    HttpJwtAuth
+      .authenticated(extracted)
+      .foldZIO(
+        _ => ZIO.succeed(respond.Unauthorized),
+        _ =>
+          ZIO.serviceWithZIO[DepartmentSearchRepo] { repo =>
             repo
               .find(id)
               .map {
@@ -55,19 +54,20 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
                 case None => respond.NotFound
               }
               .mapError[Throwable](e => new Exception(e))
-        )
-    }
+          }
+      )
+
   }
 
   override def searchDepartments(respond: SearchDepartmentsResponse.type)(
     query: Option[String],
     page: Int,
     pageSize: Int,
-    sort: Option[Iterable[String]])(extracted: Headers): F[SearchDepartmentsResponse] = {
+    sort: Option[Vector[String]])(extracted: Headers): F[SearchDepartmentsResponse] = {
     ZIO
-      .accessM[DepartmentSearchRepo] { env =>
+      .serviceWithZIO[DepartmentSearchRepo] { repo =>
         val ss = sort.getOrElse(Seq.empty).map(UserSearchOpenApiHandler.toFieldSort)
-        env.get.search(query, page, pageSize, ss)
+        repo.search(query, page, pageSize, ss)
       }
       .fold(
         e => respond.BadRequest(ExpectedFailure.getMessage(e)),
@@ -81,7 +81,7 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
   override def suggestDepartments(respond: SuggestDepartmentsResponse.type)(query: Option[String])(
     extracted: Headers): F[SuggestDepartmentsResponse] = {
     ZIO
-      .accessM[DepartmentSearchRepo] { env => env.get.suggest(query.getOrElse("")) }
+      .serviceWithZIO[DepartmentSearchRepo] { _.suggest(query.getOrElse("")) }
       .fold(
         e => respond.BadRequest(ExpectedFailure.getMessage(e)),
         r => {
@@ -98,12 +98,13 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
 
   override def getUser(respond: GetUserResponse.type)(id: com.jc.user.domain.UserEntity.UserId)(
     extracted: Headers): F[GetUserResponse] = {
-    ZIO.services[UserSearchRepo.Service, JwtAuthenticator.Service].flatMap { case (repo, authenticator) =>
-      HttpJwtAuth
-        .authenticated(extracted, authenticator)
-        .foldM(
-          _ => ZIO.succeed(respond.Unauthorized),
-          _ =>
+
+    HttpJwtAuth
+      .authenticated(extracted)
+      .foldZIO(
+        _ => ZIO.succeed(respond.Unauthorized),
+        _ =>
+          ZIO.serviceWithZIO[UserSearchRepo] { repo =>
             repo
               .find(id)
               .map {
@@ -111,19 +112,20 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
                 case None => respond.NotFound
               }
               .mapError[Throwable](e => new Exception(e))
-        )
-    }
+          }
+      )
+
   }
 
   override def searchUsers(respond: SearchUsersResponse.type)(
     query: Option[String],
     page: Int,
     pageSize: Int,
-    sort: Option[Iterable[String]] = None)(extracted: Headers): F[SearchUsersResponse] = {
+    sort: Option[Vector[String]] = None)(extracted: Headers): F[SearchUsersResponse] = {
     ZIO
-      .accessM[UserSearchRepo] { env =>
+      .serviceWithZIO[UserSearchRepo] { repo =>
         val ss = sort.getOrElse(Seq.empty).map(UserSearchOpenApiHandler.toFieldSort)
-        env.get.search(query, page, pageSize, ss)
+        repo.search(query, page, pageSize, ss)
       }
       .fold(
         e => respond.BadRequest(ExpectedFailure.getMessage(e)),
@@ -137,7 +139,7 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
   override def suggestUsers(respond: SuggestUsersResponse.type)(query: Option[String])(
     extracted: Headers): F[SuggestUsersResponse] = {
     ZIO
-      .accessM[UserSearchRepo] { env => env.get.suggest(query.getOrElse("")) }
+      .serviceWithZIO[UserSearchRepo] { repo => repo.suggest(query.getOrElse("")) }
       .fold(
         e => respond.BadRequest(ExpectedFailure.getMessage(e)),
         r => {
@@ -155,8 +157,7 @@ final class UserSearchOpenApiHandler[R <: UserSearchRepo with DepartmentSearchRe
 
 object UserSearchOpenApiHandler {
 
-  type ApiEnv = UserSearchRepo
-    with DepartmentSearchRepo with LoggingSystem with JwtAuthenticator with Clock with Blocking
+  type ApiEnv = UserSearchRepo with DepartmentSearchRepo with LoggingSystem with JwtAuthenticator
 
   // TODO improve parsing
   // sort - field:order, examples: username:asc, email:desc

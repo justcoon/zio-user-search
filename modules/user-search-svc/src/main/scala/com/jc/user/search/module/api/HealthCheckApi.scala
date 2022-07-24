@@ -4,12 +4,10 @@ import cats.effect.Sync
 import org.http4s.HttpRoutes
 import org.http4s.dsl.Http4sDsl
 import zio.RIO
-import zio.blocking.Blocking
-import zio.clock.Clock
 
 object HealthCheckApi {
 
-  def httpRoutes[R <: Clock with Blocking]: HttpRoutes[RIO[R, *]] = {
+  def httpRoutes[R <: Any]: HttpRoutes[RIO[R, *]] = {
     import zio.interop.catz._
     healthCheckRoutes
   }

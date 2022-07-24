@@ -9,7 +9,7 @@ object HttpJwtAuth {
 
   private val AuthHeader = CIString(JwtAuthenticator.AuthHeader)
 
-  def authenticated(headers: Headers, authenticator: JwtAuthenticator.Service): ZIO[Any, Status, String] = {
+  def authenticated(headers: Headers, authenticator: JwtAuthenticator): ZIO[Any, Status, String] = {
     for {
       rawToken <- ZIO.getOrFailWith(Status.Unauthorized)(headers.get(AuthHeader).map(_.head))
       maybeSubject <- authenticator.authenticated(JwtAuthenticator.sanitizeBearerAuthToken(rawToken.value))
@@ -17,9 +17,9 @@ object HttpJwtAuth {
     } yield subject
   }
 
-  def authenticated[R <: JwtAuthenticator](headers: Headers): ZIO[R, Status, String] = {
-    ZIO.accessM[R] { env =>
-      authenticated(headers, env.get[JwtAuthenticator.Service])
+  def authenticated(headers: Headers): ZIO[JwtAuthenticator, Status, String] = {
+    ZIO.serviceWithZIO[JwtAuthenticator] { authenticator =>
+      authenticated(headers, authenticator)
     }
   }
 

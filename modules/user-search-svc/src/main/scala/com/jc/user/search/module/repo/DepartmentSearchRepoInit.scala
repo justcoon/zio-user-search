@@ -1,21 +1,27 @@
 package com.jc.user.search.module.repo
 
 import com.sksamuel.elastic4s.ElasticClient
-import zio.logging.{Logger, Logging}
-import zio.{Has, ZIO, ZLayer}
+
+import zio.{ZIO, ZLayer}
+
+trait DepartmentSearchRepoInit extends RepositoryInitializer[Any]
 
 object DepartmentSearchRepoInit {
 
-  trait Service extends RepositoryInitializer[Any]
+  val init: ZIO[DepartmentSearchRepoInit, Throwable, Boolean] = ZIO.serviceWithZIO[DepartmentSearchRepoInit](_.init())
+}
 
-  def elasticsearch(indexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, DepartmentSearchRepoInit] =
-    ZLayer.fromServices[ElasticClient, Logger[String], DepartmentSearchRepoInit.Service] { (elasticClient, logger) =>
-      new ESRepositoryInitializer(
-        indexName,
-        DepartmentSearchRepo.EsDepartmentSearchRepoService.fields,
-        elasticClient,
-        logger) with Service
+object EsDepartmentSearchRepoInit {
+
+  def layer(indexName: String): ZLayer[ElasticClient, Nothing, DepartmentSearchRepoInit] =
+    ZLayer.fromZIO {
+      ZIO.serviceWith[ElasticClient] { elasticClient =>
+        val res: DepartmentSearchRepoInit =
+          new ESRepositoryInitializer(indexName, EsDepartmentSearchRepo.fields, elasticClient)
+            with DepartmentSearchRepoInit
+
+        res
+      }
     }
 
-  val init: ZIO[DepartmentSearchRepoInit, Throwable, Boolean] = ZIO.accessM[DepartmentSearchRepoInit](_.get.init())
 }

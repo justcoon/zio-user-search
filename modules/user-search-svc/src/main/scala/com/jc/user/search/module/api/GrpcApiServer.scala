@@ -12,7 +12,7 @@ import eu.timepit.refined.auto._
 
 object GrpcApiServer {
 
-  type ServerEnv = LoggingSystemGrpcApiHandler with UserSearchGrpcApiHandler
+  type ServerEnv = LoggingSystemGrpcApiHandler with RCUserSearchApiService[Any]
 
   def create(config: HttpApiConfig): ZLayer[ServerEnv, Throwable, GrpcServer] = {
     GrpcServerLayer.fromServiceList(
