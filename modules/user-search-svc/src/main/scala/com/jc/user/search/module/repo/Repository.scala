@@ -99,8 +99,7 @@ class ESRepository[R, ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder:
       elasticClient.execute {
         indexInto(indexName).doc(value).id(id)
       }.map(_.isSuccess).mapError(RepoFailure).tapError { e =>
-        ZIO.logError(s"insert - ${indexName} - id: ${value.id} - error: ${e.throwable.getMessage}") *>
-          ZIO.fail(e)
+        ZIO.logError(s"insert - ${indexName} - id: ${value.id} - error: ${e.throwable.getMessage}")
       }
   }
 
@@ -110,8 +109,7 @@ class ESRepository[R, ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder:
       elasticClient.execute {
         updateById(indexName, value.id.toString).doc(value)
       }.map(_.isSuccess).mapError(RepoFailure).tapError { e =>
-        ZIO.logError(s"update - ${indexName} - id: ${id} - error: ${e.throwable.getMessage}") *>
-          ZIO.fail(e)
+        ZIO.logError(s"update - ${indexName} - id: ${id} - error: ${e.throwable.getMessage}")
       }
   }
 
@@ -120,8 +118,7 @@ class ESRepository[R, ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder:
       elasticClient.execute {
         deleteById(indexName, id.toString)
       }.map(_.isSuccess).mapError(RepoFailure).tapError { e =>
-        ZIO.logError(s"update - id: ${id} - error: ${e.throwable.getMessage}") *>
-          ZIO.fail(e)
+        ZIO.logError(s"update - id: ${id} - error: ${e.throwable.getMessage}")
       }
   }
 
@@ -135,8 +132,7 @@ class ESRepository[R, ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder:
         else
           Option.empty
       }.mapError(RepoFailure).tapError { e =>
-        ZIO.logError(s"find - ${indexName} - id: ${id} - error: ${e.throwable.getMessage}") *>
-          ZIO.fail(e)
+        ZIO.logError(s"find - ${indexName} - id: ${id} - error: ${e.throwable.getMessage}")
       }
   }
 
@@ -145,8 +141,7 @@ class ESRepository[R, ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder:
       elasticClient.execute {
         searchIndex(indexName).matchAllQuery()
       }.map(_.result.to[E]).mapError(RepoFailure).tapError { e =>
-        ZIO.logError(s"findAll - ${indexName} - error: ${e.throwable.getMessage}") *>
-          ZIO.fail(e)
+        ZIO.logError(s"findAll - ${indexName} - error: ${e.throwable.getMessage}")
       }
   }
 }
@@ -189,8 +184,7 @@ class ESSearchRepository[R, E <: Repository.Entity[_]: Encoder: Decoder: ClassTa
           ZIO.fail(new Exception(ElasticUtils.getReason(res.error)))
         }
       }.mapError(RepoFailure).tapError { e =>
-        ZIO.logError(s"search - ${indexName} - query: '${q}' - error: ${e.throwable.getMessage}") *>
-          ZIO.fail(e)
+        ZIO.logError(s"search - ${indexName} - query: '${q}' - error: ${e.throwable.getMessage}")
       }
   }
 
@@ -220,8 +214,7 @@ class ESSearchRepository[R, E <: Repository.Entity[_]: Encoder: Decoder: ClassTa
       }.mapError(RepoFailure).tapError { e =>
         ZIO.logError(
           s"search - ${indexName} - query: '${query.getOrElse("N/A")}', page: $page, pageSize: $pageSize, sorts: ${sorts
-            .mkString("[", ",", "]")} - error: ${e.throwable.getMessage}") *>
-          ZIO.fail(e)
+            .mkString("[", ",", "]")} - error: ${e.throwable.getMessage}")
       }
   }
 
@@ -253,8 +246,7 @@ class ESSearchRepository[R, E <: Repository.Entity[_]: Encoder: Decoder: ClassTa
           ZIO.fail(new Exception(ElasticUtils.getReason(res.error)))
         }
       }.mapError(RepoFailure).tapError { e =>
-        ZIO.logError(s"suggest - ${indexName} - query: '$query' - error: ${e.throwable.getMessage}") *>
-          ZIO.fail(e)
+        ZIO.logError(s"suggest - ${indexName} - query: '$query' - error: ${e.throwable.getMessage}")
       }
   }
 }
