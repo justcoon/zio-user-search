@@ -16,15 +16,12 @@ import com.jc.logging.openapi.logging.LoggingResource.{
   SetLoggerConfigurationResponse
 }
 import org.http4s.{Headers, HttpRoutes}
-import zio.blocking.Blocking
-import zio.clock.Clock
+
 import zio.{UIO, ZIO}
 
 final class LoggingSystemOpenApiHandler[R <: LoggingSystem with JwtAuthenticator]
     extends LoggingHandler[ZIO[R, Throwable, *], Headers] {
   type F[A] = ZIO[R, Throwable, A]
-
-  private val envServices = ZIO.services[LoggingSystem.Service, JwtAuthenticator.Service]
 
   private def toApiLoggerConfiguration(configuration: LoggingSystem.LoggerConfiguration): LoggerConfiguration =
     LoggerConfiguration(
@@ -35,60 +32,58 @@ final class LoggingSystemOpenApiHandler[R <: LoggingSystem with JwtAuthenticator
 
   override def getLoggerConfiguration(respond: GetLoggerConfigurationResponse.type)(name: String)(
     extracted: Headers): ZIO[R, Throwable, GetLoggerConfigurationResponse] =
-    envServices.flatMap { case (loggingSystem, authenticator) =>
-      HttpJwtAuth
-        .authenticated(extracted, authenticator)
-        .foldM(
-          _ => ZIO.succeed(respond.Unauthorized),
-          _ =>
-            for {
-              configuration <- loggingSystem.getLoggerConfiguration(name)
-              levels <- LoggingSystemOpenApiHandler.getSupportedLogLevels(loggingSystem)
-            } yield {
-              respond.Ok(LoggerConfigurationRes(configuration.map(toApiLoggerConfiguration), levels))
-            }
-        )
-    }
+    HttpJwtAuth
+      .authenticated(extracted)
+      .foldZIO(
+        _ => ZIO.succeed(respond.Unauthorized),
+        _ =>
+          for {
+            loggingSystem <- ZIO.service[LoggingSystem]
+            configuration <- loggingSystem.getLoggerConfiguration(name)
+            levels <- LoggingSystemOpenApiHandler.getSupportedLogLevels(loggingSystem)
+          } yield {
+            respond.Ok(LoggerConfigurationRes(configuration.map(toApiLoggerConfiguration), levels))
+          }
+      )
 
   override def getLoggerConfigurations(respond: GetLoggerConfigurationsResponse.type)()(
     extracted: Headers): ZIO[R, Throwable, GetLoggerConfigurationsResponse] =
-    envServices.flatMap { case (loggingSystem, authenticator) =>
-      HttpJwtAuth
-        .authenticated(extracted, authenticator)
-        .foldM(
-          _ => ZIO.succeed(respond.Unauthorized),
-          _ =>
-            for {
-              configurations <- loggingSystem.getLoggerConfigurations
-              levels <- LoggingSystemOpenApiHandler.getSupportedLogLevels(loggingSystem)
-            } yield {
-              respond.Ok(LoggerConfigurationsRes(configurations.map(toApiLoggerConfiguration), levels))
-            }
-        )
-    }
+    HttpJwtAuth
+      .authenticated(extracted)
+      .foldZIO(
+        _ => ZIO.succeed(respond.Unauthorized),
+        _ =>
+          for {
+            loggingSystem <- ZIO.service[LoggingSystem]
+            configurations <- loggingSystem.getLoggerConfigurations
+            levels <- LoggingSystemOpenApiHandler.getSupportedLogLevels(loggingSystem)
+          } yield {
+            respond.Ok(LoggerConfigurationsRes(configurations.map(toApiLoggerConfiguration), levels))
+          }
+      )
 
   override def setLoggerConfiguration(
     respond: SetLoggerConfigurationResponse.type)(name: String, body: Option[LogLevel])(
     extracted: Headers): ZIO[R, Throwable, SetLoggerConfigurationResponse] =
-    envServices.flatMap { case (loggingSystem, authenticator) =>
-      HttpJwtAuth
-        .authenticated(extracted, authenticator)
-        .foldM(
-          _ => ZIO.succeed(respond.Unauthorized),
-          _ =>
-            for {
-              res <- loggingSystem
-                .setLogLevel(name, body.flatMap(LoggingSystemOpenApiHandler.logLevelMapping.fromLogger.get))
-              levels <- LoggingSystemOpenApiHandler.getSupportedLogLevels(loggingSystem)
-              configuration <-
-                if (res) {
-                  loggingSystem.getLoggerConfiguration(name)
-                } else ZIO.succeed(None)
-            } yield {
-              respond.Ok(LoggerConfigurationRes(configuration.map(toApiLoggerConfiguration), levels))
-            }
-        )
-    }
+    HttpJwtAuth
+      .authenticated(extracted)
+      .foldZIO(
+        _ => ZIO.succeed(respond.Unauthorized),
+        _ =>
+          for {
+            loggingSystem <- ZIO.service[LoggingSystem]
+            res <- loggingSystem
+              .setLogLevel(name, body.flatMap(LoggingSystemOpenApiHandler.logLevelMapping.fromLogger.get))
+            levels <- LoggingSystemOpenApiHandler.getSupportedLogLevels(loggingSystem)
+            configuration <-
+              if (res) {
+                loggingSystem.getLoggerConfiguration(name)
+              } else ZIO.succeed(None)
+          } yield {
+            respond.Ok(LoggerConfigurationRes(configuration.map(toApiLoggerConfiguration), levels))
+          }
+      )
+
 }
 
 object LoggingSystemOpenApiHandler {
@@ -105,13 +100,12 @@ object LoggingSystemOpenApiHandler {
     )
   )
 
-  def getSupportedLogLevels(loggingSystem: LoggingSystem.Service): UIO[Seq[LogLevel]] =
+  def getSupportedLogLevels(loggingSystem: LoggingSystem): UIO[Seq[LogLevel]] =
     loggingSystem.getSupportedLogLevels.map { levels =>
       levels.map(LoggingSystemOpenApiHandler.logLevelMapping.toLogger).toSeq
     }
 
-  def loggingSystemApiRoutes[E <: LoggingSystem with JwtAuthenticator with Clock with Blocking]
-    : HttpRoutes[ZIO[E, Throwable, *]] = {
+  def loggingSystemApiRoutes[E <: LoggingSystem with JwtAuthenticator]: HttpRoutes[ZIO[E, Throwable, *]] = {
     import zio.interop.catz._
     new LoggingResource[ZIO[E, Throwable, *], Headers](customExtract = _ => req => req.headers)
       .routes(new LoggingSystemOpenApiHandler[E]())

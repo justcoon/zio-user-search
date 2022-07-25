@@ -4,18 +4,19 @@ import com.jc.user.domain.UserEntity.UserId
 import com.jc.user.domain.DepartmentEntity.DepartmentId
 import com.jc.user.search.model.ExpectedFailure
 import com.sksamuel.elastic4s.ElasticClient
-import zio.logging.{Logger, Logging}
-import zio.{Has, ZIO, ZLayer}
+
+import zio.{ZIO, ZLayer}
+
+trait UserSearchRepo
+    extends Repository[Any, UserId, UserSearchRepo.User] with SearchRepository[Any, UserSearchRepo.User] {
+
+  def searchByDepartment(
+    id: DepartmentId,
+    page: Int,
+    pageSize: Int): ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[UserSearchRepo.User]]
+}
 
 object UserSearchRepo {
-
-  trait Service extends Repository[Any, UserId, User] with SearchRepository[Any, User] {
-
-    def searchByDepartment(
-      id: DepartmentId,
-      page: Int,
-      pageSize: Int): ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[User]]
-  }
 
   final case class Department(
     id: DepartmentId,
@@ -84,56 +85,58 @@ object UserSearchRepo {
     }
   }
 
-  final case class EsUserSearchRepoService(indexName: String, elasticClient: ElasticClient, logger: Logger[String])
-      extends AbstractCombinedRepository[Any, UserId, User] with UserSearchRepo.Service {
-    override val repository = new ESRepository[Any, UserId, User](indexName, elasticClient, logger)
-
-    override val searchRepository =
-      new ESSearchRepository[Any, User](indexName, EsUserSearchRepoService.suggestProperties, elasticClient, logger)
-
-    override def searchByDepartment(
-      id: DepartmentId,
-      page: Int,
-      pageSize: Int): ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[User]] = {
-      import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchQuery
-      import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
-      val query = MatchQuery("department.id", id)
-      val sorts = Seq(FieldSort("username"))
-      searchRepository.search(query, page, pageSize, sorts)
-    }
-  }
-
-  object EsUserSearchRepoService {
-    import com.sksamuel.elastic4s.ElasticDsl._
-
-    val suggestProperties = Seq("username", "email")
-
-    val fields = Seq(
-      textField("id").fielddata(true),
-      textField("username").fielddata(true),
-      textField("email").fielddata(true),
-      textField("address.street").fielddata(true),
-      textField("address.number").fielddata(true),
-      textField("address.city").fielddata(true),
-      textField("address.state").fielddata(true),
-      textField("address.zip").fielddata(true),
-      textField("address.country").fielddata(true),
-      textField("department.id").fielddata(true),
-      textField("department.name").fielddata(true),
-      textField("department.description").fielddata(true)
-    ) ++ suggestProperties.map(prop => completionField(ElasticUtils.getSuggestPropertyName(prop)))
-  }
-
-  def elasticsearch(indexName: String): ZLayer[Has[ElasticClient] with Logging, Nothing, UserSearchRepo] =
-    ZLayer.fromServices[ElasticClient, Logger[String], UserSearchRepo.Service] { (elasticClient, logger) =>
-      EsUserSearchRepoService(indexName, elasticClient, logger)
-    }
-
   def find(id: UserId): ZIO[UserSearchRepo, ExpectedFailure, Option[User]] = {
-    ZIO.accessM[UserSearchRepo](_.get.find(id))
+    ZIO.serviceWithZIO[UserSearchRepo](_.find(id))
   }
 
   def findAll(): ZIO[UserSearchRepo, ExpectedFailure, Seq[User]] = {
-    ZIO.accessM[UserSearchRepo](_.get.findAll())
+    ZIO.serviceWithZIO[UserSearchRepo](_.findAll())
   }
+}
+
+final case class EsUserSearchRepo(indexName: String, elasticClient: ElasticClient)
+    extends AbstractCombinedRepository[Any, UserId, UserSearchRepo.User] with UserSearchRepo {
+  override val repository = new ESRepository[Any, UserId, UserSearchRepo.User](indexName, elasticClient)
+
+  override val searchRepository =
+    new ESSearchRepository[Any, UserSearchRepo.User](indexName, EsUserSearchRepo.suggestProperties, elasticClient)
+
+  override def searchByDepartment(
+    id: DepartmentId,
+    page: Int,
+    pageSize: Int): ZIO[Any, ExpectedFailure, SearchRepository.PaginatedSequence[UserSearchRepo.User]] = {
+    import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchQuery
+    import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
+    val query = MatchQuery("department.id", id)
+    val sorts = Seq(FieldSort("username"))
+    searchRepository.search(query, page, pageSize, sorts)
+  }
+}
+
+object EsUserSearchRepo {
+  import com.sksamuel.elastic4s.ElasticDsl._
+
+  val suggestProperties = Seq("username", "email")
+
+  val fields = Seq(
+    textField("id").fielddata(true),
+    textField("username").fielddata(true),
+    textField("email").fielddata(true),
+    textField("address.street").fielddata(true),
+    textField("address.number").fielddata(true),
+    textField("address.city").fielddata(true),
+    textField("address.state").fielddata(true),
+    textField("address.zip").fielddata(true),
+    textField("address.country").fielddata(true),
+    textField("department.id").fielddata(true),
+    textField("department.name").fielddata(true),
+    textField("department.description").fielddata(true)
+  ) ++ suggestProperties.map(prop => completionField(ElasticUtils.getSuggestPropertyName(prop)))
+
+  def make(indexName: String): ZLayer[ElasticClient, Nothing, UserSearchRepo] =
+    ZLayer.fromZIO {
+      ZIO.serviceWith[ElasticClient] { elasticClient =>
+        EsUserSearchRepo(indexName, elasticClient)
+      }
+    }
 }

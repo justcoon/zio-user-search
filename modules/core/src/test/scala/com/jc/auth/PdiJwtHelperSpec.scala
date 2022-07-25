@@ -3,12 +3,12 @@ package com.jc.auth
 import zio.test._
 import zio.test.Assertion._
 import pdi.jwt.JwtClaim
-import zio.{Has, RIO, ZIO, ZLayer}
-import zio.test.DefaultRunnableSpec
+import zio.{RIO, ZIO, ZLayer}
 
 import java.time.Clock
+import zio.test.ZIOSpecDefault
 
-object PdiJwtHelperSpec extends DefaultRunnableSpec {
+object PdiJwtHelperSpec extends ZIOSpecDefault {
   import eu.timepit.refined.auto._
 
   implicit val clock: Clock = Clock.systemUTC
@@ -17,23 +17,22 @@ object PdiJwtHelperSpec extends DefaultRunnableSpec {
   val helper = ZLayer.succeed(new PdiJwtHelper(config))
 
   override def spec = suite("PdiJwtHelperSpec")(
-    testM("equal decoded jwt decoded token") {
+    test("equal decoded jwt decoded token") {
       for {
-        (authToken, token) <- getTestToken()
-        authTokenDecoded <- decodeToken(token)
-      } yield assert(authTokenDecoded.content)(equalTo(authToken))
+        token <- getTestToken()
+        authTokenDecoded <- decodeToken(token._2)
+      } yield assert(authTokenDecoded.content)(equalTo(token._1))
     }.provideLayer(helper)
   )
 
-  private def decodeToken(token: String): RIO[Has[PdiJwtHelper], JwtClaim] = {
-    ZIO.accessM[Has[PdiJwtHelper]] { env =>
-      RIO.fromEither(env.get.decodeClaim(token).toEither)
+  private def decodeToken(token: String): RIO[PdiJwtHelper, JwtClaim] = {
+    ZIO.service[PdiJwtHelper].flatMap { helper =>
+      ZIO.fromEither(helper.decodeClaim(token).toEither)
     }
   }
 
-  private def getTestToken(): RIO[Has[PdiJwtHelper], (String, String)] = {
-    ZIO.access[Has[PdiJwtHelper]] { env =>
-      val helper = env.get
+  private def getTestToken(): RIO[PdiJwtHelper, (String, String)] = {
+    ZIO.service[PdiJwtHelper].map { helper =>
       val authToken = "{}"
       val claim = helper.claim(authToken, subject = Some("test"), issuer = helper.config.issuer.map(_.value))
       val token = helper.encodeClaim(claim)

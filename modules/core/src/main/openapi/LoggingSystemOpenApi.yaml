@@ -23,6 +23,7 @@ paths:
     get:
       tags:
         - logging
+      x-jvm-package: logging
       summary: Get loggers configurations
       description: ''
       operationId: getLoggerConfigurations
@@ -41,6 +42,7 @@ paths:
     get:
       tags:
         - logging
+      x-jvm-package: logging
       summary: Get logger configuration
       description: ''
       operationId: getLoggerConfiguration
@@ -67,6 +69,7 @@ paths:
     put:
       tags:
         - logging
+      x-jvm-package: logging
       summary: Set logger configuration
       description: ''
       operationId: setLoggerConfiguration

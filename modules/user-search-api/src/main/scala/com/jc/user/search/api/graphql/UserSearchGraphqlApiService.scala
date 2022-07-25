@@ -1,5 +1,6 @@
 package com.jc.user.search.api.graphql
 
+import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiRequestContext
 import com.jc.user.search.api.graphql.model.{
   Department,
   DepartmentSearchResponse,
@@ -11,62 +12,60 @@ import com.jc.user.search.api.graphql.model.{
   User,
   UserSearchResponse
 }
-import zio.{Has, RIO}
+import zio.{RIO, ZIO}
+
+trait UserSearchGraphqlApiService {
+  def getUser(request: GetUser): RIO[UserSearchGraphqlApiRequestContext, Option[User]]
+  def searchUsers(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, UserSearchResponse]
+  def suggestUsers(request: SuggestRequest): RIO[UserSearchGraphqlApiRequestContext, SuggestResponse]
+  def getDepartment(request: GetDepartment): RIO[UserSearchGraphqlApiRequestContext, Option[Department]]
+  def searchDepartments(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, DepartmentSearchResponse]
+  def suggestDepartments(request: SuggestRequest): RIO[UserSearchGraphqlApiRequestContext, SuggestResponse]
+}
 
 object UserSearchGraphqlApiService {
-  type UserSearchGraphqlApiService = Has[Service]
 
-  type UserSearchGraphqlApiRequestContext = Has[RequestContext]
+  type UserSearchGraphqlApiRequestContext = RequestContext
 
   trait RequestContext {
     def get(name: String): Option[String]
     def names: Set[String]
   }
 
-  trait Service {
-    def getUser(request: GetUser): RIO[UserSearchGraphqlApiRequestContext, Option[User]]
-    def searchUsers(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, UserSearchResponse]
-    def suggestUsers(request: SuggestRequest): RIO[UserSearchGraphqlApiRequestContext, SuggestResponse]
-    def getDepartment(request: GetDepartment): RIO[UserSearchGraphqlApiRequestContext, Option[Department]]
-    def searchDepartments(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, DepartmentSearchResponse]
-    def suggestDepartments(request: SuggestRequest): RIO[UserSearchGraphqlApiRequestContext, SuggestResponse]
-  }
-
   def getUser(
     origin: GetUser): RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[User]] = {
-    RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[User]] { env =>
-      env.get[UserSearchGraphqlApiService.Service].getUser(origin).provide(env)
+    ZIO.environmentWithZIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] { env =>
+      env.get[UserSearchGraphqlApiService].getUser(origin).provideEnvironment(env)
     }
   }
 
   def searchUsers(origin: SearchRequest)
     : RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, UserSearchResponse] =
-    RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, UserSearchResponse] { env =>
-      env.get[UserSearchGraphqlApiService.Service].searchUsers(origin).provide(env)
+    ZIO.environmentWithZIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] { env =>
+      env.get[UserSearchGraphqlApiService].searchUsers(origin).provideEnvironment(env)
     }
 
   def suggestUsers(
     origin: SuggestRequest): RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, SuggestResponse] =
-    RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, SuggestResponse] { env =>
-      env.get[UserSearchGraphqlApiService.Service].suggestUsers(origin).provide(env)
+    ZIO.environmentWithZIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] { env =>
+      env.get[UserSearchGraphqlApiService].suggestUsers(origin).provideEnvironment(env)
     }
 
   def getDepartment(origin: GetDepartment)
     : RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[Department]] =
-    RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[Department]] { env =>
-      env.get[UserSearchGraphqlApiService.Service].getDepartment(origin).provide(env)
+    ZIO.environmentWithZIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] { env =>
+      env.get[UserSearchGraphqlApiService].getDepartment(origin).provideEnvironment(env)
     }
 
   def searchDepartments(origin: SearchRequest)
     : RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, DepartmentSearchResponse] =
-    RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, DepartmentSearchResponse] {
-      env =>
-        env.get[UserSearchGraphqlApiService.Service].searchDepartments(origin).provide(env)
+    ZIO.environmentWithZIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] { env =>
+      env.get[UserSearchGraphqlApiService].searchDepartments(origin).provideEnvironment(env)
     }
 
   def suggestDepartments(
     origin: SuggestRequest): RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, SuggestResponse] =
-    RIO.fromFunctionM[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, SuggestResponse] { env =>
-      env.get[UserSearchGraphqlApiService.Service].suggestDepartments(origin).provide(env)
+    ZIO.environmentWithZIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext] { env =>
+      env.get[UserSearchGraphqlApiService].suggestDepartments(origin).provideEnvironment(env)
     }
 }

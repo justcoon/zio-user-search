@@ -19,20 +19,15 @@ import zio.{RIO, ZIO, ZLayer}
 import caliban.{CalibanError, GraphQLInterpreter, Http4sAdapter}
 import cats.data.Kleisli
 import com.jc.auth.JwtAuthenticator
-import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.{
-  UserSearchGraphqlApiRequestContext,
-  UserSearchGraphqlApiService
-}
+import com.jc.user.search.api.graphql.UserSearchGraphqlApiService.UserSearchGraphqlApiRequestContext
+
 import com.jc.user.search.model.ExpectedFailure
 import org.http4s
 import org.typelevel.ci.CIString
-import zio.blocking.Blocking
-import zio.clock.Clock
-import zio.logging.Logging
 
 object UserSearchGraphqlApiHandler {
 
-  type ApiEnv = Blocking with Clock with Logging with UserSearchGraphqlApiService with JwtAuthenticator
+  type ApiEnv = UserSearchGraphqlApiService with JwtAuthenticator
 
   def toRepoFieldSort(sort: FieldSort): SearchRepository.FieldSort = {
     SearchRepository.FieldSort(sort.field, sort.asc)
@@ -53,16 +48,16 @@ object UserSearchGraphqlApiHandler {
   }
 
   final case class LiveUserSearchGraphqlApiService(
-    userSearchRepo: UserSearchRepo.Service,
-    departmentSearchRepo: DepartmentSearchRepo.Service,
-    jwtAuthenticator: JwtAuthenticator.Service)
-      extends UserSearchGraphqlApiService.Service {
+    userSearchRepo: UserSearchRepo,
+    departmentSearchRepo: DepartmentSearchRepo,
+    jwtAuthenticator: JwtAuthenticator)
+      extends UserSearchGraphqlApiService {
     import io.scalaland.chimney.dsl._
 
     private val unauthorized = CalibanError.ExecutionError("Unauthorized")
 
     private val authenticated: ZIO[UserSearchGraphqlApiRequestContext, CalibanError, String] = {
-      ZIO.serviceWith { context =>
+      ZIO.serviceWithZIO { context =>
         for {
           rawToken <- ZIO.getOrFailWith(unauthorized)(context.get(JwtAuthenticator.AuthHeader))
           maybeSubject <- jwtAuthenticator.authenticated(JwtAuthenticator.sanitizeBearerAuthToken(rawToken))
@@ -72,14 +67,15 @@ object UserSearchGraphqlApiHandler {
     }
 
     override def getUser(request: GetUser): RIO[UserSearchGraphqlApiRequestContext, Option[User]] =
-      authenticated >>>
+      authenticated.flatMap { _ =>
         userSearchRepo
           .find(request.id)
           .mapError(toCalibanError)
           .map(_.map(_.transformInto[User]))
+      }
 
     override def searchUsers(request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, UserSearchResponse] =
-      authenticated >>> {
+      authenticated.flatMap { _ =>
         val ss = request.sorts.getOrElse(Seq.empty).map(toRepoFieldSort)
         userSearchRepo
           .search(request.query, request.page, request.pageSize, ss)
@@ -88,24 +84,25 @@ object UserSearchGraphqlApiHandler {
       }
 
     override def suggestUsers(request: SuggestRequest): RIO[UserSearchGraphqlApiRequestContext, SuggestResponse] =
-      authenticated >>>
+      authenticated.flatMap { _ =>
         userSearchRepo
           .suggest(request.query)
           .mapError(toCalibanError)
           .map(r => SuggestResponse(r.items.map(_.transformInto[PropertySuggestion])))
+      }
 
     override def getDepartment(request: GetDepartment): RIO[UserSearchGraphqlApiRequestContext, Option[Department]] = {
-      authenticated >>>
+      authenticated.flatMap { _ =>
         departmentSearchRepo
           .find(request.id)
           .mapError(toCalibanError)
           .map(_.map(_.transformInto[Department]))
-
+      }
     }
 
     override def searchDepartments(
       request: SearchRequest): RIO[UserSearchGraphqlApiRequestContext, DepartmentSearchResponse] = {
-      authenticated >>> {
+      authenticated.flatMap { _ =>
         val ss = request.sorts.getOrElse(Seq.empty).map(toRepoFieldSort)
         departmentSearchRepo
           .search(request.query, request.page, request.pageSize, ss)
@@ -115,25 +112,26 @@ object UserSearchGraphqlApiHandler {
     }
 
     override def suggestDepartments(request: SuggestRequest): RIO[UserSearchGraphqlApiRequestContext, SuggestResponse] =
-      authenticated >>>
+      authenticated.flatMap { _ =>
         departmentSearchRepo
           .suggest(request.query)
           .mapError(toCalibanError)
           .map(r => SuggestResponse(r.items.map(_.transformInto[PropertySuggestion])))
-
+      }
   }
 
-  val live: ZLayer[
+  val layer: ZLayer[
     UserSearchRepo with DepartmentSearchRepo with JwtAuthenticator,
     Nothing,
-    UserSearchGraphqlApiService.UserSearchGraphqlApiService] =
-    ZLayer.fromServices[
-      UserSearchRepo.Service,
-      DepartmentSearchRepo.Service,
-      JwtAuthenticator.Service,
-      UserSearchGraphqlApiService.Service] { (userSearchRepo, departmentSearchRepo, jwtAuthenticator) =>
-      LiveUserSearchGraphqlApiService(userSearchRepo, departmentSearchRepo, jwtAuthenticator)
+    LiveUserSearchGraphqlApiService] = {
+    ZLayer.fromZIO {
+      for {
+        userSearchRepo <- ZIO.service[UserSearchRepo]
+        departmentSearchRepo <- ZIO.service[DepartmentSearchRepo]
+        jwtAuthenticator <- ZIO.service[JwtAuthenticator]
+      } yield LiveUserSearchGraphqlApiService(userSearchRepo, departmentSearchRepo, jwtAuthenticator)
     }
+  }
 
   def graphqlRoutes[R <: ApiEnv](
     interpreter: GraphQLInterpreter[R with UserSearchGraphqlApiRequestContext, CalibanError])
@@ -145,7 +143,7 @@ object UserSearchGraphqlApiHandler {
           Http4sAdapter
             .provideSomeLayerFromRequest[R, UserSearchGraphqlApiRequestContext](
               Http4sAdapter.makeHttpService[R with UserSearchGraphqlApiRequestContext, CalibanError](interpreter),
-              req => ZIO.succeed(HttpRequestContext(req.headers)).toLayer
+              req => ZLayer.succeed(HttpRequestContext(req.headers))
             ),
         "/graphiql" -> Kleisli.liftF(http4s.StaticFile.fromResource("/graphiql.html", None))
       )
