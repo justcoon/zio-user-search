@@ -38,7 +38,7 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
   type UserSearchGraphqlApiInterpreter =
     GraphQLInterpreter[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, CalibanError]
 
-  case class Queries(
+  final case class Queries(
     @GQLDescription("Get user")
     getUser: GetUser => RIO[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, Option[User]],
     @GQLDescription("Search users")
@@ -102,27 +102,27 @@ object UserSearchGraphqlApi extends GenericSchema[UserSearchGraphqlApiService wi
       maxFields(200) @@ // query analyzer that limit query fields
       maxDepth(30) @@ // query analyzer that limit query depth
       timeout(3 seconds) @@ // wrapper that fails slow queries
-//      logSlowQueries(500 millis) @@ // wrapper that logs slow queries
-//      logErrors @@ // wrapper that logs errors
+      logSlowQueries(500 millis) @@ // wrapper that logs slow queries
+      logErrors @@ // wrapper that logs errors
       apolloTracing // wrapper for https://github.com/apollographql/apollo-tracing
 
   val apiInterpreter: ZLayer[Any, CalibanError.ValidationError, UserSearchGraphqlApiInterpreter] =
     ZLayer.fromZIO(api.interpreter)
 
-//  lazy val logErrors: OverallWrapper[Logging] =
-//    new OverallWrapper[Logging] {
-//
-//      def wrap[R1 <: Logging](
-//        process: GraphQLRequest => ZIO[R1, Nothing, GraphQLResponse[CalibanError]]
-//      ): GraphQLRequest => ZIO[R1, Nothing, GraphQLResponse[CalibanError]] =
-//        request =>
-//          process(request).tap(response =>
-//            ZIO.foreach(response.errors) { e =>
-//              Logging.throwable("Error", e)
-//            })
-//    }
-//
-//  def logSlowQueries(duration: Duration): OverallWrapper[Logging with Clock] =
-//    onSlowQueries(duration) { case (time, query) => Logging.debug(s"Slow query took ${time.render}:\n$query") }
+  lazy val logErrors: OverallWrapper[Any] =
+    new OverallWrapper[Any] {
+
+      def wrap[R1 <: Any](
+        process: GraphQLRequest => ZIO[R1, Nothing, GraphQLResponse[CalibanError]]
+      ): GraphQLRequest => ZIO[R1, Nothing, GraphQLResponse[CalibanError]] =
+        request =>
+          process(request).tap(response =>
+            ZIO.foreach(response.errors) { e =>
+              ZIO.logError(s"Error: $e")
+            })
+    }
+
+  def logSlowQueries(duration: Duration): OverallWrapper[Any] =
+    onSlowQueries(duration) { case (time, query) => ZIO.logDebug(s"Slow query took ${time.render}:\n$query") }
 
 }

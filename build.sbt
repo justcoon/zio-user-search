@@ -22,8 +22,8 @@ lazy val Versions = new {
   val tapir = "1.0.2"
   val caliban = "2.0.0"
 
-  val gatling = "3.6.1"
-  val gatlingGrpc = "0.12.0"
+  val gatling = "3.7.6"
+  val gatlingGrpc = "0.13.0"
 
 }
 
@@ -195,7 +195,7 @@ lazy val `user-search-svc` =
         library.zioLoggingSlf4j,
         library.zioMetricsPrometheus,
         library.elastic4sClientEsjava,
-        library.elastic4sEffectZio,
+//        library.elastic4sEffectZio, // FIXME when elastic4s will support zio2
         library.elastic4sJsonCirce,
         library.jacksonModuleScala,
         library.http4sCore,

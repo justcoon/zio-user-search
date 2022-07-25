@@ -79,5 +79,5 @@ object EventProcessorSpec extends ZIOSpecDefault {
         departmentRes1 <- DepartmentSearchRepo.find(departmentCreatedEvent1.entityId)
       } yield assert(departmentRes1.isEmpty)(isTrue)
     }
-  ).provideLayer(layer ++ Logger.layer) @@ TestAspect.sequential
+  ).provideLayerShared(layer ++ Logger.layer) @@ TestAspect.sequential
 }

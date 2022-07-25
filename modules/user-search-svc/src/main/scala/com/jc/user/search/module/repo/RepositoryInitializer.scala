@@ -11,33 +11,7 @@ trait RepositoryInitializer[R] {
 class ESRepositoryInitializer(indexName: String, fields: Seq[ElasticField], elasticClient: ElasticClient)
     extends RepositoryInitializer[Any] {
   import com.sksamuel.elastic4s.ElasticDsl._
-  import com.sksamuel.elastic4s.zio.instances._
-
-//  override def init(): ZIO[Any, Throwable, Boolean] = {
-//    for {
-//      existResp <- elasticClient.execute {
-//        indexExists(indexName)
-//      }
-//      initResp <-
-//        if (!existResp.result.exists) {
-//          serviceLogger.debug(s"init - $indexName - initializing ...") *>
-//            elasticClient.execute {
-//              createIndex(indexName).mapping(properties(fields))
-//            }.map(r => r.result.acknowledged).tapError { e =>
-//              serviceLogger.error(s"init: $indexName - error: ${e.getMessage}") *>
-//                ZIO.fail(e)
-//            }
-//        } else {
-//          serviceLogger.debug(s"init - $indexName - updating ...") *>
-//            elasticClient.execute {
-//              putMapping(indexName).properties(fields)
-//            }.map(r => r.result.acknowledged).tapError { e =>
-//              serviceLogger.error(s"init - $indexName - error: ${e.getMessage}") *>
-//                ZIO.fail(e)
-//            }
-//        }
-//    } yield initResp
-//  }
+  import com.jc.user.search.module.es.instances._
 
   override def init(): ZIO[Any, Throwable, Boolean] = {
     for {
@@ -49,13 +23,16 @@ class ESRepositoryInitializer(indexName: String, fields: Seq[ElasticField], elas
           ZIO.logInfo(s"init - $indexName - initializing") *>
             elasticClient.execute {
               createIndex(indexName).mapping(properties(fields))
-            }.map(r => r.result.acknowledged)
+            }.map(r => r.result.acknowledged).tapError { e =>
+              ZIO.logError(s"init - $indexName - error: ${e.getMessage}")
+            }
         } else {
-
           ZIO.logInfo(s"init - $indexName - updating") *>
             elasticClient.execute {
               putMapping(indexName).properties(fields)
-            }.map(r => r.result.acknowledged)
+            }.map(r => r.result.acknowledged).tapError { e =>
+              ZIO.logError(s"init - $indexName - error: ${e.getMessage}")
+            }
         }
     } yield initResp
 

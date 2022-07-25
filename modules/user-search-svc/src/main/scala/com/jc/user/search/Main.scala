@@ -15,6 +15,7 @@ import com.jc.user.search.api.graphql.UserSearchGraphqlApi.UserSearchGraphqlApiI
 import com.jc.user.search.api.graphql.UserSearchGraphqlApiService
 import com.jc.user.search.api.proto.ZioUserSearchApi.RCUserSearchApiService
 import com.jc.user.search.module.Logger
+import com.jc.user.search.module.es.EsClient
 import com.jc.user.search.module.kafka.KafkaConsumer
 import com.jc.user.search.module.processor.{EventProcessor, LiveEventProcessor}
 import com.jc.user.search.module.repo.{
@@ -27,8 +28,7 @@ import com.jc.user.search.module.repo.{
   UserSearchRepo,
   UserSearchRepoInit
 }
-import com.sksamuel.elastic4s.http.JavaClient
-import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties}
+import com.sksamuel.elastic4s.ElasticClient
 import io.prometheus.client.exporter.{HTTPServer => PrometheusHttpServer}
 import zio._
 import zio.metrics.prometheus._
@@ -55,21 +55,9 @@ object Main extends ZIOAppDefault {
     } yield prometheusServer
   }
 
-  private def createElasticClient(config: ElasticsearchConfig): ZLayer[Any, Throwable, ElasticClient] = {
-    ZLayer.scoped {
-      ZIO.acquireRelease {
-        ZIO.succeed {
-          val prop = ElasticProperties(config.addresses.mkString(","))
-          val jc = JavaClient(prop)
-          ElasticClient(jc)
-        }
-      }(c => ZIO.attempt(c.close()).orDie)
-    }
-  }
-
   private def createAppLayer(appConfig: AppConfig): ZLayer[Any, Throwable, AppEnvironment] = {
     ZLayer.make[AppEnvironment](
-      createElasticClient(appConfig.elasticsearch),
+      EsClient.make(appConfig.elasticsearch),
       PdiJwtAuthenticator.make(appConfig.jwt),
       KafkaConsumer.make(appConfig.kafka),
       EsDepartmentSearchRepoInit.make(appConfig.elasticsearch.departmentIndexName),
