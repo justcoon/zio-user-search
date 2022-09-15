@@ -26,13 +26,13 @@ object PdiJwtHelperSpec extends ZIOSpecDefault {
   )
 
   private def decodeToken(token: String): RIO[PdiJwtHelper, JwtClaim] = {
-    ZIO.service[PdiJwtHelper].flatMap { helper =>
-      ZIO.fromEither(helper.decodeClaim(token).toEither)
+    ZIO.serviceWithZIO[PdiJwtHelper] { helper =>
+      ZIO.fromTry(helper.decodeClaim(token))
     }
   }
 
   private def getTestToken(): RIO[PdiJwtHelper, (String, String)] = {
-    ZIO.service[PdiJwtHelper].map { helper =>
+    ZIO.serviceWith[PdiJwtHelper] { helper =>
       val authToken = "{}"
       val claim = helper.claim(authToken, subject = Some("test"), issuer = helper.config.issuer.map(_.value))
       val token = helper.encodeClaim(claim)

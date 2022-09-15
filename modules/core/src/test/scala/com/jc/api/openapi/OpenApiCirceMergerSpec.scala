@@ -23,8 +23,7 @@ object OpenApiCirceMergerSpec extends ZIOSpecDefault {
   )
 
   def mergeYamls(main: String, second: String): ZIO[OpenApiCirceMerger, String, String] = {
-    ZIO.environmentWithZIO[OpenApiCirceMerger] { env =>
-      val merger = env.get
+    ZIO.serviceWithZIO[OpenApiCirceMerger] { merger =>
       ZIO.fromEither(merger.mergeYamls(main, second))
     }
   }
