@@ -11,7 +11,7 @@ trait RepositoryInitializer[R] {
 class ESRepositoryInitializer(indexName: String, fields: Seq[ElasticField], elasticClient: ElasticClient)
     extends RepositoryInitializer[Any] {
   import com.sksamuel.elastic4s.ElasticDsl._
-  import com.jc.user.search.module.es.instances._
+  import com.sksamuel.elastic4s.zio.instances._
 
   override def init(): ZIO[Any, Throwable, Boolean] = {
     for {

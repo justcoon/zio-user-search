@@ -16,12 +16,13 @@ import org.http4s.implicits._
 import zio.interop.catz._
 import zio.{RIO, ZIO, ZLayer}
 import eu.timepit.refined.auto._
+import zio.metrics.connectors.prometheus.PrometheusPublisher
 
 object HttpApiServer {
 
   type ServerEnv = UserSearchRepo
     with DepartmentSearchRepo with LoggingSystem with UserSearchGraphqlApiService with UserSearchGraphqlApiInterpreter
-    with JwtAuthenticator
+    with JwtAuthenticator with PrometheusPublisher
 
   private def httpRoutes(
     interpreter: GraphQLInterpreter[UserSearchGraphqlApiService with UserSearchGraphqlApiRequestContext, CalibanError])
@@ -29,7 +30,8 @@ object HttpApiServer {
     Router[RIO[ServerEnv, *]](
       "/" -> UserSearchOpenApiHandler.httpRoutes[ServerEnv],
       "/" -> UserSearchGraphqlApiHandler.graphqlRoutes[ServerEnv](interpreter),
-      "/" -> HealthCheckApi.httpRoutes
+      "/" -> HealthCheckApi.httpRoutes,
+      "/" -> PrometheusMetricsApi.httpRoutes
     )
 
   private def httpApp(

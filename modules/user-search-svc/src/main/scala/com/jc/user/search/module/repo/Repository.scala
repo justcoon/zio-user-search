@@ -89,7 +89,7 @@ class ESRepository[R, ID: Encoder: Decoder, E <: Repository.Entity[ID]: Encoder:
   elasticClient: ElasticClient)
     extends Repository[R, ID, E] {
 
-  import com.jc.user.search.module.es.instances._
+  import com.sksamuel.elastic4s.zio.instances._
   import com.sksamuel.elastic4s.ElasticDsl.{search => searchIndex, _}
   import com.sksamuel.elastic4s.circe._
 
@@ -152,7 +152,7 @@ class ESSearchRepository[R, E <: Repository.Entity[_]: Encoder: Decoder: ClassTa
   elasticClient: ElasticClient
 ) extends SearchRepository[R, E] {
 
-  import com.jc.user.search.module.es.instances._
+  import com.sksamuel.elastic4s.zio.instances._
   import com.sksamuel.elastic4s.ElasticDsl.{search => searchIndex, _}
   import com.sksamuel.elastic4s.requests.searches.queries.QueryStringQuery
   import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchAllQuery

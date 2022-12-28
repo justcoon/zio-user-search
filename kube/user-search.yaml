@@ -48,9 +48,6 @@ spec:
             - name: grpc
               containerPort: 8010
               protocol: TCP
-            - name: prometheus
-              containerPort: 9080
-              protocol: TCP
           env:
             - name: NAMESPACE
               valueFrom:

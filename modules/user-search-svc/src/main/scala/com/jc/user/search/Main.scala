@@ -1,6 +1,6 @@
 package com.jc.user.search
 
-import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig, PrometheusConfig}
+import com.jc.user.search.model.config.{AppConfig, ElasticsearchConfig}
 import com.jc.user.search.module.api.{
   GrpcApiServer,
   HttpApiServer,
@@ -14,7 +14,7 @@ import com.jc.user.search.api.graphql.UserSearchGraphqlApi
 import com.jc.user.search.api.graphql.UserSearchGraphqlApi.UserSearchGraphqlApiInterpreter
 import com.jc.user.search.api.graphql.UserSearchGraphqlApiService
 import com.jc.user.search.api.proto.ZioUserSearchApi.RCUserSearchApiService
-import com.jc.user.search.module.Logger
+import com.jc.user.search.module.{Logger, Metrics}
 import com.jc.user.search.module.es.EsClient
 import com.jc.user.search.module.kafka.KafkaConsumer
 import com.jc.user.search.module.processor.{EventProcessor, LiveEventProcessor}
@@ -29,15 +29,12 @@ import com.jc.user.search.module.repo.{
   UserSearchRepoInit
 }
 import com.sksamuel.elastic4s.ElasticClient
-import io.prometheus.client.exporter.{HTTPServer => PrometheusHttpServer}
 import zio._
-import zio.metrics.prometheus._
-import zio.metrics.prometheus.exporters.Exporters
-import zio.metrics.prometheus.helpers._
 import scalapb.zio_grpc.{Server => GrpcServer}
 import org.http4s.server.{Server => HttpServer}
 import eu.timepit.refined.auto._
 import zio.kafka.consumer.Consumer
+import zio.metrics.connectors.prometheus.PrometheusPublisher
 
 object Main extends ZIOAppDefault {
 
@@ -45,15 +42,7 @@ object Main extends ZIOAppDefault {
     with JwtAuthenticator with UserSearchRepo with UserSearchRepoInit with DepartmentSearchRepo
     with DepartmentSearchRepoInit with EventProcessor with Consumer with LoggingSystem with LoggingSystemGrpcApiHandler
     with RCUserSearchApiService[Any] with UserSearchGraphqlApiService with UserSearchGraphqlApiInterpreter
-    with GrpcServer with HttpServer with Registry with Exporters
-
-  private def metrics(config: PrometheusConfig): ZIO[AppEnvironment, Throwable, PrometheusHttpServer] = {
-    for {
-      registry <- getCurrentRegistry()
-      _ <- initializeDefaultExports(registry)
-      prometheusServer <- http(registry, config.port)
-    } yield prometheusServer
-  }
+    with GrpcServer with HttpServer with PrometheusPublisher
 
   private def createAppLayer(appConfig: AppConfig): ZLayer[Any, Throwable, AppEnvironment] = {
     ZLayer.make[AppEnvironment](
@@ -72,8 +61,7 @@ object Main extends ZIOAppDefault {
       UserSearchGraphqlApi.apiInterpreter,
       GrpcApiServer.make(appConfig.grpcApi),
       HttpApiServer.make(appConfig.restApi),
-      Registry.live,
-      Exporters.live
+      Metrics.layer
     )
   }
 
@@ -85,7 +73,6 @@ object Main extends ZIOAppDefault {
         implicit rts: Runtime[AppEnvironment] =>
           UserSearchRepoInit.init *>
             DepartmentSearchRepoInit.init *>
-            metrics(appConfig.prometheus) *>
             KafkaConsumer.consume(appConfig.kafka) &>
             ZIO.never
       }

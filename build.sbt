@@ -3,24 +3,24 @@ Scope.Global / scalaVersion := "2.13.8"
 
 lazy val Versions = new {
   val kindProjector = "0.13.2"
-  val http4s = "0.23.12"
-  val zio = "2.0.2"
+  val http4s = "0.23.13"
+  val zio = "2.0.5"
   val zioInteropCats = "3.3.0"
-  val zioLogging = "2.1.1"
-  val zioMetrics = "2.0.0"
-  val zioKafka = "2.0.0"
-  val elastic4s = "8.4.1"
+  val zioLogging = "2.1.7"
+  val zioMetrics = "2.0.4"
+  val zioKafka = "2.0.2"
+  val elastic4s = "8.5.2"
   val jackson = "2.13.1"
   val circe = "0.14.1"
   val randomDataGenerator = "2.9"
-  val pureconfig = "0.17.1"
+  val pureconfig = "0.17.2"
   val refined = "0.10.1"
   val logback = "1.2.11"
-  val grpc = "1.49.0"
+  val grpc = "1.51.1"
   val chimney = "0.6.2"
-  val scalaJwt = "9.0.6"
-  val tapir = "1.1.0"
-  val caliban = "2.0.1"
+  val scalaJwt = "9.1.2"
+  val tapir = "1.2.4"
+  val caliban = "2.0.2"
 
   val gatling = "3.7.6"
   val gatlingGrpc = "0.13.0"
@@ -35,7 +35,7 @@ lazy val library =
     val zioInteropCats = "dev.zio" %% "zio-interop-cats"                              % Versions.zioInteropCats
     val zioKafka = "dev.zio" %% "zio-kafka"                                           % Versions.zioKafka
     val zioLoggingSlf4j = "dev.zio" %% "zio-logging-slf4j"                            % Versions.zioLogging
-    val zioMetricsPrometheus = "dev.zio" %% "zio-metrics-prometheus"                  % Versions.zioMetrics
+    val zioMetrics = "dev.zio" %% "zio-metrics-connectors"                            % Versions.zioMetrics
     val elastic4sClientEsjava = "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % Versions.elastic4s
     val elastic4sEffectZio = "com.sksamuel.elastic4s" %% "elastic4s-effect-zio"       % Versions.elastic4s
     val elastic4sJsonCirce = "com.sksamuel.elastic4s" %% "elastic4s-json-circe"       % Versions.elastic4s
@@ -193,9 +193,9 @@ lazy val `user-search-svc` =
         library.zioInteropCats,
         library.zioKafka,
         library.zioLoggingSlf4j,
-        library.zioMetricsPrometheus,
+        library.zioMetrics,
         library.elastic4sClientEsjava,
-//        library.elastic4sEffectZio, // FIXME when elastic4s will support zio2
+        library.elastic4sEffectZio,
         library.elastic4sJsonCirce,
         library.jacksonModuleScala,
         library.http4sCore,

@@ -11,7 +11,6 @@ final case class AppConfig(
   kafka: KafkaConfig,
   grpcApi: HttpApiConfig,
   restApi: HttpApiConfig,
-  prometheus: PrometheusConfig,
   jwt: JwtConfig)
 
 object AppConfig {
